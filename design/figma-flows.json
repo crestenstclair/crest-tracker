@@ -1,0 +1,857 @@
+{
+  "fileKey": "mvRQEFZc5Oi2ZbRkoHhXjH",
+  "page": {
+    "id": "2006:186",
+    "name": "13 · Tracker Flows"
+  },
+  "captured": "2026-09-21",
+  "roots": [
+    {
+      "id": "2033:3652",
+      "name": "01 / Controller hierarchy",
+      "type": "FRAME",
+      "x": 80,
+      "y": 80,
+      "width": 1840,
+      "height": 517,
+      "texts": [
+        {
+          "id": "2033:3653",
+          "name": "Title",
+          "text": "01 / Controller hierarchy",
+          "font": {
+            "family": "Azeret Mono",
+            "style": "Bold",
+            "variationSettings": {
+              "wght": 700
+            }
+          },
+          "fontSize": 32
+        },
+        {
+          "id": "2033:3654",
+          "name": "Description",
+          "text": "Default entry is Song. Navigation preserves the selected occurrence and local editing position.",
+          "font": {
+            "family": "Azeret Mono",
+            "style": "Regular",
+            "variationSettings": {
+              "wght": 400
+            }
+          },
+          "fontSize": 18
+        },
+        {
+          "id": "I2034:2;2033:31",
+          "name": "Title",
+          "text": "Song",
+          "font": {
+            "family": "Azeret Mono",
+            "style": "Bold",
+            "variationSettings": {
+              "wght": 700
+            }
+          },
+          "fontSize": 22
+        },
+        {
+          "id": "I2034:2;2033:32",
+          "name": "Detail",
+          "text": "Default arrangement. Select chains; each track keeps its own play position.",
+          "font": {
+            "family": "Azeret Mono",
+            "style": "Regular",
+            "variationSettings": {
+              "wght": 400
+            }
+          },
+          "fontSize": 15
+        },
+        {
+          "id": "2034:6",
+          "name": "Control",
+          "text": "SHIFT →",
+          "font": {
+            "family": "Azeret Mono",
+            "style": "Medium",
+            "variationSettings": {
+              "wght": 500
+            }
+          },
+          "fontSize": 13
+        },
+        {
+          "id": "I2034:9;2033:31",
+          "name": "Title",
+          "text": "Chain",
+          "font": {
+            "family": "Azeret Mono",
+            "style": "Bold",
+            "variationSettings": {
+              "wght": 700
+            }
+          },
+          "fontSize": 22
+        },
+        {
+          "id": "I2034:9;2033:32",
+          "name": "Detail",
+          "text": "Ordered phrases with repeats. Shared definitions remain reusable.",
+          "font": {
+            "family": "Azeret Mono",
+            "style": "Regular",
+            "variationSettings": {
+              "wght": 400
+            }
+          },
+          "fontSize": 15
+        },
+        {
+          "id": "2034:13",
+          "name": "Control",
+          "text": "SHIFT →",
+          "font": {
+            "family": "Azeret Mono",
+            "style": "Medium",
+            "variationSettings": {
+              "wght": 500
+            }
+          },
+          "fontSize": 13
+        },
+        {
+          "id": "I2034:16;2033:31",
+          "name": "Title",
+          "text": "Phrase",
+          "font": {
+            "family": "Azeret Mono",
+            "style": "Bold",
+            "variationSettings": {
+              "wght": 700
+            }
+          },
+          "fontSize": 22
+        },
+        {
+          "id": "I2034:16;2033:32",
+          "name": "Detail",
+          "text": "Note · instrument · velocity · three FX columns.",
+          "font": {
+            "family": "Azeret Mono",
+            "style": "Regular",
+            "variationSettings": {
+              "wght": 400
+            }
+          },
+          "fontSize": 15
+        },
+        {
+          "id": "2034:20",
+          "name": "Control",
+          "text": "SHIFT ↑",
+          "font": {
+            "family": "Azeret Mono",
+            "style": "Medium",
+            "variationSettings": {
+              "wght": 500
+            }
+          },
+          "fontSize": 13
+        },
+        {
+          "id": "I2034:23;2033:31",
+          "name": "Title",
+          "text": "Phrase settings",
+          "font": {
+            "family": "Azeret Mono",
+            "style": "Bold",
+            "variationSettings": {
+              "wght": 700
+            }
+          },
+          "fontSize": 22
+        },
+        {
+          "id": "I2034:23;2033:32",
+          "name": "Detail",
+          "text": "Local scale, length, division, type and inherited pitch-entry policy.",
+          "font": {
+            "family": "Azeret Mono",
+            "style": "Regular",
+            "variationSettings": {
+              "wght": 400
+            }
+          },
+          "fontSize": 15
+        },
+        {
+          "id": "2034:74",
+          "name": "Interaction rule",
+          "text": "SONG / Shift + Up → Settings. Shift + Down → Mixer. Shift + Back → navigation menu: Tracker · Instruments · Chord Bank · Mixer · Sends · Settings.",
+          "font": {
+            "family": "Azeret Mono",
+            "style": "Regular",
+            "variationSettings": {
+              "wght": 400
+            }
+          },
+          "fontSize": 17
+        },
+        {
+          "id": "2034:75",
+          "name": "Interaction rule",
+          "text": "EVERY OTHER VIEW / Shift + Down → Quick Jump. Expanded Tracker → Song with Shift + Left.",
+          "font": {
+            "family": "Azeret Mono",
+            "style": "Regular",
+            "variationSettings": {
+              "wght": 400
+            }
+          },
+          "fontSize": 17
+        },
+        {
+          "id": "2034:76",
+          "name": "Interaction rule",
+          "text": "SET AND SONGS / Shift + Up → settings for the selected song, including rename, edit and delete.",
+          "font": {
+            "family": "Azeret Mono",
+            "style": "Regular",
+            "variationSettings": {
+              "wght": 400
+            }
+          },
+          "fontSize": 17
+        }
+      ],
+      "instances": [
+        {
+          "id": "2034:2",
+          "name": "Tracker / Flow Card",
+          "componentId": "2033:30",
+          "properties": {
+            "Detail#2033:1": {
+              "type": "TEXT",
+              "value": "Default arrangement. Select chains; each track keeps its own play position."
+            },
+            "Title#2033:0": {
+              "type": "TEXT",
+              "value": "Song"
+            }
+          }
+        },
+        {
+          "id": "2034:9",
+          "name": "Tracker / Flow Card",
+          "componentId": "2033:30",
+          "properties": {
+            "Detail#2033:1": {
+              "type": "TEXT",
+              "value": "Ordered phrases with repeats. Shared definitions remain reusable."
+            },
+            "Title#2033:0": {
+              "type": "TEXT",
+              "value": "Chain"
+            }
+          }
+        },
+        {
+          "id": "2034:16",
+          "name": "Tracker / Flow Card",
+          "componentId": "2033:30",
+          "properties": {
+            "Detail#2033:1": {
+              "type": "TEXT",
+              "value": "Note · instrument · velocity · three FX columns."
+            },
+            "Title#2033:0": {
+              "type": "TEXT",
+              "value": "Phrase"
+            }
+          }
+        },
+        {
+          "id": "2034:23",
+          "name": "Tracker / Flow Card",
+          "componentId": "2033:30",
+          "properties": {
+            "Detail#2033:1": {
+              "type": "TEXT",
+              "value": "Local scale, length, division, type and inherited pitch-entry policy."
+            },
+            "Title#2033:0": {
+              "type": "TEXT",
+              "value": "Phrase settings"
+            }
+          }
+        }
+      ],
+      "links": []
+    },
+    {
+      "id": "2033:3656",
+      "name": "02 / ADD, intervals & chord bank",
+      "type": "FRAME",
+      "x": 80,
+      "y": 920,
+      "width": 1840,
+      "height": 517,
+      "texts": [
+        {
+          "id": "2033:3657",
+          "name": "Title",
+          "text": "02 / ADD, intervals & chord bank",
+          "font": {
+            "family": "Azeret Mono",
+            "style": "Bold",
+            "variationSettings": {
+              "wght": 700
+            }
+          },
+          "fontSize": 32
+        },
+        {
+          "id": "2033:3658",
+          "name": "Description",
+          "text": "An interval edit begins at the selected phrase FX cell and returns to that context.",
+          "font": {
+            "family": "Azeret Mono",
+            "style": "Regular",
+            "variationSettings": {
+              "wght": 400
+            }
+          },
+          "fontSize": 18
+        },
+        {
+          "id": "I2034:26;2033:31",
+          "name": "Title",
+          "text": "Chord FX value",
+          "font": {
+            "family": "Azeret Mono",
+            "style": "Bold",
+            "variationSettings": {
+              "wght": 700
+            }
+          },
+          "fontSize": 22
+        },
+        {
+          "id": "I2034:26;2033:32",
+          "name": "Detail",
+          "text": "Focus the chord effect value in the phrase grid.",
+          "font": {
+            "family": "Azeret Mono",
+            "style": "Regular",
+            "variationSettings": {
+              "wght": 400
+            }
+          },
+          "fontSize": 15
+        },
+        {
+          "id": "2034:30",
+          "name": "Control",
+          "text": "EDIT ↑",
+          "font": {
+            "family": "Azeret Mono",
+            "style": "Medium",
+            "variationSettings": {
+              "wght": 500
+            }
+          },
+          "fontSize": 13
+        },
+        {
+          "id": "I2034:33;2033:31",
+          "name": "Title",
+          "text": "Chord popover",
+          "font": {
+            "family": "Azeret Mono",
+            "style": "Bold",
+            "variationSettings": {
+              "wght": 700
+            }
+          },
+          "fontSize": 22
+        },
+        {
+          "id": "I2034:33;2033:32",
+          "name": "Detail",
+          "text": "Browse Default / Custom with Edit + Left/Right. Default offers Copy to Custom.",
+          "font": {
+            "family": "Azeret Mono",
+            "style": "Regular",
+            "variationSettings": {
+              "wght": 400
+            }
+          },
+          "fontSize": 15
+        },
+        {
+          "id": "2034:37",
+          "name": "Control",
+          "text": "EDIT INTERVALS",
+          "font": {
+            "family": "Azeret Mono",
+            "style": "Medium",
+            "variationSettings": {
+              "wght": 500
+            }
+          },
+          "fontSize": 13
+        },
+        {
+          "id": "I2034:40;2033:31",
+          "name": "Title",
+          "text": "Interval editor",
+          "font": {
+            "family": "Azeret Mono",
+            "style": "Bold",
+            "variationSettings": {
+              "wght": 700
+            }
+          },
+          "fontSize": 22
+        },
+        {
+          "id": "I2034:40;2033:32",
+          "name": "Detail",
+          "text": "Root-centered interval toggles and note preview.",
+          "font": {
+            "family": "Azeret Mono",
+            "style": "Regular",
+            "variationSettings": {
+              "wght": 400
+            }
+          },
+          "fontSize": 15
+        },
+        {
+          "id": "2034:44",
+          "name": "Control",
+          "text": "SAVE CHORD",
+          "font": {
+            "family": "Azeret Mono",
+            "style": "Medium",
+            "variationSettings": {
+              "wght": 500
+            }
+          },
+          "fontSize": 13
+        },
+        {
+          "id": "I2034:47;2033:31",
+          "name": "Title",
+          "text": "Save chord",
+          "font": {
+            "family": "Azeret Mono",
+            "style": "Bold",
+            "variationSettings": {
+              "wght": 700
+            }
+          },
+          "fontSize": 22
+        },
+        {
+          "id": "I2034:47;2033:32",
+          "name": "Detail",
+          "text": "Save a new editable Custom chord; preserve the source Default entry.",
+          "font": {
+            "family": "Azeret Mono",
+            "style": "Regular",
+            "variationSettings": {
+              "wght": 400
+            }
+          },
+          "fontSize": 15
+        },
+        {
+          "id": "2034:77",
+          "name": "Interaction rule",
+          "text": "SAVE / Release Edit, navigate down to Save and Select. Apply to the originating phrase cell.",
+          "font": {
+            "family": "Azeret Mono",
+            "style": "Regular",
+            "variationSettings": {
+              "wght": 400
+            }
+          },
+          "fontSize": 17
+        },
+        {
+          "id": "2034:78",
+          "name": "Interaction rule",
+          "text": "FX COMMAND / Edit + Up on the command opens the FX list; Up/Down browse quickly.",
+          "font": {
+            "family": "Azeret Mono",
+            "style": "Regular",
+            "variationSettings": {
+              "wght": 400
+            }
+          },
+          "fontSize": 17
+        },
+        {
+          "id": "2034:79",
+          "name": "Interaction rule",
+          "text": "SHARED EDIT / Before mutation, offer Create New or Edit Shared, with a Remember choice.",
+          "font": {
+            "family": "Azeret Mono",
+            "style": "Regular",
+            "variationSettings": {
+              "wght": 400
+            }
+          },
+          "fontSize": 17
+        }
+      ],
+      "instances": [
+        {
+          "id": "2034:26",
+          "name": "Tracker / Flow Card",
+          "componentId": "2033:30",
+          "properties": {
+            "Detail#2033:1": {
+              "type": "TEXT",
+              "value": "Focus the chord effect value in the phrase grid."
+            },
+            "Title#2033:0": {
+              "type": "TEXT",
+              "value": "Chord FX value"
+            }
+          }
+        },
+        {
+          "id": "2034:33",
+          "name": "Tracker / Flow Card",
+          "componentId": "2033:30",
+          "properties": {
+            "Detail#2033:1": {
+              "type": "TEXT",
+              "value": "Browse Default / Custom with Edit + Left/Right. Default offers Copy to Custom."
+            },
+            "Title#2033:0": {
+              "type": "TEXT",
+              "value": "Chord popover"
+            }
+          }
+        },
+        {
+          "id": "2034:40",
+          "name": "Tracker / Flow Card",
+          "componentId": "2033:30",
+          "properties": {
+            "Detail#2033:1": {
+              "type": "TEXT",
+              "value": "Root-centered interval toggles and note preview."
+            },
+            "Title#2033:0": {
+              "type": "TEXT",
+              "value": "Interval editor"
+            }
+          }
+        },
+        {
+          "id": "2034:47",
+          "name": "Tracker / Flow Card",
+          "componentId": "2033:30",
+          "properties": {
+            "Detail#2033:1": {
+              "type": "TEXT",
+              "value": "Save a new editable Custom chord; preserve the source Default entry."
+            },
+            "Title#2033:0": {
+              "type": "TEXT",
+              "value": "Save chord"
+            }
+          }
+        }
+      ],
+      "links": []
+    },
+    {
+      "id": "2033:3660",
+      "name": "03 / Expanded editing & shared sources",
+      "type": "FRAME",
+      "x": 80,
+      "y": 1700,
+      "width": 1840,
+      "height": 517,
+      "texts": [
+        {
+          "id": "2033:3661",
+          "name": "Title",
+          "text": "03 / Expanded editing & shared sources",
+          "font": {
+            "family": "Azeret Mono",
+            "style": "Bold",
+            "variationSettings": {
+              "wght": 700
+            }
+          },
+          "fontSize": 32
+        },
+        {
+          "id": "2033:3662",
+          "name": "Description",
+          "text": "Both views edit one sequence. A view group adds organization without becoming a pattern object.",
+          "font": {
+            "family": "Azeret Mono",
+            "style": "Regular",
+            "variationSettings": {
+              "wght": 400
+            }
+          },
+          "fontSize": 18
+        },
+        {
+          "id": "I2034:50;2033:31",
+          "name": "Title",
+          "text": "Multi-select chains",
+          "font": {
+            "family": "Azeret Mono",
+            "style": "Bold",
+            "variationSettings": {
+              "wght": 700
+            }
+          },
+          "fontSize": 22
+        },
+        {
+          "id": "I2034:50;2033:32",
+          "name": "Detail",
+          "text": "Select chain occurrences from Song. Save View Group remains available.",
+          "font": {
+            "family": "Azeret Mono",
+            "style": "Regular",
+            "variationSettings": {
+              "wght": 400
+            }
+          },
+          "fontSize": 15
+        },
+        {
+          "id": "2034:54",
+          "name": "Control",
+          "text": "EXPAND",
+          "font": {
+            "family": "Azeret Mono",
+            "style": "Medium",
+            "variationSettings": {
+              "wght": 500
+            }
+          },
+          "fontSize": 13
+        },
+        {
+          "id": "I2034:57;2033:31",
+          "name": "Title",
+          "text": "Expanded tracker",
+          "font": {
+            "family": "Azeret Mono",
+            "style": "Bold",
+            "variationSettings": {
+              "wght": 700
+            }
+          },
+          "fontSize": 22
+        },
+        {
+          "id": "I2034:57;2033:32",
+          "name": "Detail",
+          "text": "Chain headers, separated phrases, per-note destinations and one time ruler.",
+          "font": {
+            "family": "Azeret Mono",
+            "style": "Regular",
+            "variationSettings": {
+              "wght": 400
+            }
+          },
+          "fontSize": 15
+        },
+        {
+          "id": "2034:61",
+          "name": "Control",
+          "text": "EDIT REFERENCE",
+          "font": {
+            "family": "Azeret Mono",
+            "style": "Medium",
+            "variationSettings": {
+              "wght": 500
+            }
+          },
+          "fontSize": 13
+        },
+        {
+          "id": "I2034:64;2033:31",
+          "name": "Title",
+          "text": "Reference choice",
+          "font": {
+            "family": "Azeret Mono",
+            "style": "Bold",
+            "variationSettings": {
+              "wght": 700
+            }
+          },
+          "fontSize": 22
+        },
+        {
+          "id": "I2034:64;2033:32",
+          "name": "Detail",
+          "text": "Create New, Edit Shared, Remember, or inspect every use.",
+          "font": {
+            "family": "Azeret Mono",
+            "style": "Regular",
+            "variationSettings": {
+              "wght": 400
+            }
+          },
+          "fontSize": 15
+        },
+        {
+          "id": "2034:68",
+          "name": "Control",
+          "text": "CREATE NEW",
+          "font": {
+            "family": "Azeret Mono",
+            "style": "Medium",
+            "variationSettings": {
+              "wght": 500
+            }
+          },
+          "fontSize": 13
+        },
+        {
+          "id": "I2034:71;2033:31",
+          "name": "Title",
+          "text": "Make unique",
+          "font": {
+            "family": "Azeret Mono",
+            "style": "Bold",
+            "variationSettings": {
+              "wght": 700
+            }
+          },
+          "fontSize": 22
+        },
+        {
+          "id": "I2034:71;2033:32",
+          "name": "Detail",
+          "text": "Isolate this occurrence; copy the containing chain when necessary.",
+          "font": {
+            "family": "Azeret Mono",
+            "style": "Regular",
+            "variationSettings": {
+              "wght": 400
+            }
+          },
+          "fontSize": 15
+        },
+        {
+          "id": "2034:80",
+          "name": "Interaction rule",
+          "text": "SHOW REFERENCES / See song, track, arrangement position, chain and phrase position for every use.",
+          "font": {
+            "family": "Azeret Mono",
+            "style": "Regular",
+            "variationSettings": {
+              "wght": 400
+            }
+          },
+          "fontSize": 17
+        },
+        {
+          "id": "2034:81",
+          "name": "Interaction rule",
+          "text": "SCROLL / Continue through all phrases in each selected chain. Separators identify phrase boundaries.",
+          "font": {
+            "family": "Azeret Mono",
+            "style": "Regular",
+            "variationSettings": {
+              "wght": 400
+            }
+          },
+          "fontSize": 17
+        },
+        {
+          "id": "2034:82",
+          "name": "Interaction rule",
+          "text": "RETURN / Shift + Left exits Expanded Tracker to Song. Group actions and Save View Group are retained.",
+          "font": {
+            "family": "Azeret Mono",
+            "style": "Regular",
+            "variationSettings": {
+              "wght": 400
+            }
+          },
+          "fontSize": 17
+        }
+      ],
+      "instances": [
+        {
+          "id": "2034:50",
+          "name": "Tracker / Flow Card",
+          "componentId": "2033:30",
+          "properties": {
+            "Detail#2033:1": {
+              "type": "TEXT",
+              "value": "Select chain occurrences from Song. Save View Group remains available."
+            },
+            "Title#2033:0": {
+              "type": "TEXT",
+              "value": "Multi-select chains"
+            }
+          }
+        },
+        {
+          "id": "2034:57",
+          "name": "Tracker / Flow Card",
+          "componentId": "2033:30",
+          "properties": {
+            "Detail#2033:1": {
+              "type": "TEXT",
+              "value": "Chain headers, separated phrases, per-note destinations and one time ruler."
+            },
+            "Title#2033:0": {
+              "type": "TEXT",
+              "value": "Expanded tracker"
+            }
+          }
+        },
+        {
+          "id": "2034:64",
+          "name": "Tracker / Flow Card",
+          "componentId": "2033:30",
+          "properties": {
+            "Detail#2033:1": {
+              "type": "TEXT",
+              "value": "Create New, Edit Shared, Remember, or inspect every use."
+            },
+            "Title#2033:0": {
+              "type": "TEXT",
+              "value": "Reference choice"
+            }
+          }
+        },
+        {
+          "id": "2034:71",
+          "name": "Tracker / Flow Card",
+          "componentId": "2033:30",
+          "properties": {
+            "Detail#2033:1": {
+              "type": "TEXT",
+              "value": "Isolate this occurrence; copy the containing chain when necessary."
+            },
+            "Title#2033:0": {
+              "type": "TEXT",
+              "value": "Make unique"
+            }
+          }
+        }
+      ],
+      "links": []
+    }
+  ],
+  "variables": []
+}

@@ -1,0 +1,180 @@
+{
+  "fileKey": "mvRQEFZc5Oi2ZbRkoHhXjH",
+  "page": {
+    "id": "2006:183",
+    "name": "10 · Tracker Guide"
+  },
+  "captured": "2026-09-21",
+  "roots": [
+    {
+      "id": "2030:3117",
+      "name": "Crest Tracker / Start here",
+      "type": "FRAME",
+      "x": 80,
+      "y": 80,
+      "width": 1440,
+      "height": 1157,
+      "texts": [
+        {
+          "id": "2030:3118",
+          "name": "Document label",
+          "text": "CREST TRACKER  /  DEVELOPMENT REFERENCE",
+          "font": {
+            "family": "Azeret Mono",
+            "style": "Medium",
+            "variationSettings": {
+              "wght": 500
+            }
+          },
+          "fontSize": 14
+        },
+        {
+          "id": "2030:3119",
+          "name": "Document title",
+          "text": "Crest Tracker / Start here",
+          "font": {
+            "family": "Azeret Mono",
+            "style": "Bold",
+            "variationSettings": {
+              "wght": 700
+            }
+          },
+          "fontSize": 32
+        },
+        {
+          "id": "2030:3120",
+          "name": "Document summary",
+          "text": "Source of truth for the Tracker experience. Start with Song, then follow the hierarchy or open the expanded tracker.",
+          "font": {
+            "family": "Azeret Mono",
+            "style": "Regular",
+            "variationSettings": {
+              "wght": 400
+            }
+          },
+          "fontSize": 18
+        },
+        {
+          "id": "2032:3667",
+          "name": "01 / Open Song",
+          "text": "01 / Open Song ↗\nDefault entry. Order chains across 16 tracks. Shift Up opens Settings; Shift Down opens Mixer.",
+          "font": {
+            "family": "Azeret Mono",
+            "style": "Bold",
+            "variationSettings": {
+              "wght": 700
+            }
+          },
+          "fontSize": 18
+        },
+        {
+          "id": "2032:3668",
+          "name": "02 / Expand selected chains",
+          "text": "02 / Expand selected chains ↗\nEnable multi-select, choose chain occurrences, then expand. Chain headers stay visible, phrase separators show structure, and every phrase scrolls on musical time.",
+          "font": {
+            "family": "Azeret Mono",
+            "style": "Bold",
+            "variationSettings": {
+              "wght": 700
+            }
+          },
+          "fontSize": 18
+        },
+        {
+          "id": "2032:3669",
+          "name": "03 / Phrase notes and destinations",
+          "text": "03 / Phrase notes and destinations ↗\nNote · Instrument · Velocity · FX 1 · FX 2 · FX 3. Choose a specific instrument or a whole MIDI channel in the grid.",
+          "font": {
+            "family": "Azeret Mono",
+            "style": "Bold",
+            "variationSettings": {
+              "wght": 700
+            }
+          },
+          "fontSize": 18
+        },
+        {
+          "id": "2032:3670",
+          "name": "04 / Contextual chord and FX popovers",
+          "text": "04 / Contextual chord and FX popovers ↗\nEdit + Up opens the picker. Edit + Left/Right cycles chords; release Edit, move down and Save. Default is read-only per song; copy or search into editable Custom. VOI / SPR preview the exact voiced notes.",
+          "font": {
+            "family": "Azeret Mono",
+            "style": "Bold",
+            "variationSettings": {
+              "wght": 700
+            }
+          },
+          "fontSize": 18
+        },
+        {
+          "id": "2032:3671",
+          "name": "05 / Shared references and copies",
+          "text": "05 / Shared references and copies ↗\nInspect every use. Before editing a reference, choose Create New or Edit Shared; the Remember option is included for review.",
+          "font": {
+            "family": "Azeret Mono",
+            "style": "Bold",
+            "variationSettings": {
+              "wght": 700
+            }
+          },
+          "fontSize": 18
+        },
+        {
+          "id": "2032:3672",
+          "name": "06 / Sets, songs and shared banks",
+          "text": "06 / Sets, songs and shared banks ↗\nRename/save the set, open songs and use Shift Up for Song Settings. Instruments and Custom chords are shared across sets. Each song derives its own Default chords from key/scale.",
+          "font": {
+            "family": "Azeret Mono",
+            "style": "Bold",
+            "variationSettings": {
+              "wght": 700
+            }
+          },
+          "fontSize": 18
+        },
+        {
+          "id": "2032:3673",
+          "name": "07 / Review the development contracts",
+          "text": "07 / Review the development contracts ↗\nConfirmed requirements and proposed details are labeled separately. Drum awaits its reference; Euclidean and Randomizer layouts remain provisional.",
+          "font": {
+            "family": "Azeret Mono",
+            "style": "Bold",
+            "variationSettings": {
+              "wght": 700
+            }
+          },
+          "fontSize": 18
+        },
+        {
+          "id": "2032:3674",
+          "name": "08 / Prototype and visual flows",
+          "text": "08 / Prototype and visual flows ↗\nStart from Song using the prototype link. Click controls and try Shift + arrows; E demonstrates Edit. Numeric editing and MIDI playback are illustrative.",
+          "font": {
+            "family": "Azeret Mono",
+            "style": "Bold",
+            "variationSettings": {
+              "wght": 700
+            }
+          },
+          "fontSize": 18
+        },
+        {
+          "id": "2081:5638",
+          "name": "07 / Review the development contracts",
+          "text": "09 / Architecture, events and implementation phases ↗\nA00 defines boundaries; D01 maps domain events and D02 shows FX/cursors. A09–A10 are the implementation roadmap. A12–A14 cover scale entry, Default/Custom banks and chord voicing.",
+          "font": {
+            "family": "Azeret Mono",
+            "style": "Bold",
+            "variationSettings": {
+              "wght": 700
+            }
+          },
+          "fontSize": 18
+        }
+      ],
+      "instances": [],
+      "links": []
+    }
+  ],
+  "variables": []
+}

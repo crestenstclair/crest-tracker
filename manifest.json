@@ -1,0 +1,187 @@
+{
+  "project": "Crest Tracker",
+  "prepared": "2026-09-21",
+  "figma": "https://www.figma.com/design/mvRQEFZc5Oi2ZbRkoHhXjH/Crest-Tracker",
+  "architectureContentVersion": 4,
+  "files": [
+    {
+      "path": "Crest-Tracker-Architecture-v1.md",
+      "bytes": 52531,
+      "sha256": "9c2797a6f7ebf09dc2735c298d6ad9e68e74ca5129be75dad1a32bb2a923690d"
+    },
+    {
+      "path": "README.md",
+      "bytes": 3669,
+      "sha256": "2af9ab17fd3ded6525fc64699c53410786471d1cd0a11a632d4adf22b7a78aff"
+    },
+    {
+      "path": "archive/Crest-Tracker-Design-Notes.md",
+      "bytes": 25194,
+      "sha256": "0762d4e110705bdc2bdf4773be3fdaaa1f02957d4c6adb1325089301b2c4a1c2"
+    },
+    {
+      "path": "design/chord-voicing.png",
+      "bytes": 34588,
+      "sha256": "fdf6eccb07df2ecb243857bd8fb747c1c134171607eb7310c6f105750e5e2cdc"
+    },
+    {
+      "path": "design/default-chord-bank.png",
+      "bytes": 51396,
+      "sha256": "949ac7de91f6fa978bc79877ec2b967358c55258c19f60a1141c24028825ad30"
+    },
+    {
+      "path": "design/design-contracts.md",
+      "bytes": 19499,
+      "sha256": "082aae9705ee7a0dd900f40fd666efd9b7ad97e221849a8cc0064cb6d5fccfa5"
+    },
+    {
+      "path": "design/event-map.png",
+      "bytes": 177531,
+      "sha256": "5cfb646fdf4d1474f36630cc868b3dc8a0397bc75ef6d62459ab592db6e75331"
+    },
+    {
+      "path": "design/expanded.png",
+      "bytes": 106448,
+      "sha256": "d9bc94faadc188860b3211d5698d88ae40f4dc77714b211bd1c65553f31ce2f3"
+    },
+    {
+      "path": "design/figma-architecture.json",
+      "bytes": 49434,
+      "sha256": "05ef34268b0889aa85f3873cc5c14abba38068c0b4f68bfd2bc8098cc37867f7"
+    },
+    {
+      "path": "design/figma-components.json",
+      "bytes": 13669,
+      "sha256": "516c00abc204c4286b05def1438f8a26575f80073032fc823ff7a514208edc8d"
+    },
+    {
+      "path": "design/figma-contracts.json",
+      "bytes": 21452,
+      "sha256": "f8ada91369f3258f2a2ec7a5cb1c2b44bc421f78c6b292def105c90e21032925"
+    },
+    {
+      "path": "design/figma-flows.json",
+      "bytes": 23178,
+      "sha256": "032bb6ba0058d8139d06dd7648269f0c86bda9745530d1a9cbd3e05259b2f31b"
+    },
+    {
+      "path": "design/figma-guide.json",
+      "bytes": 6170,
+      "sha256": "1677c12d18c01a21efba3290cbebc60452406727d62e04e2d68c292a25d666ca"
+    },
+    {
+      "path": "design/figma-screens.json",
+      "bytes": 399560,
+      "sha256": "70ab0d87c30c60ca7b765313ed69eafee628d4dadb382996d7c4bc5559999695"
+    },
+    {
+      "path": "design/minimap.png",
+      "bytes": 62000,
+      "sha256": "0dfa2e6ec8f4861ebe1ced510dc965085104cce1a8a77a215b9aafe79d956570"
+    },
+    {
+      "path": "design/phrase-fx-pipeline.png",
+      "bytes": 171717,
+      "sha256": "e604ebfbda9183676d98f9aee476c425c6a616b7287492296924fde703d171aa"
+    },
+    {
+      "path": "design/phrase.png",
+      "bytes": 54972,
+      "sha256": "72e40a4f7f37e839d82e540b06ae13c1443addda6f597a784dd6f33274d95748"
+    },
+    {
+      "path": "design/screen-index.md",
+      "bytes": 15136,
+      "sha256": "aa056c0095a32c32edc8158f79a2db546a98e01e7998e04b237c94f2888217bc"
+    },
+    {
+      "path": "design/song-minimap.md",
+      "bytes": 2075,
+      "sha256": "24fa9d6fb6b6dfa33787365cd0fd9ba371d593a16c4b28b8720cd0f5ee3f3c0f"
+    },
+    {
+      "path": "design/song-view-picker.png",
+      "bytes": 25958,
+      "sha256": "d98d5cc86ded30b3dd357f88abce801c29aceee2a544122969e9aaadc4ce7a38"
+    },
+    {
+      "path": "design/song.png",
+      "bytes": 54547,
+      "sha256": "f3efbd5c94c7aef234c6d6ace59a7481da24176173ce9e17041342dca4039987"
+    },
+    {
+      "path": "design/tokens.json",
+      "bytes": 19103,
+      "sha256": "8bb92bd18a8e99fbe779003eb2b4d086412bff96520c4f51fc2a775a7e3585b9"
+    },
+    {
+      "path": "event-map.md",
+      "bytes": 8112,
+      "sha256": "aa4e4beb72ecdd3eda176a4ece759966a1dcb5400d5d4515ea119bb619b81fb9"
+    },
+    {
+      "path": "implementation-kickoff.md",
+      "bytes": 4326,
+      "sha256": "9cc74fcb2f8008003125d321f47a58e12b8d9187ed0fe62c2ae196d4176e0ed9"
+    },
+    {
+      "path": "implementation-plan.md",
+      "bytes": 8437,
+      "sha256": "01d755d08925adc750e044bd42a23279f20a01ada55fcfdaf0a60879ab4a0b66"
+    },
+    {
+      "path": "open-decisions.md",
+      "bytes": 5781,
+      "sha256": "815c8fdb5b5d75508391834d656a103fb70a33883f7f71f4092e3bd1b7da4182"
+    },
+    {
+      "path": "product-spec.md",
+      "bytes": 12578,
+      "sha256": "4131d3446d9db85bbfb559cf67b3e6cd94bd39da1c07b3a989884a68eed4d6ed"
+    },
+    {
+      "path": "references/6988270f-b552-4f0c-955e-7e2084d22c27.png",
+      "bytes": 286207,
+      "sha256": "a34b2384346669fd536326cbe282369044887d3dd1a68f4d438a5eb039eb474c"
+    },
+    {
+      "path": "references/README.md",
+      "bytes": 2776,
+      "sha256": "f3127b568de5f1c860b06110f424d5b6b45dd4e69228b1d9cfd7e3518a703b01"
+    },
+    {
+      "path": "references/a420e0c0-9933-49a6-b3e2-2d430f4faffe.png",
+      "bytes": 241217,
+      "sha256": "92e3a4a3d0a55550b8fe7cae82ac4ac4006566c775b5db57761e4ceaa81f5def"
+    },
+    {
+      "path": "references/aaaccc19-5482-46f7-b721-2cb2552f808c.png",
+      "bytes": 229434,
+      "sha256": "1f3c25a18253b24ce338040dbd6317372b660665aa57ee7ec4c7bf345f7fcc12"
+    },
+    {
+      "path": "references/d0f43de9-9b4a-4bef-b560-197b157fa04c.png",
+      "bytes": 311879,
+      "sha256": "cbcc7a6ad7f5235cb8e7ea3b574b41185700a133f2a6301d5cd647113ac2709e"
+    },
+    {
+      "path": "references/f080979c-a345-41e5-9b1c-e70196948bbc.png",
+      "bytes": 273404,
+      "sha256": "059ac75a64417ae3f319f2f706587b0e5cac1b543fb7ccec151bd3ede9dacb63"
+    },
+    {
+      "path": "references/oxi-one-mkii-manual.pdf",
+      "bytes": 9775895,
+      "sha256": "c867c7bff23ed6603389f02b66927f29b32e711aff079ca288eab469e0373fb1"
+    }
+  ],
+  "inventoryExclusions": [
+    "manifest.json (self)",
+    "crest-tracker-handoff.zip (derived archive)"
+  ],
+  "limitations": [
+    "No Crest Synth repository or verified API implementation included.",
+    "Figma JSON exports are snapshots, not a native .fig backup.",
+    "Generator and minimap layout proposals remain explicitly provisional."
+  ]
+}

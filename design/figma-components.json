@@ -1,0 +1,639 @@
+{
+  "fileKey": "mvRQEFZc5Oi2ZbRkoHhXjH",
+  "page": {
+    "id": "2006:185",
+    "name": "12 · Tracker Components"
+  },
+  "captured": "2026-09-21",
+  "roots": [
+    {
+      "id": "2008:10",
+      "name": "Tracker / Cell",
+      "type": "COMPONENT_SET",
+      "x": 80,
+      "y": 160,
+      "width": 844,
+      "height": 116,
+      "texts": [
+        {
+          "id": "2007:3",
+          "name": "Value",
+          "text": "C4"
+        },
+        {
+          "id": "2008:3",
+          "name": "Value",
+          "text": "C4"
+        },
+        {
+          "id": "2008:5",
+          "name": "Value",
+          "text": "C4"
+        },
+        {
+          "id": "2008:7",
+          "name": "Value",
+          "text": "C4"
+        },
+        {
+          "id": "2008:9",
+          "name": "Value",
+          "text": "C4"
+        }
+      ],
+      "links": []
+    },
+    {
+      "id": "2009:2",
+      "name": "Tracker / Column",
+      "type": "COMPONENT",
+      "x": 80,
+      "y": 360,
+      "width": 140,
+      "height": 512,
+      "texts": [
+        {
+          "id": "2009:3",
+          "name": "Title",
+          "text": "01 / DRUMS"
+        },
+        {
+          "id": "I2009:4;2007:3",
+          "name": "Value",
+          "text": "01"
+        },
+        {
+          "id": "I2009:6;2007:3",
+          "name": "Value",
+          "text": "02"
+        },
+        {
+          "id": "I2009:8;2007:3",
+          "name": "Value",
+          "text": "03"
+        },
+        {
+          "id": "I2009:10;2007:3",
+          "name": "Value",
+          "text": "04"
+        },
+        {
+          "id": "I2009:12;2007:3",
+          "name": "Value",
+          "text": "05"
+        },
+        {
+          "id": "I2009:14;2007:3",
+          "name": "Value",
+          "text": "06"
+        },
+        {
+          "id": "I2009:16;2007:3",
+          "name": "Value",
+          "text": "07"
+        },
+        {
+          "id": "I2009:18;2007:3",
+          "name": "Value",
+          "text": "08"
+        },
+        {
+          "id": "I2010:10;2007:3",
+          "name": "Value",
+          "text": "—"
+        },
+        {
+          "id": "I2010:12;2007:3",
+          "name": "Value",
+          "text": "—"
+        },
+        {
+          "id": "I2010:14;2007:3",
+          "name": "Value",
+          "text": "—"
+        },
+        {
+          "id": "I2010:16;2007:3",
+          "name": "Value",
+          "text": "—"
+        }
+      ],
+      "links": []
+    },
+    {
+      "id": "2015:382",
+      "name": "Tracker / Setting Row",
+      "type": "COMPONENT_SET",
+      "x": 1080,
+      "y": 160,
+      "width": 1280,
+      "height": 168,
+      "texts": [
+        {
+          "id": "2015:373",
+          "name": "Prefix",
+          "text": " "
+        },
+        {
+          "id": "2015:374",
+          "name": "Kind",
+          "text": "[f]"
+        },
+        {
+          "id": "2015:375",
+          "name": "Label",
+          "text": "BPM"
+        },
+        {
+          "id": "2015:376",
+          "name": "Meta",
+          "text": "120 BPM"
+        },
+        {
+          "id": "2015:378",
+          "name": "Prefix",
+          "text": ">"
+        },
+        {
+          "id": "2015:379",
+          "name": "Kind",
+          "text": "[f]"
+        },
+        {
+          "id": "2015:380",
+          "name": "Label",
+          "text": "BPM"
+        },
+        {
+          "id": "2015:381",
+          "name": "Meta",
+          "text": "120 BPM"
+        }
+      ],
+      "links": []
+    },
+    {
+      "id": "2024:14",
+      "name": "Tracker / Step Lane",
+      "type": "COMPONENT",
+      "x": 1080,
+      "y": 440,
+      "width": 1232,
+      "height": 48,
+      "texts": [
+        {
+          "id": "2024:15",
+          "name": "Lane label",
+          "text": "C2 / KICK"
+        },
+        {
+          "id": "I2024:16;2007:3",
+          "name": "Value",
+          "text": "·"
+        },
+        {
+          "id": "I2024:18;2007:3",
+          "name": "Value",
+          "text": "·"
+        },
+        {
+          "id": "I2024:20;2007:3",
+          "name": "Value",
+          "text": "·"
+        },
+        {
+          "id": "I2024:22;2007:3",
+          "name": "Value",
+          "text": "·"
+        },
+        {
+          "id": "I2024:24;2007:3",
+          "name": "Value",
+          "text": "·"
+        },
+        {
+          "id": "I2024:26;2007:3",
+          "name": "Value",
+          "text": "·"
+        },
+        {
+          "id": "I2024:28;2007:3",
+          "name": "Value",
+          "text": "·"
+        },
+        {
+          "id": "I2024:30;2007:3",
+          "name": "Value",
+          "text": "·"
+        },
+        {
+          "id": "I2024:2118;2007:3",
+          "name": "Value",
+          "text": "·"
+        },
+        {
+          "id": "I2024:2120;2007:3",
+          "name": "Value",
+          "text": "·"
+        },
+        {
+          "id": "I2024:2122;2007:3",
+          "name": "Value",
+          "text": "·"
+        },
+        {
+          "id": "I2024:2124;2007:3",
+          "name": "Value",
+          "text": "·"
+        },
+        {
+          "id": "I2024:2126;2007:3",
+          "name": "Value",
+          "text": "·"
+        },
+        {
+          "id": "I2024:2128;2007:3",
+          "name": "Value",
+          "text": "·"
+        },
+        {
+          "id": "I2024:2130;2007:3",
+          "name": "Value",
+          "text": "·"
+        },
+        {
+          "id": "I2024:2132;2007:3",
+          "name": "Value",
+          "text": "·"
+        }
+      ],
+      "links": []
+    },
+    {
+      "id": "2033:30",
+      "name": "Tracker / Flow Card",
+      "type": "COMPONENT",
+      "x": 80,
+      "y": 1150,
+      "width": 320,
+      "height": 172,
+      "texts": [
+        {
+          "id": "2033:31",
+          "name": "Title",
+          "text": "Song"
+        },
+        {
+          "id": "2033:32",
+          "name": "Detail",
+          "text": "Order chain references across 16 tracks."
+        }
+      ],
+      "links": []
+    },
+    {
+      "id": "2046:30",
+      "name": "Tracker / Compact Column",
+      "type": "COMPONENT",
+      "x": 800,
+      "y": 1150,
+      "width": 100,
+      "height": 232,
+      "texts": [
+        {
+          "id": "2046:31",
+          "name": "Title",
+          "text": "01 / DRUMS"
+        },
+        {
+          "id": "I2046:32;2007:3",
+          "name": "Value",
+          "text": "01"
+        },
+        {
+          "id": "I2046:33;2007:3",
+          "name": "Value",
+          "text": "02"
+        },
+        {
+          "id": "I2046:34;2007:3",
+          "name": "Value",
+          "text": "03"
+        },
+        {
+          "id": "I2046:35;2007:3",
+          "name": "Value",
+          "text": "04"
+        },
+        {
+          "id": "I2046:36;2007:3",
+          "name": "Value",
+          "text": "05"
+        },
+        {
+          "id": "I2046:37;2007:3",
+          "name": "Value",
+          "text": "06"
+        },
+        {
+          "id": "I2046:38;2007:3",
+          "name": "Value",
+          "text": "07"
+        },
+        {
+          "id": "I2046:39;2007:3",
+          "name": "Value",
+          "text": "08"
+        }
+      ],
+      "links": []
+    },
+    {
+      "id": "2046:56",
+      "name": "Tracker / Expanded Phrase Segment",
+      "type": "COMPONENT",
+      "x": 1000,
+      "y": 1150,
+      "width": 448,
+      "height": 264,
+      "texts": [
+        {
+          "id": "2046:57",
+          "name": "Phrase boundary",
+          "text": "PHRASE 01 · 16 STEPS · 4 USES"
+        },
+        {
+          "id": "I2046:59;2046:31",
+          "name": "Title",
+          "text": "NOTE"
+        },
+        {
+          "id": "I2046:59;2046:32;2007:3",
+          "name": "Value",
+          "text": "01"
+        },
+        {
+          "id": "I2046:59;2046:33;2007:3",
+          "name": "Value",
+          "text": "02"
+        },
+        {
+          "id": "I2046:59;2046:34;2007:3",
+          "name": "Value",
+          "text": "03"
+        },
+        {
+          "id": "I2046:59;2046:35;2007:3",
+          "name": "Value",
+          "text": "04"
+        },
+        {
+          "id": "I2046:59;2046:36;2007:3",
+          "name": "Value",
+          "text": "05"
+        },
+        {
+          "id": "I2046:59;2046:37;2007:3",
+          "name": "Value",
+          "text": "06"
+        },
+        {
+          "id": "I2046:59;2046:38;2007:3",
+          "name": "Value",
+          "text": "07"
+        },
+        {
+          "id": "I2046:59;2046:39;2007:3",
+          "name": "Value",
+          "text": "08"
+        },
+        {
+          "id": "I2046:77;2046:31",
+          "name": "Title",
+          "text": "INST"
+        },
+        {
+          "id": "I2046:77;2046:32;2007:3",
+          "name": "Value",
+          "text": "01"
+        },
+        {
+          "id": "I2046:77;2046:33;2007:3",
+          "name": "Value",
+          "text": "02"
+        },
+        {
+          "id": "I2046:77;2046:34;2007:3",
+          "name": "Value",
+          "text": "03"
+        },
+        {
+          "id": "I2046:77;2046:35;2007:3",
+          "name": "Value",
+          "text": "04"
+        },
+        {
+          "id": "I2046:77;2046:36;2007:3",
+          "name": "Value",
+          "text": "05"
+        },
+        {
+          "id": "I2046:77;2046:37;2007:3",
+          "name": "Value",
+          "text": "06"
+        },
+        {
+          "id": "I2046:77;2046:38;2007:3",
+          "name": "Value",
+          "text": "07"
+        },
+        {
+          "id": "I2046:77;2046:39;2007:3",
+          "name": "Value",
+          "text": "08"
+        },
+        {
+          "id": "I2046:95;2046:31",
+          "name": "Title",
+          "text": "VEL"
+        },
+        {
+          "id": "I2046:95;2046:32;2007:3",
+          "name": "Value",
+          "text": "01"
+        },
+        {
+          "id": "I2046:95;2046:33;2007:3",
+          "name": "Value",
+          "text": "02"
+        },
+        {
+          "id": "I2046:95;2046:34;2007:3",
+          "name": "Value",
+          "text": "03"
+        },
+        {
+          "id": "I2046:95;2046:35;2007:3",
+          "name": "Value",
+          "text": "04"
+        },
+        {
+          "id": "I2046:95;2046:36;2007:3",
+          "name": "Value",
+          "text": "05"
+        },
+        {
+          "id": "I2046:95;2046:37;2007:3",
+          "name": "Value",
+          "text": "06"
+        },
+        {
+          "id": "I2046:95;2046:38;2007:3",
+          "name": "Value",
+          "text": "07"
+        },
+        {
+          "id": "I2046:95;2046:39;2007:3",
+          "name": "Value",
+          "text": "08"
+        },
+        {
+          "id": "I2046:113;2046:31",
+          "name": "Title",
+          "text": "FX 1"
+        },
+        {
+          "id": "I2046:113;2046:32;2007:3",
+          "name": "Value",
+          "text": "01"
+        },
+        {
+          "id": "I2046:113;2046:33;2007:3",
+          "name": "Value",
+          "text": "02"
+        },
+        {
+          "id": "I2046:113;2046:34;2007:3",
+          "name": "Value",
+          "text": "03"
+        },
+        {
+          "id": "I2046:113;2046:35;2007:3",
+          "name": "Value",
+          "text": "04"
+        },
+        {
+          "id": "I2046:113;2046:36;2007:3",
+          "name": "Value",
+          "text": "05"
+        },
+        {
+          "id": "I2046:113;2046:37;2007:3",
+          "name": "Value",
+          "text": "06"
+        },
+        {
+          "id": "I2046:113;2046:38;2007:3",
+          "name": "Value",
+          "text": "07"
+        },
+        {
+          "id": "I2046:113;2046:39;2007:3",
+          "name": "Value",
+          "text": "08"
+        },
+        {
+          "id": "I2046:131;2046:31",
+          "name": "Title",
+          "text": "FX 2"
+        },
+        {
+          "id": "I2046:131;2046:32;2007:3",
+          "name": "Value",
+          "text": "01"
+        },
+        {
+          "id": "I2046:131;2046:33;2007:3",
+          "name": "Value",
+          "text": "02"
+        },
+        {
+          "id": "I2046:131;2046:34;2007:3",
+          "name": "Value",
+          "text": "03"
+        },
+        {
+          "id": "I2046:131;2046:35;2007:3",
+          "name": "Value",
+          "text": "04"
+        },
+        {
+          "id": "I2046:131;2046:36;2007:3",
+          "name": "Value",
+          "text": "05"
+        },
+        {
+          "id": "I2046:131;2046:37;2007:3",
+          "name": "Value",
+          "text": "06"
+        },
+        {
+          "id": "I2046:131;2046:38;2007:3",
+          "name": "Value",
+          "text": "07"
+        },
+        {
+          "id": "I2046:131;2046:39;2007:3",
+          "name": "Value",
+          "text": "08"
+        },
+        {
+          "id": "I2046:149;2046:31",
+          "name": "Title",
+          "text": "FX 3"
+        },
+        {
+          "id": "I2046:149;2046:32;2007:3",
+          "name": "Value",
+          "text": "01"
+        },
+        {
+          "id": "I2046:149;2046:33;2007:3",
+          "name": "Value",
+          "text": "02"
+        },
+        {
+          "id": "I2046:149;2046:34;2007:3",
+          "name": "Value",
+          "text": "03"
+        },
+        {
+          "id": "I2046:149;2046:35;2007:3",
+          "name": "Value",
+          "text": "04"
+        },
+        {
+          "id": "I2046:149;2046:36;2007:3",
+          "name": "Value",
+          "text": "05"
+        },
+        {
+          "id": "I2046:149;2046:37;2007:3",
+          "name": "Value",
+          "text": "06"
+        },
+        {
+          "id": "I2046:149;2046:38;2007:3",
+          "name": "Value",
+          "text": "07"
+        },
+        {
+          "id": "I2046:149;2046:39;2007:3",
+          "name": "Value",
+          "text": "08"
+        }
+      ],
+      "links": []
+    }
+  ]
+}
