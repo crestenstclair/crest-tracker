@@ -21,7 +21,6 @@
         " ",
         "INSTRUMENTS",
         "STOPPED",
-        "SONG 01",
         " / NIGHT CURRENT",
         "120 BPM · C MINOR · 16 TRACKS",
         "VIEW / CHAINS ▾",
@@ -1227,9 +1226,8 @@
         " ",
         "INSTRUMENTS",
         "STOPPED",
-        "SET",
         " / SETTINGS",
-        "SET / NIGHT CURRENT",
+        "SONG / NIGHT CURRENT",
         "SONG + SYSTEM · SCALE-ONLY NOTE ENTRY BY DEFAULT",
         ">",
         "BPM",
@@ -1250,7 +1248,7 @@
         "SAMPLE START DIRECTORY",
         "CHOOSE FOLDER… →",
         "SOUNDFONT START DIRECTORY",
-        "SET AND SONGS",
+        "SONG FILE",
         "NIGHT CURRENT  →",
         "SETTINGS",
         "SHIFT ↓ Quick jump   BACK Song   EDIT Adjust"
@@ -1846,7 +1844,7 @@
         "STOPPED",
         "NAVIGATION",
         " / NAVIGATION",
-        "RESUME / SONG 01 · TRACK 03 · ROW 05",
+        "RESUME / SONG · TRACK 03 · ROW 05",
         "RETURN TO YOUR LAST EDIT POSITION",
         ">",
         "TRACKER",
@@ -1860,7 +1858,7 @@
         "FX SEND LEVELS →",
         "SETTINGS",
         "TEMPO · MIDI · SYSTEM →",
-        "Closing this menu resumes the selected song cell.",
+        "Closing this menu resumes the focused Song row.",
         "SELECT Open   BACK Resume song"
       ],
       "links": [
@@ -2140,7 +2138,7 @@
       "height": 690,
       "text": [
         "CUSTOM CHORDS",
-        "CUSTOM · SHARED ACROSS SETS    |    DEFAULT: C MINOR →",
+        "CUSTOM · SHARED LIBRARY    |    DEFAULT: C MINOR →",
         "SLOT  NAME          INTERVALS",
         "01 Major     1–3–5",
         "02 Minor     1–♭3–5",
@@ -4679,7 +4677,7 @@
         "STOPPED",
         "SELECTION",
         " / GROUP ACTIONS",
-        "SONG 01 · TRACKS 01–04 · ROWS 01–04",
+        "SONG · TRACKS 01–04 · ROWS 01–04",
         "4 TRACKS · 4 CHAIN PLACEMENTS",
         ">",
         "EXPAND TOGETHER",
@@ -4994,7 +4992,7 @@
     },
     {
       "id": "2011:342",
-      "name": "T18 · Set and songs",
+      "name": "T18 · Song file",
       "type": "FRAME",
       "x": 1560,
       "y": 4440,
@@ -5007,29 +5005,26 @@
         " ",
         "INSTRUMENTS",
         "STOPPED",
-        "SET",
-        " / SET AND SONGS",
+        " / SONG FILE",
         "NIGHT CURRENT · SAVED",
-        "FULL PROJECT / SYNTH + TRACKER",
-        "CURRENT SET",
+        "ONE SONG / SYNTH + TRACKER",
+        "CURRENT SONG",
         "NIGHT CURRENT",
-        "SAVE SET",
+        "SAVE SONG",
         "SAVED",
-        "SAVE SET AS",
+        "SAVE SONG AS",
         "NEW NAME  →",
-        "OPEN SET",
+        "OPEN SONG",
         "BROWSE  →",
         ">",
-        "SONG 01",
-        "NIGHT CURRENT  →",
-        "SONG 02",
-        "COLD SIGNAL  →",
+        "EDIT SONG",
+        "Open arrangement →",
         "NEW SONG",
-        "+ CREATE",
+        "Replace current Song →",
         "RETURN TO SETTINGS",
         "→",
-        "SET AND SONGS",
-        "SHIFT ↑ Song settings   SHIFT ↓ Quick jump   EDIT Rename   SELECT Open"
+        "SONG FILE",
+        "SHIFT ↑ Song settings   SHIFT ↓ Quick jump   EDIT Rename   SELECT Action"
       ],
       "links": [
         {
@@ -5344,7 +5339,7 @@
         "NAME",
         "Sus2",
         "BANK",
-        "Custom · shared across sets",
+        "Custom · shared through the library",
         "Save reusable entry",
         "CANCEL",
         "Return to editor",
@@ -5964,10 +5959,10 @@
         "STOPPED",
         "SHARED PHRASE",
         " / MAKE UNIQUE",
-        "SONG 01 · CHAIN 08 · PHRASE 01",
+        "SONG · CHAIN 08 · PHRASE 01",
         "PHRASE 01 IS USED AT 4 LOCATIONS",
         "CURRENT OCCURRENCE",
-        "SONG 01 / TRACK 03 / CHAIN 01",
+        "SONG / TRACK 03 / CHAIN 01",
         "COPY PHRASE",
         "PHRASE 01 → NEW PHRASE",
         "COPY CONTAINING CHAIN",
@@ -8217,7 +8212,7 @@
     },
     {
       "id": "2026:3462",
-      "name": "T25 · Save set as",
+      "name": "T25 · Save song as",
       "type": "FRAME",
       "x": 1560,
       "y": 6600,
@@ -8230,22 +8225,20 @@
         " ",
         "INSTRUMENTS",
         "STOPPED",
-        "SET",
-        " / SAVE SET AS",
-        "SET / NIGHT CURRENT",
+        " / SAVE SONG AS",
+        "SONG / NIGHT CURRENT",
         ">",
         "NAME",
         "Night Current 02",
         "CONTENTS",
-        "Songs · chains · phrases · chords",
+        "Song · chains · phrases · chords",
         "SYNTH STATE",
         "Include complete Synth state",
-        "SAVE AS NEW SET",
+        "SAVE SONG AS",
         "Save →",
         "CANCEL",
         "←",
-        "The set contains the entire musical state, including its Crest Synth state.",
-        "SAVE SET AS",
+        "One Song file preserves the arrangement, sound revisions and local mix.",
         "D-PAD Move   EDIT Adjust   BACK Return"
       ],
       "links": [
@@ -8413,7 +8406,7 @@
     },
     {
       "id": "2026:3498",
-      "name": "T26 · Open set",
+      "name": "T26 · Open song",
       "type": "FRAME",
       "x": 3040,
       "y": 6600,
@@ -8426,20 +8419,19 @@
         " ",
         "INSTRUMENTS",
         "STOPPED",
-        "SET",
-        " / OPEN SET",
-        "SAVED SETS",
+        " / OPEN SONG",
+        "SONG FILES",
         ">",
         "NIGHT CURRENT",
-        "2 songs · saved today",
+        "Song file · saved today",
         "STUDIO SKETCHES",
-        "4 songs",
-        "NEW EMPTY SET",
+        "Song file",
+        "NEW SONG",
         "Create →",
         "CANCEL",
         "←",
-        "An unsaved set requires Save, Discard, or Cancel before replacement.",
-        "OPEN SET",
+        "Opening a Song replaces the current document after Save, Discard or Cancel.",
+        "OPEN SONG",
         "D-PAD Move   EDIT Adjust   BACK Return"
       ],
       "links": [
@@ -8672,20 +8664,19 @@
         " ",
         "INSTRUMENTS",
         "STOPPED",
-        "SET",
         " / NEW SONG",
-        "SET / NIGHT CURRENT",
+        "NEW DOCUMENT / REPLACES CURRENT SONG",
         ">",
         "NAME",
-        "Song 03",
+        "Untitled",
         "TRACK COUNT",
         "16",
         "ARRANGEMENT",
         "Empty",
         "CHAIN AND PHRASE BANKS",
-        "Shared within this set",
+        "Local to this Song",
         "CREATE SONG",
-        "Create →",
+        "Replace current Song →",
         "CANCEL",
         "←",
         "NEW SONG",
@@ -8806,7 +8797,7 @@
             {
               "action": {
                 "type": "NODE",
-                "destinationId": "2028:2644",
+                "destinationId": "2126:5934",
                 "navigation": "NAVIGATE",
                 "transition": null,
                 "resetVideoPosition": false
@@ -8814,7 +8805,7 @@
               "actions": [
                 {
                   "type": "NODE",
-                  "destinationId": "2028:2644",
+                  "destinationId": "2126:5934",
                   "navigation": "NAVIGATE",
                   "transition": null,
                   "resetVideoPosition": false
@@ -9247,7 +9238,6 @@
         " ",
         "INSTRUMENTS",
         "STOPPED",
-        "SONG 01",
         " / NIGHT CURRENT",
         "120 BPM · C MINOR · 16 TRACKS",
         "TRACKS 09–16 OF 16   ←",
@@ -9509,8 +9499,7 @@
         " ",
         "INSTRUMENTS",
         "STOPPED",
-        "SONG 01",
-        " / SONG 03",
+        " / UNTITLED",
         "NEW SONG · 16 TRACKS",
         "TRACKS 01–08 OF 16   →",
         "EXPAND TOGETHER",
@@ -9667,7 +9656,6 @@
         " ",
         "INSTRUMENTS",
         "PLAYING",
-        "SONG 01",
         " / NIGHT CURRENT",
         "120 BPM · C MINOR · 16 TRACKS",
         "TRACKS 01–08 OF 16   →",
@@ -9968,7 +9956,7 @@
     },
     {
       "id": "2035:3709",
-      "name": "T34 · Unsaved set",
+      "name": "T34 · Unsaved song / Open",
       "type": "FRAME",
       "x": 1560,
       "y": 8760,
@@ -9981,20 +9969,19 @@
         " ",
         "INSTRUMENTS",
         "STOPPED",
-        "SET",
-        " / UNSAVED SET",
-        "OPEN SET / UNSAVED CHANGES",
-        "CURRENT SET",
+        " / UNSAVED SONG",
+        "OPEN SONG / UNSAVED CHANGES",
+        "CURRENT SONG",
         "Night Current · modified",
         ">",
-        "SAVE AND OPEN",
-        "Save current set, then continue →",
-        "DISCARD AND OPEN",
-        "Open without saving →",
+        "SAVE AND CONTINUE",
+        "Save current Song, then continue →",
+        "DISCARD AND CONTINUE",
+        "Continue without saving →",
         "CANCEL",
-        "Keep current set ←",
-        "Opening another set replaces the active musical state.",
-        "UNSAVED SET",
+        "Keep current Song ←",
+        "Open Song replaces this document; Cancel preserves it.",
+        "UNSAVED SONG",
         "SELECT Choose   BACK Cancel"
       ],
       "links": [
@@ -10204,14 +10191,14 @@
         "PHRASE 01",
         " / SHARED REFERENCES",
         "PHRASE 01 · 4 USES",
-        "4 ARRANGEMENT OCCURRENCES · 2 CHAINS · 2 SONGS",
+        "4 ARRANGEMENT OCCURRENCES · 2 CHAINS · CURRENT SONG",
         ">",
-        "SONG 01 · TRACK 03 · CHAIN 08",
+        "SONG · TRACK 03 · CHAIN 08",
         "SONG POS 01 / PHRASE 01 →",
         "SONG POS 05 / PHRASE 01 →",
-        "SONG 01 · TRACK 04 · CHAIN 12",
+        "SONG · TRACK 04 · CHAIN 12",
         "SONG POS 03 / PHRASE 02 →",
-        "SONG 02 · TRACK 02 · CHAIN 12",
+        "SONG · TRACK 02 · CHAIN 12",
         "SONG POS 02 / PHRASE 02 →",
         "EDIT SHARED PHRASE",
         "Changes all four occurrences",
@@ -10219,7 +10206,7 @@
         "Only the current occurrence →",
         "RETURN TO PHRASE",
         "←",
-        "The selected occurrence is Song 01 / Track 03 / Song row 01 / Chain 08 / Phrase row 01.",
+        "The selected occurrence is Track 03 / Song row 01 / Chain 08 / Phrase row 01 in the current Song.",
         "SHARED REFERENCES",
         "SELECT Jump to occurrence   BACK Return"
       ],
@@ -10665,8 +10652,8 @@
         "Shared chords",
         "SETTINGS",
         "Tempo · MIDI · system",
-        "SET AND SONGS",
-        "Save / open / organize",
+        "SONG FILE",
+        "New / open / save",
         "CANCEL",
         "Resume current edit",
         "↑ ↓ Destination   SELECT Jump   BACK Resume"
@@ -10963,29 +10950,24 @@
         " ",
         "INSTRUMENTS",
         "STOPPED",
-        "SONG 01",
         " / SONG SETTINGS",
-        "SONG 01 · NIGHT CURRENT",
+        "SONG · NIGHT CURRENT",
         ">",
         "NAME",
-        "Verse",
+        "Night Current",
         "TIME SIGNATURE",
         "4/4",
         "BEAT GROUPING",
         "1 + 1 + 1 + 1",
         "EDIT SONG",
         "Open arrangement →",
-        "DUPLICATE SONG",
-        "Create a new arrangement",
-        "DELETE SONG",
-        "Delete this song…",
-        "Shared across sets",
+        "Shared library",
         "CHORD BANK",
-        "RETURN TO SET AND SONGS",
+        "RETURN TO SONG FILE",
         "←",
-        "Deleting a song removes its arrangement; shared instruments and chords remain available.",
+        "Song settings edit this document. File actions live in Song File.",
         "SONG SETTINGS",
-        "EDIT Change   SELECT Action   BACK Set and songs"
+        "EDIT Change   SELECT Action   BACK Song file"
       ],
       "links": [
         {
@@ -11123,58 +11105,6 @@
           ]
         },
         {
-          "id": "2045:3160",
-          "reactions": [
-            {
-              "action": {
-                "type": "NODE",
-                "destinationId": "2026:3534",
-                "navigation": "NAVIGATE",
-                "transition": null,
-                "resetVideoPosition": false
-              },
-              "actions": [
-                {
-                  "type": "NODE",
-                  "destinationId": "2026:3534",
-                  "navigation": "NAVIGATE",
-                  "transition": null,
-                  "resetVideoPosition": false
-                }
-              ],
-              "trigger": {
-                "type": "ON_CLICK"
-              }
-            }
-          ]
-        },
-        {
-          "id": "2045:3165",
-          "reactions": [
-            {
-              "action": {
-                "type": "NODE",
-                "destinationId": "2050:4892",
-                "navigation": "OVERLAY",
-                "transition": null,
-                "resetVideoPosition": false
-              },
-              "actions": [
-                {
-                  "type": "NODE",
-                  "destinationId": "2050:4892",
-                  "navigation": "OVERLAY",
-                  "transition": null,
-                  "resetVideoPosition": false
-                }
-              ],
-              "trigger": {
-                "type": "ON_CLICK"
-              }
-            }
-          ]
-        },
-        {
           "id": "2045:3170",
           "reactions": [
             {
@@ -11269,7 +11199,6 @@
         " ",
         "INSTRUMENTS",
         "STOPPED",
-        "SONG 01",
         " / NIGHT CURRENT",
         "SELECTED / CHAINS 02 · 05 · 08 · 12",
         "TRACKS 01–08 OF 16   →",
@@ -11684,7 +11613,7 @@
       "height": 690,
       "text": [
         "CUSTOM CHORDS",
-        "CUSTOM · SHARED ACROSS SETS    |    DEFAULT: C MINOR →",
+        "CUSTOM · SHARED LIBRARY    |    DEFAULT: C MINOR →",
         "SLOT  NAME          INTERVALS",
         "01 Major     1–3–5",
         "02 Minor     1–♭3–5",
@@ -11908,121 +11837,6 @@
                   "navigation": "SWAP",
                   "transition": null,
                   "resetVideoPosition": false
-                }
-              ],
-              "trigger": {
-                "type": "ON_CLICK"
-              }
-            }
-          ]
-        }
-      ]
-    },
-    {
-      "id": "2050:4892",
-      "name": "T42 · Delete song / POPOVER",
-      "type": "FRAME",
-      "x": 1560,
-      "y": 10920,
-      "width": 760,
-      "height": 560,
-      "text": [
-        "DELETE SONG?",
-        "SONG 01 / VERSE · SHARED INSTRUMENTS AND CHORDS ARE KEPT",
-        " ",
-        "SONG",
-        "01 · Verse",
-        "DELETE SONG",
-        "Remove this arrangement",
-        "CANCEL",
-        "Keep song",
-        "SELECT Choose   BACK Cancel"
-      ],
-      "links": [
-        {
-          "id": "2050:4892",
-          "reactions": [
-            {
-              "action": {
-                "type": "NODE",
-                "destinationId": "2044:3739",
-                "navigation": "OVERLAY",
-                "transition": null,
-                "resetVideoPosition": false
-              },
-              "actions": [
-                {
-                  "type": "NODE",
-                  "destinationId": "2044:3739",
-                  "navigation": "OVERLAY",
-                  "transition": null,
-                  "resetVideoPosition": false
-                }
-              ],
-              "trigger": {
-                "type": "ON_KEY_DOWN",
-                "device": "KEYBOARD",
-                "keyCodes": [
-                  16,
-                  40
-                ]
-              }
-            },
-            {
-              "action": {
-                "type": "CLOSE"
-              },
-              "actions": [
-                {
-                  "type": "CLOSE"
-                }
-              ],
-              "trigger": {
-                "type": "ON_KEY_DOWN",
-                "device": "KEYBOARD",
-                "keyCodes": [
-                  27
-                ]
-              }
-            }
-          ]
-        },
-        {
-          "id": "2050:4927",
-          "reactions": [
-            {
-              "action": {
-                "type": "NODE",
-                "destinationId": "2011:342",
-                "navigation": "NAVIGATE",
-                "transition": null,
-                "resetVideoPosition": false
-              },
-              "actions": [
-                {
-                  "type": "NODE",
-                  "destinationId": "2011:342",
-                  "navigation": "NAVIGATE",
-                  "transition": null,
-                  "resetVideoPosition": false
-                }
-              ],
-              "trigger": {
-                "type": "ON_CLICK"
-              }
-            }
-          ]
-        },
-        {
-          "id": "2050:4932",
-          "reactions": [
-            {
-              "action": {
-                "type": "CLOSE"
-              },
-              "actions": [
-                {
-                  "type": "CLOSE"
                 }
               ],
               "trigger": {
@@ -12777,7 +12591,7 @@
       "height": 740,
       "text": [
         "DEFAULT CHORDS · READ ONLY",
-        "SONG 01 · C NATURAL MINOR · ROOT INTERVAL → FITTING CHORD",
+        "SONG · C NATURAL MINOR · ROOT INTERVAL → FITTING CHORD",
         "INTERVAL  ROOT / CHORD",
         "1  C minor",
         "2  D diminished",
@@ -13920,7 +13734,6 @@
         " ",
         "INSTRUMENTS",
         "STOPPED",
-        "SONG 01",
         " / NIGHT CURRENT",
         "120 BPM · C MINOR · 16 TRACKS",
         "VIEW / MINIMAP ▾",
@@ -14866,6 +14679,230 @@
           ]
         }
       ]
+    },
+    {
+      "id": "2126:5934",
+      "name": "T54 · Unsaved song / New",
+      "type": "FRAME",
+      "x": 11000,
+      "y": 120,
+      "width": 1280,
+      "height": 800,
+      "text": [
+        "CREST TRACKER",
+        "*",
+        "SONG",
+        " ",
+        "INSTRUMENTS",
+        "STOPPED",
+        " / UNSAVED SONG",
+        "NEW SONG / UNSAVED CHANGES",
+        "CURRENT SONG",
+        "Night Current · modified",
+        ">",
+        "SAVE AND CONTINUE",
+        "Save current Song, then continue →",
+        "DISCARD AND CONTINUE",
+        "Continue without saving →",
+        "CANCEL",
+        "Keep current Song ←",
+        "New Song replaces this document; Cancel preserves it.",
+        "UNSAVED SONG",
+        "SELECT Choose   BACK Cancel"
+      ],
+      "links": [
+        {
+          "id": "2126:5934",
+          "reactions": [
+            {
+              "action": {
+                "type": "NODE",
+                "destinationId": "2044:3739",
+                "navigation": "OVERLAY",
+                "transition": null,
+                "resetVideoPosition": false
+              },
+              "actions": [
+                {
+                  "type": "NODE",
+                  "destinationId": "2044:3739",
+                  "navigation": "OVERLAY",
+                  "transition": null,
+                  "resetVideoPosition": false
+                }
+              ],
+              "trigger": {
+                "type": "ON_KEY_DOWN",
+                "device": "KEYBOARD",
+                "keyCodes": [
+                  16,
+                  40
+                ]
+              }
+            },
+            {
+              "action": {
+                "type": "NODE",
+                "destinationId": "2011:342",
+                "navigation": "NAVIGATE",
+                "transition": null,
+                "resetVideoPosition": false
+              },
+              "actions": [
+                {
+                  "type": "NODE",
+                  "destinationId": "2011:342",
+                  "navigation": "NAVIGATE",
+                  "transition": null,
+                  "resetVideoPosition": false
+                }
+              ],
+              "trigger": {
+                "type": "ON_KEY_DOWN",
+                "device": "KEYBOARD",
+                "keyCodes": [
+                  27
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "id": "2126:5938",
+          "reactions": [
+            {
+              "action": {
+                "type": "NODE",
+                "destinationId": "2010:18",
+                "navigation": "NAVIGATE",
+                "transition": null,
+                "resetVideoPosition": false
+              },
+              "actions": [
+                {
+                  "type": "NODE",
+                  "destinationId": "2010:18",
+                  "navigation": "NAVIGATE",
+                  "transition": null,
+                  "resetVideoPosition": false
+                }
+              ],
+              "trigger": {
+                "type": "ON_CLICK"
+              }
+            }
+          ]
+        },
+        {
+          "id": "2126:5939",
+          "reactions": [
+            {
+              "action": {
+                "type": "NODE",
+                "destinationId": "2026:1896",
+                "navigation": "NAVIGATE",
+                "transition": null,
+                "resetVideoPosition": false
+              },
+              "actions": [
+                {
+                  "type": "NODE",
+                  "destinationId": "2026:1896",
+                  "navigation": "NAVIGATE",
+                  "transition": null,
+                  "resetVideoPosition": false
+                }
+              ],
+              "trigger": {
+                "type": "ON_CLICK"
+              }
+            }
+          ]
+        },
+        {
+          "id": "2126:5948",
+          "reactions": [
+            {
+              "action": {
+                "type": "NODE",
+                "destinationId": "2028:2644",
+                "navigation": "NAVIGATE",
+                "transition": null,
+                "resetVideoPosition": false
+              },
+              "actions": [
+                {
+                  "type": "NODE",
+                  "destinationId": "2028:2644",
+                  "navigation": "NAVIGATE",
+                  "transition": null,
+                  "resetVideoPosition": false
+                }
+              ],
+              "trigger": {
+                "type": "ON_CLICK"
+              }
+            }
+          ]
+        },
+        {
+          "id": "2126:5949",
+          "reactions": [
+            {
+              "action": {
+                "type": "NODE",
+                "destinationId": "2028:2644",
+                "navigation": "NAVIGATE",
+                "transition": null,
+                "resetVideoPosition": false
+              },
+              "actions": [
+                {
+                  "type": "NODE",
+                  "destinationId": "2028:2644",
+                  "navigation": "NAVIGATE",
+                  "transition": null,
+                  "resetVideoPosition": false
+                }
+              ],
+              "trigger": {
+                "type": "ON_CLICK"
+              }
+            }
+          ]
+        },
+        {
+          "id": "2126:5950",
+          "reactions": [
+            {
+              "action": {
+                "type": "NODE",
+                "destinationId": "2011:342",
+                "navigation": "NAVIGATE",
+                "transition": null,
+                "resetVideoPosition": false
+              },
+              "actions": [
+                {
+                  "type": "NODE",
+                  "destinationId": "2011:342",
+                  "navigation": "NAVIGATE",
+                  "transition": null,
+                  "resetVideoPosition": false
+                }
+              ],
+              "trigger": {
+                "type": "ON_CLICK"
+              }
+            }
+          ]
+        }
+      ]
     }
-  ]
+  ],
+  "revision": {
+    "date": "2026-09-21",
+    "scope": "Single Song document; library sound revisions pinned until explicit update; song-local routing/mix.",
+    "figmaSync": "synchronized"
+  }
 }

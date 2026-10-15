@@ -1,8 +1,8 @@
 # Crest Tracker — Domain architecture and implementation guide
 
-Version 4 · 21 September 2026 · Implementation handoff and Song Minimap
+Version 5 · 21 September 2026 · Single-Song document and pinned sound revisions
 
-Figma remains the product/design source of truth. This coding guide mirrors the architecture boards and adds an event-contract table and test scenarios. Existing product constraints are confirmed; policy choices are proposals to review while implementing. The Crest Synth source/API has not been inspected in this workspace.
+Figma remains the product/design source of truth, subject to the latest explicit user decisions. This guide describes the single-Song document and related coding contracts. Product constraints are confirmed; unresolved runtime policies remain proposals. The sibling Synth source has been inspected, but the Tracker integration has not been implemented or tested.
 
 [Architecture overview](https://www.figma.com/design/mvRQEFZc5Oi2ZbRkoHhXjH/Crest-Tracker?node-id=2072-3) · [Visual event map](https://www.figma.com/design/mvRQEFZc5Oi2ZbRkoHhXjH/Crest-Tracker?node-id=2077-33) · [Phrase FX pipeline](https://www.figma.com/design/mvRQEFZc5Oi2ZbRkoHhXjH/Crest-Tracker?node-id=2079-43)
 
@@ -11,15 +11,15 @@ Figma remains the product/design source of truth. This coding guide mirrors the 
 
 ## A00 — A MIDI sequencer with a hard boundary
 
-Architecture proposal v1 · 20 September 2026. Product constraints are confirmed; runtime policies below are implementation proposals, with explicit capability gates.
+Architecture proposal v5 · 21 September 2026. Product constraints are confirmed; runtime policies below are implementation proposals, with explicit capability gates.
 
-### Two bounded contexts
+### Tracker and Synth library boundary
 
 Crest Tracker owns musical composition and sequencing. Crest Synth owns instruments, patches, voices, audio DSP, mixer and send processing. Only the host’s Synth adapter imports the Synth library. Synth never imports Tracker.
 
 ### Inside Tracker
 
-Composition, Harmony and Playback are cohesive domain modules, not separate services. Workspace manages saved sets and shared-resource references. Input, views, persistence and MIDI delivery are adapters around application use cases.
+Composition, Harmony and Playback are cohesive domain responsibilities. Song is the sole document: its arrangement, reusable chains/phrases, resource references and local sound/mix state are saved together. Application use cases coordinate document lifecycle, input, views and MIDI delivery.
 
 ### Stateless logic, explicit state
 
@@ -31,11 +31,11 @@ Tracker · Instruments · Chord Bank · Mixer · Sends · Settings. Shift + Down
 
 ### Source status
 
-This is a coding contract, not a report of verified APIs. No Crest Synth source repository was available in this workspace. Phase 0 must verify MIDI addressing, parameter control, timestamps, snapshots and reusable UI boundaries.
+Synth source provides Patch-targeted normalized MIDI through `AppEvent::Midi`, canonical mutation through `AppState::apply`, graph activation acknowledgement and version-4 native session capture. The inspected audio-command path has no timestamps, and normal send edits change saved fields. Phase 0 must prove scheduling, temporary controls, resource revision handling and reusable UI boundaries before depending on them.
 
 ## A01 — Ownership, aggregates and references
 
-One authoritative owner for each rule. A complete Set package is not one enormous mutable aggregate.
+Song is the only saved document. Chain and Phrase definitions retain their own editing invariants; saving the document captures their references and sound state together. The document envelope is a serialization boundary, not another domain object above Song.
 
 ### Composition / Phrase aggregate
 
@@ -45,13 +45,13 @@ Owns shared NoteData, length, division, optional scale override, mode editing/ge
 
 Chain owns ordered PhraseUse entities and repeats. Song owns up to 16 Tracks, ordered ChainUse entities and its time signature / meter map. Each occurrence has a stable ID; row position is display order. Meter determines bar boundaries and beat grouping; track ordering owns no instrument routing.
 
-### Workspace / Set manifest
+### Song document / persistence boundary
 
-Owns song order, set defaults and references to chain/phrase definitions, shared chord revisions and opaque Synth resources. One application transaction coordinates Make Unique, rename/delete and save consistency across affected aggregates.
+The Song document contains one arrangement, song-local Chain/Phrase definitions, pinned shared sound/chord references and Synth-owned sound state with song-local routing/mix. Application operations coordinate Make Unique and document capture; there is no parent container, song collection or song membership lifecycle.
 
 ### Harmony / Scales and chord banks
 
-Harmony owns key/scale definitions, allowed-pitch lookup and explicit chord shapes. Song selects key/scale. Scale-only input/generation is the default; notes or intervals are display projections. Each song has a derived read-only Default chord bank. Custom chords remain shared across sets. Chord quality is explicit: never quantize chord tones or silently change Major into Minor.
+Harmony owns key/scale definitions, allowed-pitch lookup and explicit chord shapes. Song selects key/scale. Scale-only input/generation is the default; notes or intervals are display projections. Each song has a derived read-only Default chord bank. Custom chords remain shared through the library. Chord quality is explicit: never quantize chord tones or silently change Major into Minor.
 
 ### Synth / Sound model
 
@@ -61,13 +61,15 @@ Owns Instrument, Patch, Sample, SoundFont, voice allocation, effect processors, 
 
 Definitions contain no cursor or active FX state. The same phrase can play in two tracks at different positions. Runtime state is keyed by playback instance and occurrence path. Make Unique copies the phrase and, when needed, its shared containing chain before relinking only the selected occurrence.
 
+All Chain/Phrase definitions and incoming references are scoped to the current Song. Make Unique validates the selected source/path and current complete reference topology in one serialized commit; a concurrent additional use can invalidate an earlier isolation preview. Sound definitions instead use library identity plus pinned content revision. Updating that reference is explicit and preserves song-local routing/mix; graph-dependent installation commits only after matching activation acknowledgement.
+
 ## A02 — State and storage contracts
 
 Views read projections. Commands are the only path to edits. Save musical state independently of transient playback and UI.
 
 ### DocumentState / persistent
 
-Normalized maps keyed by strong IDs: sets, songs, chains, phrases and chord revisions. Stable occurrence IDs connect the maps. Store schemaVersion and revisions; validate references before committing. Use explicit nullable fields, never magic sentinel numbers.
+Store one Song record, song-local maps of Chain/Phrase definitions, pinned shared sound/chord references and Synth-native sound/mix state. Stable ChainUse/PhraseUse IDs connect definitions within the Song. Store schemaVersion and revisions; validate references before committing. No songs collection, selectedSongId or song-order field is needed.
 
 ### RuntimeState / transient
 
@@ -79,7 +81,7 @@ Screen, focus cell, selected occurrences, scroll position, popover draft, held s
 
 ### Preferences / machine-local
 
-Default sample starting directory, SoundFont starting directory, default BPM, controller mappings and endpoint bindings. A browser uses the last valid folder for that asset type, then the configured start folder, then the platform picker’s default. Portable sets do not bake in machine paths.
+Default sample starting directory, SoundFont starting directory, default BPM, controller mappings and endpoint bindings. A browser uses the last valid folder for that asset type, then the configured start folder, then the platform picker’s default. Portable Song files do not bake in machine paths.
 
 ### Music types
 
@@ -91,7 +93,9 @@ Velocity/amount use typed decimal percentages with an explicit Off/zero where me
 
 ### Save package / proposed
 
-Save a versioned manifest, authored definitions, pinned shared-resource revisions and opaque Synth-native state. Shared banks remain shared; publishing a change creates a revision, and sets opt into it. Portable export embeds referenced revisions and available assets; missing assets are reported without silently substituting sounds.
+Save one versioned Song document with authored definitions, pinned shared sound/chord revisions and Synth-native sound state, including song-local routing/mix. Sound library edits create new revisions; the Song keeps its saved revision until an explicit update. Preserve exact referenced content or report missing resources without substituting latest. Asset embedding/export policy remains to be chosen.
+
+New/Open replaces the single active document after Save/Discard/Cancel when dirty. Validate and prepare the replacement before publishing it; failed or cancelled operations preserve the prior Song. A failed or cancelled prerequisite Save prevents replacement. Save captures immutable owner-valid content and establishes that exact successful capture as the clean baseline; later edits remain dirty. Before continuing New/Open after Save, recheck the current revision and resolve any later edits through the same guard. Save As writes the same single-Song document under another file identity. No parent-container schema or child-song migration is required by this unimplemented plan.
 
 ### Meter and grid semantics
 
@@ -131,7 +135,7 @@ Each track has an independent cursor stack. Shared content never means shared pl
 
 ### TrackCursor
 
-trackId + songUseId + chainUseId + phraseUseId + phraseStep + repeat counters + phraseCycle + nextDueBeat + revision. The cursor path uses stable IDs and derives current indices for display. Phrase audition uses the same cursor with synthetic parent occurrences.
+trackId + songId + chainUseId + phraseUseId + phraseStep + repeat counters + phraseCycle + nextDueBeat + revision. The cursor path uses stable IDs and derives current indices for display. Phrase audition uses the same cursor with synthetic parent occurrences.
 
 ### Advance transaction
 
@@ -313,13 +317,13 @@ Build ordered reusable PhraseUse entries, repeats, length calculation and chain 
 
 Make Song the default entry, with up to 16 independent track arrangements and full controller navigation. Add chain multi-select, expanded tracker projection, phrase separators and saved view groups. Add the requested Song Minimap as another projection after its exploratory display policies are settled. Gate: editing either view changes one source model; playback stays aligned by musical time through jumps and live edits.
 
-## A10 — Implementation phases / sets to release
+## A10 — Implementation phases / persistence to release
 
-Set management and additional input methods extend the proven phrase, FX and cursor foundation.
+Song save/open and additional input methods extend the proven phrase, FX and cursor foundation.
 
-### 5 / Sets, multiple songs and shared banks
+### 5 / Song persistence and shared resources
 
-Add song create/rename/duplicate/delete/reorder and set open/save. Formalize pinned shared chord/instrument revisions, atomic save, migrations, missing-resource recovery and portable export. Gate: reopening/exporting restores authored content and exact resource revisions without altering another set.
+Add New Song, Open Song, Save, Save As and rename for the sole document. New/Open replace the current Song through Save/Discard/Cancel; Save As writes a separate document, never adds a nested song. Preserve exact shared sound/chord revisions and song-local routing/mix. Gate: reopen restores one complete Song; explicit sound updates preserve local mix; interrupted saves remain recoverable.
 
 ### 6 / Complete Synth pages and asset browsing
 
@@ -331,7 +335,7 @@ Add mapping profiles and MIDI control-surface adapters to the existing semantic 
 
 ### 8 / Timing, recovery and release
 
-Measure jitter and queue budgets under dense FX and large sets; exercise overflow, stuck-note prevention, hotplug, undo/redo, save interruption and schema migrations. Gate: deterministic core tests, Synth contract tests, bounded scheduling and useful diagnostics pass under a documented workload.
+Measure jitter and queue budgets under dense FX and large Song arrangements; exercise overflow, stuck-note prevention, hotplug, undo/redo, save interruption and schema migrations. Gate: deterministic core tests, Synth contract tests, bounded scheduling and useful diagnostics pass under a documented workload.
 
 ### Continuous engineering gates
 
@@ -368,7 +372,7 @@ ChordRef pins a shape revision; Custom references use editable chord identities.
 Voicing = { selectedRoot, shapeRef, presetId, presetVersion, spreadAddedVoices, explicitOffsets }; save both the settings and resolved octave placements.
 FxSpec adds ChromaticOffset(signedSemitones), ChordShapeRef, ChordVoicing(presetId, version) and ChordSpread(addedVoiceCount).
 
-Application composes the effective scale context from the song and phrase; Harmony receives values and owns musical rules. Harmony never reaches into Song, a cursor, Synth or a view to read mutable state. Composition owns the phrase policy setting; preferences own the global default. Derived-bank caches are replaceable read models, not editable aggregates. Save a chosen shape revision with the set so a refreshed bank cannot break an existing phrase.
+Application composes the effective scale context from the song and phrase; Harmony receives values and owns musical rules. Harmony never reaches into Song, a cursor, Synth or a view to read mutable state. Composition owns the phrase policy setting; preferences own the global default. Derived-bank caches are replaceable read models, not editable aggregates. Save a chosen shape revision with the Song so a refreshed bank cannot break an existing phrase.
 
 ### Pure transitions and evaluation
 
@@ -430,7 +434,7 @@ Authored NoteData continues to store absolute pitches. Changing key/scale does n
 
 ### Cache and event contracts
 
-SetSongScale → SongScaleChanged → derived bank refresh and affected projections/generator snapshots invalidated. SetNoteEntryPolicy / SetPhrasePitchPolicy → PitchPolicyChanged / PhraseChanged. SetPitchDisplay → EditorDisplayChanged only. Cache generated results by phrase revision + effective scale revision + entry policy + occurrence + seed, so the same phrase can run safely in different song contexts.
+SetSongScale → SongScaleChanged → derived bank refresh and affected projections/generator snapshots invalidated. SetNoteEntryPolicy / SetPhrasePitchPolicy → PitchPolicyChanged / PhraseChanged. SetPitchDisplay → EditorDisplayChanged only. Cache generated results by phrase revision + effective scale revision + entry policy + occurrence + seed, so the same phrase can run safely in different phrase-local scale contexts.
 
 ## A13 — Default and Custom chord banks
 
@@ -454,7 +458,7 @@ For each scale root, test chord-catalog shapes by transposing their pitch classe
 
 ### Custom / shared and editable
 
-Custom contains user-created, copied or search-generated chords and remains shared across sets under the existing revision policy. Copy Default or copy Custom creates a new editable identity. Save from Chord Search writes Custom. Phrase chord references pin the selected shape revision so a later key change does not silently change a saved major/minor quality.
+Custom contains user-created, copied or search-generated chords and remains shared through the library under the existing revision policy. Copy Default or copy Custom creates a new editable identity. Save from Chord Search writes Custom. Phrase chord references pin the selected shape revision so a later key change does not silently change a saved major/minor quality.
 
 ### Phrase override and chord search
 
@@ -529,7 +533,7 @@ Acceptance: switching Chains ↔ Minimap ↔ Expanded changes neither authored N
 | Input adapter | Gamepad buttons and axis edges | Semantic input intent | Interaction controller | Held modifiers are explicit; coalesce axis repeats, not release edges. |
 | Composition | EditPhraseStep, SetPhraseFx, ConfigurePhrase | PhraseChanged(id, revision, dirtySteps) | Compiler, projectors, save coordinator | Expected revision required; rejected edits emit no change fact. |
 | Composition | MakeUnique(occurrencePath) | ReferencesRelinked(copies, path) | Reference index, compiler, views | Copy and relink atomically; undo is one application transaction. |
-| Harmony | SaveChord(customBankId, intervals, name) | ChordRevisionPublished | Catalog, opted-in sets, compiler | Existing revision pins remain valid; Default entries reject edits. |
+| Harmony | SaveChord(customBankId, intervals, name) | ChordRevisionPublished | Catalog, explicitly updated Song references, compiler | Existing revision pins remain valid; Default entries reject edits. |
 | Composition + Harmony query | SetSongScale(songId, key, expectedRevision) | SongScaleChanged; DefaultChordBankDerived | Compiler, generator cache, note and chord projectors | Commit key first; derive against its revision; discard stale derivations. Authored notes and pinned chord shapes stay unchanged. |
 | Preferences / Composition | SetNoteEntryPolicy / SetPhrasePitchPolicy | PitchPolicyChanged / PhraseChanged | Entry controller, generators, projections, compiler | Resolve Inherit in the occurrence context. Chromatic overrides bypass pitch filtering. |
 | Editor | SetPitchDisplay(Notes or Intervals) | EditorDisplayChanged | Phrase and generator projectors | Changes presentation only; no note rewrite or MIDI recompile. |
@@ -543,7 +547,8 @@ Acceptance: switching Chains ↔ Minimap ↔ Expanded changes neither authored N
 | Parameter arbiter | Phrase override / manual baseline / expiry | EffectiveParameterChanged | MIDI encoder, sound projection | Same effective time uses stable ordering; expiry reveals latest baseline. |
 | Output adapter | MusicalOutput | MidiBatch / DeliveryAccepted / DeliveryFailed | Synth or external endpoint; diagnostics | Accepted means locally queued, not audibly played; never blindly retry Note On. |
 | Device adapter | Endpoint disconnected | EndpointLost | Playback safety, UI | Cancel future work; physical cleanup may be impossible until reconnect. |
-| Workspace | SaveSet / OpenSet | SetSaved / SetOpened / failure | UI, compiler, catalog | Atomic checkpoint and validated schema/references; never persist transient cursors as authored data. |
+| Song document lifecycle | SaveSong / SaveSongAs / OpenSong / NewSong | SongSaved / SongOpened / SongCreated / failure | UI, compiler, catalog | One Song per document. New/Open replaces it after Save/Discard/Cancel; failure preserves current state. Save establishes only the exact written capture as clean; later edits stay dirty. |
+| Sound configuration | AdoptSoundRevision(useId, definitionId, revision, expectedRevision) | SoundRevisionAdopted / failure | Song capture, sound projection | Explicit update preserves local routing/mix. Structural adoption commits only after matching activation acknowledgement; failure retains the previous pin and configuration. |
 | Preferences | SetBrowserRoot(assetType, token) | BrowserRootChanged | Asset browser, settings projection | Machine-local path/token; missing or inaccessible path gets a visible fallback. |
 | Synth integration | Observed public sound state | SoundSnapshotObserved | Read-only sound UI projector | No Synth object ownership crosses into Tracker; mutations still use approved MIDI controls. |
 
@@ -559,7 +564,7 @@ Acceptance: switching Chains ↔ Minimap ↔ Expanded changes neither authored N
 8. **Live edit:** an edit changes unsent future output at an explicit boundary. Events already handed to an endpoint are not falsely claimed cancellable; old note releases remain valid.
 9. **Generator determinism:** one wide render window and several adjacent narrow windows produce the same output and cursor path for the same revision, occurrence and seed.
 10. **Atomic Make Unique:** copying a phrase inside a shared chain changes exactly the selected occurrence; all other uses and resource pins stay intact, and undo restores the original links.
-11. **Missing resources:** reopen a set with a missing sample or shared revision. Show the unresolved item, preserve its identity, and do not silently substitute an instrument.
+11. **Missing resources:** reopen a Song file with a missing sample or shared revision. Show the unresolved item, preserve its identity, and do not silently substitute an instrument.
 12. **Architecture boundaries:** build/test Tracker domain without Synth or the renderer. Build/test Synth without Tracker. MIDI integration tests prove sound-control behavior against the actual Synth API.
 
 13. **Scale-aware entry:** in C natural minor, pitch-up from D4 yields Eb4 in Tracker and the same candidate restriction applies to Euclidean/Random pitch sources. Verify key changes, phrase overrides, all supported scales and empty pitch ranges. Fixed drum trigger mappings remain unchanged.
@@ -568,7 +573,10 @@ Acceptance: switching Chains ↔ Minimap ↔ Expanded changes neither authored N
 16. **Default and Custom:** every Default candidate belongs to the selected song scale. Default cannot be edited; copying creates an independent Custom identity. Changing the song key refreshes Default while Custom and previously selected shape revisions remain stable.
 17. **Voicing and spread:** C minor at C4 with 1st inversion yields Eb4–G4–C5. Root/closed with Crest SPR +1 yields C4–Eb4–G4–C5: one extra octave-doubled voice, no shifted-away original voice. Verify open-preset note fixtures, preserve chord pitch classes, and reject unsupported or out-of-range results. The numeric spread mapping is a Crest proposal; exact OXI equivalence is not claimed.
 18. **Three-slot budget and recall:** CRD + VOI + SPR occupies exactly three slots. A chromatic phrase override permits an out-of-scale root without a hidden fourth slot. Save Chord retains the selected shape, versioned voicing/spread settings and resolved voiced offsets. Recalling Custom reproduces the saved output.
-19. **Occurrence isolation:** the same generator phrase used under two song/phrase scale contexts has separate context-keyed results and cursor state; a stale key revision cannot reactivate an old generated snapshot.
+19. **Occurrence isolation:** reuse one generator Phrase in two tracks of the Song. Each occurrence keeps its own cursor/RNG state. After a Song-key or phrase-scale change, results resolve the effective context; stale revisions cannot reactivate an old generated snapshot.
+20. **One Song document:** New replaces the current document with one empty Song; Open replaces it with one validated Song; Save As writes a separate file containing that same single arrangement. Cancel, failed Open and failed/cancelled prerequisite Save preserve the current Song.
+21. **Save consistency:** edit after a save capture begins. Successful persistence marks only that captured revision clean; later edits remain dirty. A pending New/Open must resolve those later edits before replacing the document.
+22. **Pinned sound adoption:** publish a new sound-definition revision while a Song uses the older revision. Playback and reopen retain the saved revision until explicit adoption. Adoption preserves Song-local subscription, routing and mix; a failed activation retains the previous pin and sound configuration.
 
 ## Technical foundations
 
@@ -578,4 +586,4 @@ MIDI 1.0 channel voice messages identify channels 1–16; Note On/Off, CC, bend,
 
 Dependencies point toward domain rules. Use-case-owned ports let outer devices, storage and views implement required operations without importing their SDK types into the domain. [Clean Architecture](https://blog.cleancoder.com/uncle-bob/2012/08/13/the-clean-architecture.html).
 
-DDD usage: a bounded context defines model meaning and ownership; an aggregate is a consistency boundary within that model. Here, Synth and Tracker are separate bounded contexts. Do not create a service or event broker for every noun.
+DDD usage: a bounded context defines model meaning and ownership; an aggregate is a consistency boundary within that model. Tracker and Synth are library boundaries, not an exhaustive bounded-context map. Validate domain boundaries through language, ownership and invariants. Do not create a service or event broker for every noun.

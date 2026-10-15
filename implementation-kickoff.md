@@ -8,7 +8,7 @@ Implement Crest Tracker as a separate sequencing library integrated with unchang
 
 ## Context to load
 
-Read README.md, product-spec.md, Crest-Tracker-Architecture-v1.md (current content version 4), implementation-plan.md, open-decisions.md and event-map.md in this folder. Open the relevant frames through design/screen-index.md. Live Figma is the product/interaction source of truth; latest user decisions supersede historical mockups. Archive notes are historical.
+Read README.md, product-spec.md, Crest-Tracker-Architecture-v1.md (current content version 5), implementation-plan.md, open-decisions.md and event-map.md in this folder. Open the relevant frames through design/screen-index.md. Live Figma is the product/interaction source of truth; latest user decisions supersede historical mockups. Archive notes are historical.
 
 ## First session
 
@@ -22,6 +22,8 @@ Read README.md, product-spec.md, Crest-Tracker-Architecture-v1.md (current conte
 
 ## Implementation constraints
 
+- Model exactly one Song document. Store one Song record and its local Chain/Phrase definitions, never a collection of songs or a selected-song index. New/Open replaces the active document through Save/Discard/Cancel; Save As writes another file.
+- Keep shared sound-definition revisions pinned until explicit update. Installed sound use, subscription, routing and mix belong to the current Song. Preserve Synth-native ownership and serialization through the host adapter.
 - All phrase forms resolve to the same timed note and FX data. Keep generator settings distinct from resolved output; do not create independent playback engines.
 - Keep DocumentState, RuntimeState, EditorState and machine Preferences separate. One readable AppSnapshot can compose them for the frontend.
 - Cursors belong to playback occurrences, never shared phrase definitions or view widgets. UI focus and transport position are independent.

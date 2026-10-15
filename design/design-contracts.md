@@ -27,8 +27,8 @@ Edit + Up opens the picker. Edit + Left/Right cycles chords; release Edit, move 
 05 / Shared references and copies ↗
 Inspect every use. Before editing a reference, choose Create New or Edit Shared; the Remember option is included for review.
 
-06 / Sets, songs and shared banks ↗
-Rename/save the set, open songs and use Shift Up for Song Settings. Instruments and Custom chords are shared across sets. Each song derives its own Default chords from key/scale.
+06 / Song file and shared libraries ↗
+New, open, rename and save one Song document. Song File holds file actions; Song Settings edits the current Song. Sound definitions and Custom chords use the shared library. Sound revisions stay pinned until explicit update; routing/mix stays local. Default chords derive from the Song key/scale.
 
 07 / Review the development contracts ↗
 Confirmed requirements and proposed details are labeled separately. Drum awaits its reference; Euclidean and Randomizer layouts remain provisional.
@@ -50,10 +50,10 @@ CREST TRACKER  /  DEVELOPMENT REFERENCE
 Confirmed requirements and the storage relationships behind both views.
 
 CONFIRMED / The boundary
-Crest Tracker is a separate library importing Crest Synth. Tracker owns sequencing, time, songs, chains, phrases, MIDI events and its UI. Crest Synth remains the MIDI-driven sound server, including instruments, effects and mixer. Tracker domain objects and sequencing behavior do not enter Synth.
+Crest Tracker is a separate library importing Crest Synth. Tracker owns sequencing, time, the Song, chains, phrases, MIDI events and its UI. Crest Synth remains the MIDI-driven sound server, including instruments, effects and mixer. Tracker domain objects and sequencing behavior do not enter Synth.
 
 CONFIRMED / Full state and shared banks
-A set contains complete musical state. Instruments and Custom chords are shared across sets through revisioned references. Each song separately derives an immutable Default chord bank from its key/scale. Songs belong to sets; chains and phrases are reusable. Portable export pins the referenced musical and sound resources.
+One Song contains the complete musical document: one arrangement, reusable Chain/Phrase definitions, pinned shared sound/Custom chord references and local Synth routing/mix. No parent container or additional songs exist inside it. New/Open replace the document; Save/Save As preserve it. Library sound edits require explicit revision adoption. Default chords derive from this Song key/scale.
 
 CONFIRMED / Sequence model
 A song has up to 16 tracks. Tracks order chain references; chains order phrase references and repeats. Phrases contain note events and three FX slots. Tracks advance independently through song, chain and phrase positions. Phrase length and division determine musical duration. All phrase forms share timed note and FX data on one musical clock. Divisions extend through 1/64 with triplets and other subdivisions; time signatures determine bars and beat grouping.
@@ -108,8 +108,8 @@ Confirmed shortcuts, proposed complementary controls, and focus behavior.
 CONFIRMED / Core hierarchy
 Song is the default view. Shift + Right on a selected chain opens Chain; Shift + Right on a phrase reference opens Phrase. Shift + Up in Song opens global Settings. Shift + Up in Phrase opens Phrase Settings. Shift + Left from Expanded Tracker returns to Song.
 
-CONFIRMED / Mixer, quick jump and songs
-Shift + Down in Song opens Mixer. Shift + Down in every other view opens Quick Jump. Shift + Back in Song opens Tracker / Instruments / Chord Bank / Mixer / Sends / Settings. Sends opens the FX send levels. Quick Jump also includes Sends and Settings. Shift + Up in Set and Songs opens the selected Song Settings for rename, editing, duplication and deletion.
+CONFIRMED / Mixer, quick jump and Song File
+Shift + Down in Song opens Mixer; elsewhere it opens Quick Jump. Shift + Back in Song opens Tracker / Instruments / Chord Bank / Mixer / Sends / Settings. Quick Jump includes Song File, Sends and Settings. Shift + Up in Song File opens settings for the current Song: name, meter and arrangement. File actions never add, reorder or delete child songs.
 
 CONFIRMED / Contextual FX controls
 Focus the FX command and hold Edit + Up to open the command popover; Up/Down browse quickly. Focus a chord FX value and hold Edit + Up to open the chord-bank popover. While holding Edit, Left/Right cycle chords. Release Edit, move down to Save, then Select. Temporary sends use a popover too.
@@ -165,7 +165,7 @@ CONFIRMED / Popover behavior
 FX selection and temporary sends are contextual popovers over the phrase. The command popover opens with Edit + Up on the command; Up/Down browse. The chord-value popover opens with Edit + Up on the chord value; Edit + Left/Right cycles chords. Release Edit and navigate down to Save.
 
 CONFIRMED / Default and Custom chords
-Default is a read-only per-song bank derived from Settings key/scale, showing fitting chord choices for each root interval. Custom is editable and shared across sets: copy Default or Custom entries, or save results from Chord Search. Selected chord quality and intervals stay explicit and are never scale-quantized. Edit + Up opens the contextual popover; Edit + Left/Right browses; release Edit, move down and select Save.
+Default is a read-only per-song bank derived from Settings key/scale, showing fitting chord choices for each root interval. Custom is editable and shared through the library: copy Default or Custom entries, or save results from Chord Search. Selected chord quality and intervals stay explicit and are never scale-quantized. Edit + Up opens the contextual popover; Edit + Left/Right browses; release Edit, move down and select Save.
 
 CONFIRMED / Interval editing and search
 ADD shows the interval from the root. Edit + Up opens the interval selector spanning an octave either side. Save applies the selection; Save Chord creates an editable Custom chord with a suggested name. Chord Search filters chosen notes, intervals, root or quality, with an optional scale-fit filter. Unnamed sets remain valid custom chords.
@@ -179,24 +179,24 @@ The popover currently illustrates a 35% send for one step, then restoration. Dur
 REFERENCE / Dirtywave M8
 The official M8 manual documents the reference effects. The supplied Crest Tracker screenshots guide chord-bank and editor structure. Chord and send interaction rules in this file take precedence over M8 navigation behavior.
 
-## 06 / Set lifecycle & implementation gates
+## 06 / Song lifecycle & implementation gates
 
 [Open in Figma](https://www.figma.com/design/mvRQEFZc5Oi2ZbRkoHhXjH/Crest-Tracker?node-id=2030-3673)
 
 CREST TRACKER  /  DEVELOPMENT REFERENCE
 
-06 / Set lifecycle & implementation gates
+06 / Song lifecycle & implementation gates
 
 Persistence, transport, inherited Synth functionality, and decisions to settle before coding.
 
 CONFIRMED / Settings
 Settings includes current BPM, song key/scale, default Scale-only/Chromatic note entry, Notes/Intervals display, MIDI clock in/out and devices, global volume, default BPM, sample starting directory and SoundFont starting directory. Phrase view can override inherited pitch policy; phrase settings retain local scale, length, division and type. Machine paths remain local preferences.
 
-CONFIRMED / Sets and songs
-Sets support rename/save and multiple songs. Song settings handle rename/delete and meter. Songs use shared instruments and shared Custom chords, with a derived read-only Default chord bank per song key/scale. Changing key/scale refreshes Default; it does not rewrite Custom shapes.
+CONFIRMED / One Song document
+Song is the sole saved document. Song File supports New/Open/Save/Save As; settings edit its name and meter. New/Open replace the current Song after Save/Discard/Cancel when dirty. Sound definitions and Custom chords use pinned library references; routing/mix remains song-local. Changing key refreshes read-only Default without rewriting Custom shapes.
 
 IMPLEMENTATION PROPOSAL / Persistence and transport
-Architecture A02 defines versioned set snapshots with pinned shared-resource revisions and portable export. A04 defines independent cursor stacks; A08 defines note and parameter cleanup. These are proposed coding contracts. Exact Synth resource APIs, external clock-loss timeout and MIDI capabilities remain Phase 0 gates.
+Architecture A02 defines a versioned single-Song document with pinned shared-resource revisions and local sound/mix state. A04 defines independent cursor stacks; A08 defines note and parameter cleanup. Exact retention/export, timing and control protocols remain implementation gates. There is no multi-song container schema to implement or migrate.
 
 IMPLEMENTATION PROPOSALS / Pitch and harmony
 Scale-aware input, chromatic overrides, two pitch displays, immutable Default banks and editable Custom chords are confirmed. Proposed details: store absolute pitches; key changes leave authored notes unchanged; pin chosen chord shape revisions; derive fitting chord candidates for arbitrary scales. OXI-informed named voicings and octave-doubling spread are specified on A14. Exact open voicings and numeric spread mapping remain explicitly reviewable Crest contracts.
@@ -241,7 +241,7 @@ SONG / Shift + Up → Settings. Shift + Down → Mixer. Shift + Back → navigat
 
 EVERY OTHER VIEW / Shift + Down → Quick Jump. Expanded Tracker → Song with Shift + Left.
 
-SET AND SONGS / Shift + Up → settings for the selected song, including rename, edit and delete.
+SONG FILE / Shift + Up → current Song settings: name, meter and arrangement. New/Open replace the document through Save/Discard/Cancel.
 
 ## 02 / ADD, intervals & chord bank
 

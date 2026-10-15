@@ -10,16 +10,19 @@ The frontend renders the authoritative application state through projections. Ed
 
 ## Musical hierarchy and reuse
 
+Song is the complete saved document and the only active composition. There is no Set, parent project container, song collection, selected-song index or song switching within a document. New/Open replaces the current Song; it never adds another Song to it.
+
 | Object | Role |
 |---|---|
-| Set | Complete saved workspace, containing songs, composition references and the relevant Synth state/resource references. Instruments and Custom chord banks are shared resources, not duplicated per song. |
-| Song | Up to 16 independently progressing tracks; key/scale, tempo and meter context; selected order of chains in each track. |
+| Song | Complete saved musical state: one arrangement with up to 16 independently progressing tracks, key/scale, tempo and meter, reusable Chain/Phrase definitions, pinned library references and local Synth sound/routing/mix state. |
 | Track | Ordered chain occurrences with its own playback cursor stack. It is not an instrument route. |
 | Chain | Reusable ordered phrase references, with repeats and other sequencing controls. |
 | Phrase | Reusable notes and three FX slots with length, division, optional local scale and sequencer type. |
 | Occurrence | A particular use of a shared chain or phrase. Playback position and active effect state are isolated per occurrence. |
 
 Song editing follows the LSDJ/M8 hierarchy. The desktop-style Expanded view and the Minimap do not introduce a second arrangement or an independently editable Pattern store. Different lengths and divisions align by musical time.
+
+Chains and phrases are reused within the Song. Shared sound definitions and Custom chords live in their respective libraries; sharing a sound definition does not share its installed use, MIDI subscription or routing/mix. The Song retains each saved sound revision until an explicit update adopts another revision. An update preserves local routing/mix; a failed update leaves the prior sound reference and configuration intact.
 
 ## Phrase view
 
@@ -101,20 +104,20 @@ The effects browser opens as an **Edit + Up popover**, with fast Up/Down navigat
 | FX/chord/send value, Edit+Up | Contextual popover |
 | Chord popover, held Edit+Left/Right | Cycle chord |
 | Release Edit | Allow ordinary navigation to Save/bottom actions |
-| Set/song management, Shift+Up | Song settings and song actions |
+| Song File, Shift+Up | Current Song settings |
 
 The later instruction “Shift Down from any other view opens Quick Jump” supersedes the earlier direct Settings→Song shortcut. The direct-return behavior remains worth a final navigation review; do not implement both conflicting bindings silently. Semantic buttons are the contract; physical gamepad mapping is configurable and platform-specific.
 
 The top-level menu has **Tracker, Instruments, Chord Bank, Mixer, Sends, Settings**. “Tracker” returns to the song workflow. The current Synth instruments/mixer/sends/settings pages are brought into the host, by reuse where possible or by presentation reimplementation if necessary.
 
-## Settings and Set management
+## Settings and Song files
 
 Retain the existing Synth settings. Add current BPM, default BPM, song key/scale, global volume, MIDI devices and clock in/out options, default sample starting directory and SoundFont starting directory. Current tempo, song initial tempo and the default for new work need distinct ownership. Starting directories are machine preferences, not portable absolute paths embedded in song content.
 
-Set/song management supports current-set rename and save, opening a set, switching songs, and song edit/create/delete actions through Song settings. Instruments and Custom chord banks are shared; song Default chord banks are derived from each song's key. Persistence must retain references safely and preserve the complete workspace state.
+Song is the only document, with one arrangement and no parent container or collection of additional songs. Song File supports New Song, Open Song, Save and Save As; Song Settings edits its name, meter and musical settings. New/Open replace the current Song after Save/Discard/Cancel when dirty. Save As writes a separate file rather than adding an arrangement. Reusable sound definitions and Custom chords remain library resources; each sound reference keeps its saved revision until explicit update. Installed sound use, MIDI subscription, routing and mix remain local to this Song. Preserve exact resources and the complete musical document on reopen.
 
 ## Interaction states to retain
 
-Include empty, stopped, playing, narrow track-window and multi-select Song states; phrase Notes/Intervals; shared-reference inspection and Make Unique; Edit Shared / remembered choice; FX type/value selection; instrument versus MIDI-channel target selection; Default versus Custom chord banks, copy-to-Custom, chord search, voicing/ADD editors and Save Chord; set open/save-as/unsaved changes; song create/delete; temporary sends; missing resources and unsupported capabilities.
+Include empty, stopped, playing, narrow track-window and multi-select Song states; phrase Notes/Intervals; shared-reference inspection and Make Unique; Edit Shared / remembered choice; FX type/value selection; instrument versus MIDI-channel target selection; Default versus Custom chord banks, copy-to-Custom, chord search, voicing/ADD editors and Save Chord; Song New/Open/Save As/unsaved changes; temporary sends; missing resources and unsupported capabilities.
 
 See the [screen index](design/screen-index.md) for the actual frames and [open decisions](open-decisions.md) for unsettled behavior. Screens are specifications and prototypes, not evidence of implemented runtime support.

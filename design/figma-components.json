@@ -635,5 +635,10 @@
       ],
       "links": []
     }
-  ]
+  ],
+  "revision": {
+    "date": "2026-09-21",
+    "scope": "Single Song document; library sound revisions pinned until explicit update; song-local routing/mix.",
+    "figmaSync": "synchronized"
+  }
 }

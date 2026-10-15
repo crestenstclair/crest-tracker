@@ -7,7 +7,7 @@ The [native Figma event map](https://www.figma.com/design/mvRQEFZc5Oi2ZbRkoHhXjH
 ```mermaid
 flowchart TD
   Input[Input adapters] -->|semantic intents| App[Application use cases]
-  App -->|commands| Composition[Composition and Workspace]
+  App -->|commands| Composition[Song composition]
   App -->|queries and commands| Harmony[Harmony]
   Composition -->|accepted revisions| Compile[Snapshot compiler]
   Harmony -->|values and revisions| Compile
@@ -41,7 +41,7 @@ This is one process with explicit ownership and ports, not a proposal for distri
 | Input adapter | Gamepad buttons and axis edges | Semantic input intent | Interaction controller | Held modifiers are explicit; coalesce axis repeats, not release edges. |
 | Composition | EditPhraseStep, SetPhraseFx, ConfigurePhrase | PhraseChanged(id, revision, dirtySteps) | Compiler, projectors, save coordinator | Expected revision required; rejected edits emit no change fact. |
 | Composition | MakeUnique(occurrencePath) | ReferencesRelinked(copies, path) | Reference index, compiler, views | Copy and relink atomically; undo is one application transaction. |
-| Harmony | SaveChord(customBankId, intervals, name) | ChordRevisionPublished | Catalog, opted-in sets, compiler | Existing revision pins remain valid; Default entries reject edits. |
+| Harmony | SaveChord(customBankId, intervals, name) | ChordRevisionPublished | Catalog, explicitly updated Song references, compiler | Existing revision pins remain valid; Default entries reject edits. |
 | Composition + Harmony query | SetSongScale(songId, key, expectedRevision) | SongScaleChanged; DefaultChordBankDerived | Compiler, generator cache, note and chord projectors | Commit key first; derive against its revision; discard stale derivations. Authored notes and pinned chord shapes stay unchanged. |
 | Preferences / Composition | SetNoteEntryPolicy / SetPhrasePitchPolicy | PitchPolicyChanged / PhraseChanged | Entry controller, generators, projections, compiler | Resolve Inherit in the occurrence context. Chromatic overrides bypass pitch filtering. |
 | Editor | SetPitchDisplay(Notes or Intervals) | EditorDisplayChanged | Phrase and generator projectors | Changes presentation only; no note rewrite or MIDI recompile. |
@@ -55,7 +55,8 @@ This is one process with explicit ownership and ports, not a proposal for distri
 | Parameter arbiter | Phrase override / manual baseline / expiry | EffectiveParameterChanged | MIDI encoder, sound projection | Same effective time uses stable ordering; expiry reveals latest baseline. |
 | Output adapter | MusicalOutput | MidiBatch / DeliveryAccepted / DeliveryFailed | Synth or external endpoint; diagnostics | Accepted means locally queued, not audibly played; never blindly retry Note On. |
 | Device adapter | Endpoint disconnected | EndpointLost | Playback safety, UI | Cancel future work; physical cleanup may be impossible until reconnect. |
-| Workspace | SaveSet / OpenSet | SetSaved / SetOpened / failure | UI, compiler, catalog | Atomic checkpoint and validated schema/references; never persist transient cursors as authored data. |
+| Song document lifecycle | SaveSong / SaveSongAs / OpenSong / NewSong | SongSaved / SongOpened / SongCreated / failure | UI, compiler, catalog | One Song per document. New/Open replaces it after Save/Discard/Cancel; failure preserves current state. Save establishes only the exact written capture as clean; later edits stay dirty. |
+| Sound configuration | AdoptSoundRevision(useId, definitionId, revision, expectedRevision) | SoundRevisionAdopted / failure | Song capture, sound projection | Explicit update preserves local routing/mix. Structural adoption commits only after matching activation acknowledgement; failure retains the previous pin and configuration. |
 | Preferences | SetBrowserRoot(assetType, token) | BrowserRootChanged | Asset browser, settings projection | Machine-local path/token; missing or inaccessible path gets a visible fallback. |
 | Synth integration | Observed public sound state | SoundSnapshotObserved | Read-only sound UI projector | No Synth object ownership crosses into Tracker; mutations still use approved MIDI controls. |
 

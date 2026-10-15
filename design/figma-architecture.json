@@ -13,19 +13,19 @@
       "x": 80,
       "y": 80,
       "width": 1440,
-      "height": 1456,
+      "height": 1485,
       "text": [
-        "CREST TRACKER  /  ARCHITECTURE v2",
+        "CREST TRACKER  /  ARCHITECTURE v5",
         "A00 / A MIDI sequencer with a hard boundary",
         "Implementation proposal · 20 September 2026. Confirmed product rules are preserved; policy choices and Synth capability checks are marked explicitly.",
-        "Two bounded contexts\nCrest Tracker owns musical composition and sequencing. Crest Synth owns instruments, patches, voices, audio DSP, mixer and send processing. Only the host’s Synth adapter imports the Synth library. Synth never imports Tracker.",
-        "Inside Tracker\nComposition, Harmony and Playback are cohesive domain modules, not separate services. Workspace manages saved sets and shared-resource references. Input, views, persistence and MIDI delivery are adapters around application use cases.",
+        "Tracker and Synth library boundary\nCrest Tracker owns musical composition and sequencing. Crest Synth owns instruments, patches, voices, audio DSP, mixer and send processing. Only the host’s Synth adapter imports the Synth library. Synth never imports Tracker.",
+        "Inside Tracker\nComposition, Harmony and Playback are cohesive domain responsibilities. Song is the sole document: its arrangement, reusable chains/phrases, resource references and local sound/mix state are saved together. Application use cases coordinate document lifecycle, input, views and MIDI delivery.",
         "Stateless logic, explicit state\nPure transitions take state + command/input and return next state + facts + effect requests. State remains explicit: document, playback runtime, editor session and preferences. An event loop alone does not make a sequencer stateless.",
         "Confirmed navigation\nTracker · Instruments · Chord Bank · Mixer · Sends · Settings. Shift + Down in Song opens Mixer; elsewhere it opens Quick Jump. Sample and SoundFont starting directories live in Settings.",
-        "Source status\nThis is a coding contract, not a report of verified APIs. No Crest Synth source repository was available in this workspace. Phase 0 must verify MIDI addressing, parameter control, timestamps, snapshots and reusable UI boundaries.",
+        "Source status\nSynth source provides Patch-targeted normalized MIDI, canonical AppState::apply, acknowledged graph activation and native session schema v4. Timestamp scheduling, temporary controls and shared sound revisions still require integration proof. Tracker remains unimplemented.",
         "Visual event map ↗\nInput → domain facts → playback → MIDI → Synth.",
         "Phrase FX pipeline ↗\nAll phrase forms share effect evaluation and cursor control.",
-        "Implementation phases ↗\nPhrase + FX first, then forms, chains, song and sets.",
+        "Implementation phases ↗\nPhrase + FX first, then forms, chains, Song and persistence.",
         "Coding contracts ↗\nConcrete type sketches, ports and import boundaries.",
         "Technical foundations\nMIDI Association message summary defines channel and message semantics. Robert C. Martin’s Clean Architecture defines the inward dependency rule. All project-specific policies here are proposed contracts.",
         "MIDI Association / Message summary ↗",
@@ -68,15 +68,15 @@
       "x": 1680,
       "y": 80,
       "width": 1440,
-      "height": 1056,
+      "height": 1085,
       "text": [
-        "CREST TRACKER / ARCHITECTURE v2 · PROPOSED IMPLEMENTATION",
+        "CREST TRACKER / ARCHITECTURE v5 · PROPOSED IMPLEMENTATION",
         "A01 / Ownership, aggregates and references",
-        "One authoritative owner for each rule. A complete Set package is not one enormous mutable aggregate.",
+        "Song is the only saved document. Chain and Phrase definitions retain their own editing invariants; saving the document captures their references and sound state together.",
         "Composition / Phrase aggregate\nOwns shared NoteData, length, division, optional scale override, mode editing/generation settings and three typed FX slots per step. All phrase forms use the same note and FX event types. It validates timing, note bounds and effects without knowing controllers or Synth patch internals.",
         "Composition / Chain and Song aggregates\nChain owns ordered PhraseUse entities and repeats. Song owns up to 16 Tracks, ordered ChainUse entities and its time signature / meter map. Each occurrence has a stable ID; row position is display order. Meter determines bar boundaries and beat grouping; track ordering owns no instrument routing.",
-        "Workspace / Set manifest\nOwns song order, set defaults and references to chain/phrase definitions, shared chord revisions and opaque Synth resources. One application transaction coordinates Make Unique, rename/delete and save consistency across affected aggregates.",
-        "Harmony / Scales and chord banks\nHarmony owns key/scale definitions, allowed-pitch lookup and explicit chord shapes. Song selects key/scale. Scale-only input/generation is the default; notes or intervals are display projections. Each song has a derived read-only Default chord bank. Custom chords remain shared across sets. Chord quality is explicit: never quantize chord tones or silently change Major into Minor.",
+        "Song document / persistence boundary\nThe Song document contains one arrangement, song-local Chain/Phrase definitions, pinned shared sound/chord references and Synth-owned sound state with song-local routing/mix. Application operations coordinate Make Unique and document capture; there is no parent container, song collection or song membership lifecycle.",
+        "Harmony / Scales and chord banks\nHarmony owns key/scale definitions, allowed-pitch lookup and explicit chord shapes. Song selects key/scale. Scale-only input/generation is the default; notes or intervals are display projections. Each song has a derived read-only Default chord bank. Custom chords remain shared through the library. Chord quality is explicit: never quantize chord tones or silently change Major into Minor.",
         "Synth / Sound model\nOwns Instrument, Patch, Sample, SoundFont, voice allocation, effect processors, mixer levels and sends. Tracker stores stable instrument references and read-only presentation descriptors, not a second authoritative patch model.",
         "Shared definitions / isolated occurrences\nDefinitions contain no cursor or active FX state. The same phrase can play in two tracks at different positions. Runtime state is keyed by playback instance and occurrence path. Make Unique copies the phrase and, when needed, its shared containing chain before relinking only the selected occurrence."
       ],
@@ -89,18 +89,18 @@
       "x": 3280,
       "y": 80,
       "width": 1440,
-      "height": 1394,
+      "height": 1423,
       "text": [
-        "CREST TRACKER / ARCHITECTURE v2 · PROPOSED IMPLEMENTATION",
+        "CREST TRACKER / ARCHITECTURE v5 · PROPOSED IMPLEMENTATION",
         "A02 / State and storage contracts",
         "Views read projections. Commands are the only path to edits. Save musical state independently of transient playback and UI.",
-        "DocumentState / persistent\nNormalized maps keyed by strong IDs: sets, songs, chains, phrases and chord revisions. Stable occurrence IDs connect the maps. Store schemaVersion and revisions; validate references before committing. Use explicit nullable fields, never magic sentinel numbers.",
+        "DocumentState / persistent\nStore one Song record, song-local maps of Chain/Phrase definitions, pinned shared sound/chord references and Synth-native sound/mix state. Stable ChainUse/PhraseUse IDs connect definitions within the Song. Store schemaVersion and revisions; validate references before committing. No songs collection, selectedSongId or song-order field is needed.",
         "RuntimeState / transient\nTransport epoch, monotonic musical time, active document revision, per-track cursor stacks, generated-event queue, per-occurrence FX memory, seeded randomness, active note ownership and parameter overrides. None belongs in Phrase or a UI widget.",
         "EditorState / transient\nScreen, focus cell, selected occurrences, scroll position, popover draft, held semantic buttons and reference-edit choice. Remember Shared Edit defaults to the current session; a persistent option must be explicit and resettable.",
-        "Preferences / machine-local\nDefault sample starting directory, SoundFont starting directory, default BPM, controller mappings and endpoint bindings. A browser uses the last valid folder for that asset type, then the configured start folder, then the platform picker’s default. Portable sets do not bake in machine paths.",
+        "Preferences / machine-local\nDefault sample starting directory, SoundFont starting directory, default BPM, controller mappings and endpoint bindings. A browser uses the last valid folder for that asset type, then the configured start folder, then the platform picker’s default. Portable Song files do not bake in machine paths.",
         "Music types\nOne musical timeline uses exact rational quarter-note beats. Base divisions through 1/64 combine with explicit tuplet ratios; meter stores numerator, denominator and grouping. The grid is not an internal 64-tick limit. Pitch remains MIDI 0–127; Notes/Intervals are projections using an effective ScaleContext. A displayed interval includes accidental and octave. MIDI channels remain 1–16 per endpoint.",
         "Percent and tempo types\nVelocity/amount use typed decimal percentages with an explicit Off/zero where meaningful. Note-on velocity maps 1–100% to 1–127; zero is a separate cut/off action. CC maps 0–100% to 0–127. Tempo is positive BPM, not a percentage. Current tempo, song initial tempo and preference default BPM are distinct.",
-        "Save package / proposed\nSave a versioned manifest, authored definitions, pinned shared-resource revisions and opaque Synth-native state. Shared banks remain shared; publishing a change creates a revision, and sets opt into it. Portable export embeds referenced revisions and available assets; missing assets are reported without silently substituting sounds.",
+        "Save package / proposed\nSave one versioned Song document with authored definitions, pinned shared sound/chord revisions and Synth-native sound state, including song-local routing/mix. Sound library edits create new revisions; the Song keeps its saved revision until an explicit update. Preserve exact referenced content or report missing resources without substituting latest. Asset embedding/export policy remains to be chosen.",
         "Meter and grid semantics\nBar duration = numerator × 4 / denominator quarter-note beats. Meter changes alter bar boundaries and grouping without silently moving notes. A division edit explicitly retimes the phrase grid and its events; a view-only change preserves event times. Triplet and other ratios remain exact underneath. Compile to sufficiently fine scheduler timing; never equate a screen row with a transport tick."
       ],
       "links": []
@@ -114,7 +114,7 @@
       "width": 1440,
       "height": 1114,
       "text": [
-        "CREST TRACKER / ARCHITECTURE v2 · PROPOSED IMPLEMENTATION",
+        "CREST TRACKER / ARCHITECTURE v5 · PROPOSED IMPLEMENTATION",
         "A03 / Four phrase forms, one execution contract",
         "A common phrase envelope and timed output contract; each sequencer form owns its useful authoring representation.",
         "Common note data\nNoteData is one ordered collection of timed NoteEvent and FxEvent values. Every phrase form reads, edits or generates that representation. NoteEvent carries onset, duration, pitch, velocity and explicit target. FxEvent carries time, slot 1–3, typed effect and target when required. Mode settings describe editing/generation; they do not define another playback format.",
@@ -135,10 +135,10 @@
       "width": 1440,
       "height": 1167,
       "text": [
-        "CREST TRACKER / ARCHITECTURE v2 · PROPOSED IMPLEMENTATION",
+        "CREST TRACKER / ARCHITECTURE v5 · PROPOSED IMPLEMENTATION",
         "A04 / Playback cursors and control flow",
         "Each track has an independent cursor stack. Shared content never means shared playback position.",
-        "TrackCursor\ntrackId + songUseId + chainUseId + phraseUseId + phraseStep + repeat counters + phraseCycle + nextDueBeat + revision. The cursor path uses stable IDs and derives current indices for display. Phrase audition uses the same cursor with synthetic parent occurrences.",
+        "TrackCursor\ntrackId + songId + chainUseId + phraseUseId + phraseStep + repeat counters + phraseCycle + nextDueBeat + revision. The cursor path uses stable IDs and derives current indices for display. Phrase audition uses the same cursor with synthetic parent occurrences.",
         "Advance transaction\nAt the next due musical time: adopt eligible document revisions; collect due steps across tracks; evaluate mode and all FX; arbitrate global controls; schedule bounded output; resolve cursor transitions; publish a compact runtime projection. Off events and override expiry can be due between steps.",
         "Hierarchy\nAdvance within phrase; on phrase end, repeat the PhraseUse or advance inside the chain; on chain end, advance that track’s ChainUse. Song lanes need not arrive together. Proposed empty song slots stop that lane; explicit rests belong in phrases. Loop ranges and end policy are explicit transport data.",
         "Jump semantics / proposed\nA phrase jump changes the next local step; a chain jump changes the next PhraseUse; an arrangement jump changes that track’s next ChainUse. Apply after the current positive-duration step. Global time never rewinds. Invalid targets are rejected; defensive runtime faults stop the affected lane and release its notes.",
@@ -157,7 +157,7 @@
       "width": 1440,
       "height": 1254,
       "text": [
-        "CREST TRACKER / ARCHITECTURE v2 · PROPOSED IMPLEMENTATION",
+        "CREST TRACKER / ARCHITECTURE v5 · PROPOSED IMPLEMENTATION",
         "A05 / MIDI bridge and Synth integration",
         "Tracker produces musical intent. Its output adapter converts that intent to the public MIDI contract; Synth sees sound control only.",
         "Target union\nEventTarget = InstrumentRef(resourceId, revision) | MidiAddress(endpointId, channel). Instrument selection is per note/hit in the phrase grid. The integration catalog resolves InstrumentRef to a MIDI-addressable destination. A track does not carry a hidden route.",
@@ -179,7 +179,7 @@
       "width": 1440,
       "height": 1225,
       "text": [
-        "CREST TRACKER / ARCHITECTURE v2 · PROPOSED IMPLEMENTATION",
+        "CREST TRACKER / ARCHITECTURE v5 · PROPOSED IMPLEMENTATION",
         "A06 / Event emit map",
         "Commands request changes; domain facts describe accepted changes; effect requests cross ports. MIDI is an output protocol, not the domain event bus.",
         "Input → application\nGamepad adapters emit semantic intents: MoveFocus, AdjustValue, BeginEdit, EndEdit, Select, Back, Start, Shift. The interaction controller resolves current screen/focus and dispatches typed commands. Future MIDI-controller mappings reuse these intents; MIDI clock and performance-note input take separate adapters.",
@@ -201,7 +201,7 @@
       "width": 1440,
       "height": 1254,
       "text": [
-        "CREST TRACKER / ARCHITECTURE v2 · PROPOSED IMPLEMENTATION",
+        "CREST TRACKER / ARCHITECTURE v5 · PROPOSED IMPLEMENTATION",
         "A07 / Event contracts and consumers",
         "Initial contract inventory. Names are proposals; ownership, payload and delivery semantics are the implementation contract.",
         "Composition commands and facts\nEditPhraseStep / SetPhraseFx / ConfigurePhrase { phraseId, expectedRevision, edit } → PhraseChanged { newRevision, dirtySteps }. MakeUnique { occurrencePath } → ReferencesRelinked { copiedIds, path }. ReorderChain / ArrangeSong → ChainChanged / SongChanged. Compiler, UI and save coordinator consume committed facts.",
@@ -223,7 +223,7 @@
       "width": 1440,
       "height": 1423,
       "text": [
-        "CREST TRACKER / ARCHITECTURE v2 · PROPOSED IMPLEMENTATION",
+        "CREST TRACKER / ARCHITECTURE v5 · PROPOSED IMPLEMENTATION",
         "A08 / Phrase MIDI FX are foundational",
         "FX storage, evaluation, target resolution and cleanup ship in the first playable phrase slice. Every phrase mode uses this pipeline.",
         "Typed effect model\nFxSpec is a closed/versioned tagged union, not an arbitrary string plus byte. Descriptor: parameter type/range, target scope, stage, duration, conflict rule and capability requirement. Phrase step stores [Fx1?, Fx2?, Fx3?]. FX-only steps execute even when the note cell is empty.",
@@ -246,7 +246,7 @@
       "width": 1440,
       "height": 1003,
       "text": [
-        "CREST TRACKER / ARCHITECTURE v2 · PROPOSED IMPLEMENTATION",
+        "CREST TRACKER / ARCHITECTURE v5 · PROPOSED IMPLEMENTATION",
         "A09 / Implementation phases / foundation to song",
         "Phrase first, including MIDI FX. Each phase leaves an executable slice and a measurable completion gate.",
         "0 / Boundary and timing spike\nIdentify language/framework from the repository. Prove a MIDI note, note-off, parameter control, direct instrument addressing and timestamps against unchanged Synth. Audit patch/sample persistence and page reuse. Establish dependency checks, fake clock and MIDI capture sink. Gate: unresolved sound capabilities are documented, never hidden in Tracker-to-Synth calls.",
@@ -259,20 +259,20 @@
     },
     {
       "id": "2077:17",
-      "name": "A10 · Implementation phases / sets to release",
+      "name": "A10 · Implementation phases / persistence to release",
       "type": "FRAME",
       "x": 1680,
       "y": 5780,
       "width": 1440,
-      "height": 1114,
+      "height": 1143,
       "text": [
-        "CREST TRACKER / ARCHITECTURE v2 · PROPOSED IMPLEMENTATION",
-        "A10 / Implementation phases / sets to release",
-        "Set management and additional input methods extend the proven phrase, FX and cursor foundation.",
-        "5 / Sets, multiple songs and shared banks\nAdd song create/rename/duplicate/delete/reorder and set open/save. Formalize pinned shared chord/instrument revisions, atomic save, migrations, missing-resource recovery and portable export. Gate: reopening/exporting restores authored content and exact resource revisions without altering another set.",
+        "CREST TRACKER / ARCHITECTURE v5 · PROPOSED IMPLEMENTATION",
+        "A10 / Implementation phases / persistence to release",
+        "Song save/open and additional input methods extend the proven phrase, FX and cursor foundation.",
+        "5 / Song persistence and shared resources\nAdd New Song, Open Song, Save, Save As and rename for the sole document. New/Open replace the current Song through Save/Discard/Cancel; Save As writes a separate document, never adds a nested song. Preserve exact shared sound/chord revisions and song-local routing/mix. Gate: reopen restores one complete Song; explicit sound updates preserve local mix; interrupted saves remain recoverable.",
         "6 / Complete Synth pages and asset browsing\nIntegrate or reimplement Synth presentation views, mixer, sends, patch/sample/SoundFont selection and settings. The minimal sound adapter ships in Phases 0–1; this phase completes UI coverage. Apply starting-directory preferences and platform location tokens. Gate: all control paths respect the MIDI boundary and original Synth behavior remains intact.",
         "7 / Configurable MIDI and synchronization\nAdd mapping profiles and MIDI control-surface adapters to the existing semantic input port; add separate note-recording/performance and clock adapters as needed. Handle external clock, start/stop/continue, loss and device reconnect. Gate: no domain code branches on controller brand or raw gamepad/MIDI button codes.",
-        "8 / Timing, recovery and release\nMeasure jitter and queue budgets under dense FX and large sets; exercise overflow, stuck-note prevention, hotplug, undo/redo, save interruption and schema migrations. Gate: deterministic core tests, Synth contract tests, bounded scheduling and useful diagnostics pass under a documented workload.",
+        "8 / Timing, recovery and release\nMeasure jitter and queue budgets under dense FX and large Song arrangements; exercise overflow, stuck-note prevention, hotplug, undo/redo, save interruption and schema migrations. Gate: deterministic core tests, Synth contract tests, bounded scheduling and useful diagnostics pass under a documented workload.",
         "Continuous engineering gates\nImport rules forbid Synth → Tracker, domain → UI/OS/filesystem and view → mutable domain data. Keep meaningful tests around timing, ownership, effect lifetime, serialization and bridge contracts. Test long mixed-division runs; performance tests use a declared latency budget established in Phase 0.",
         "Decision log before implementation\nConfirm phrase maximum length, default gate/overlap behavior, the exact subdivision presets and meter-change editing policy, supported M8 FX subset and Synth MIDI profile. Review arbitration/jump policies and external-clock loss timeout. Rhythmic division through 1/64 is confirmed. Drum, Euclidean and Random visual details remain open; all use shared NoteData."
       ],
@@ -287,7 +287,7 @@
       "width": 1800,
       "height": 1522,
       "text": [
-        "CREST TRACKER / ARCHITECTURE v2 · PROPOSED IMPLEMENTATION",
+        "CREST TRACKER / ARCHITECTURE v5 · PROPOSED IMPLEMENTATION",
         "D01 / Domain event emission map",
         "Follow accepted edits into playback and MIDI. Arrows show data flow; card headings name the owner.",
         "Input adapters",
@@ -295,7 +295,7 @@
         "Application",
         "EditPhraseStep · SetPhraseFx\nValidate revision and dispatch.",
         "Composition + Harmony",
-        "Phrases · songs · scale context\nExplicit chords; own invariants.",
+        "Phrases · Song · scale context\nExplicit chords; own invariants.",
         "View projections",
         "Phrase · Song · Expanded\nRead-only state; no MIDI logic.",
         "Committed facts",
@@ -328,7 +328,7 @@
       "width": 1440,
       "height": 1515,
       "text": [
-        "CREST TRACKER / ARCHITECTURE v2 · PROPOSED IMPLEMENTATION",
+        "CREST TRACKER / ARCHITECTURE v5 · PROPOSED IMPLEMENTATION",
         "A11 / Coding contracts and dependency rules",
         "Language-neutral type sketches. Map these to the repository’s language after the Phase 0 audit; do not introduce a framework just to implement the diagram.",
         "Phrase and FX storage\nNoteData = ordered collection of NoteEvent | FxEvent.\nNoteEvent = { id, startBeat, duration, pitch, velocity, target }.\nFxEvent = { id, beat, slot: 1..3, spec: FxSpec, target? }.\nPhrase = { id, revision, timing, scaleOverride?, pitchPolicy, modeConfig, noteDataSource }.\nresolve(noteDataSource, occurrence, effectiveScaleContext, pitchPolicy, seed) → NoteData.\nAn authored source holds NoteData; a generator source produces the identical representation. Target-dependent FX-only rows require an explicit grid target.",
@@ -350,7 +350,7 @@
       "width": 1800,
       "height": 1491,
       "text": [
-        "CREST TRACKER / ARCHITECTURE v2 · PROPOSED IMPLEMENTATION",
+        "CREST TRACKER / ARCHITECTURE v5 · PROPOSED IMPLEMENTATION",
         "D02 / Every phrase form passes through MIDI FX",
         "One execution pipeline emits sound-control intents and cursor-control intents. MIDI FX belong to the core phrase contract.",
         "Tracker",
@@ -401,8 +401,8 @@
         "Notes or intervals\nNotes and Intervals are two projections of the same stored pitch. Display the tonic-relative interval, accidental and octave; for C natural minor, C4 / Eb4 / G4 correspond to 1:4 / b3:4 / 5:4. The ordinal scale position and the interval label are distinct, especially in pentatonic scales. Switching display changes no MIDI output.",
         "Chromatic access\nSettings: Note entry = Scale only or Chromatic. Phrase view: an explicit Inherit / Scale only / Chromatic override, with scope visible in its contextual popup. OFS adds signed semitones to the selected note/root after scale-aware entry or generation. These paths deliberately allow non-scale notes. Show them clearly; never snap them back after an intentional override.",
         "Existing data and shared phrases\nAuthored NoteData continues to store absolute pitches. Changing key/scale does not silently rewrite existing notes; mark existing out-of-scale notes and apply the new policy to future edits. Regenerating content is explicit or follows a declared live-generation policy. A phrase inherits scale per occurrence; editing shared content still uses Make Unique / Edit Shared protection.",
-        "Cache and event contracts\nSetSongScale → SongScaleChanged → derived bank refresh and affected projections/generator snapshots invalidated. SetNoteEntryPolicy / SetPhrasePitchPolicy → PitchPolicyChanged / PhraseChanged. SetPitchDisplay → EditorDisplayChanged only. Cache generated results by phrase revision + effective scale revision + entry policy + occurrence + seed, so the same phrase can run safely in different song contexts.",
-        "Dependency rule\nApplication resolves song/phrase context and passes plain values into Harmony. Harmony owns scale and chord rules without reading mutable Song, cursor, UI or Synth state. Derived banks are replaceable read models; save selected shape revisions with the set."
+        "Cache and event contracts\nSetSongScale → SongScaleChanged → derived bank refresh and affected projections/generator snapshots invalidated. SetNoteEntryPolicy / SetPhrasePitchPolicy → PitchPolicyChanged / PhraseChanged. SetPitchDisplay → EditorDisplayChanged only. Cache generated results by phrase revision + effective scale revision + entry policy + occurrence + seed, so the same phrase can run safely in different phrase-local scale contexts.",
+        "Dependency rule\nApplication resolves song/phrase context and passes plain values into Harmony. Harmony owns scale and chord rules without reading mutable Song, cursor, UI or Synth state. Derived banks are replaceable read models; save selected shape revisions with the Song."
       ],
       "links": []
     },
@@ -422,7 +422,7 @@
         "Chord quality stays explicit\nSelecting Major, Minor, Diminished or another shape plays exactly those intervals above the chosen root. Do not replace a chord quality or quantize its tones to the current scale. Scale-fit labels are guidance. A user can intentionally choose an out-of-scale chord; no automatic correction occurs.",
         "All-scale derivation / proposed algorithm\nFor each scale root, test chord-catalog shapes by transposing their pitch classes and checking containment in the scale. Show all fitting candidates; use stacked scale thirds as a familiar initial default where meaningful. If a familiar named triad is unavailable, show a fitting generated interval set with an honest label. Do not impose seven-degree major/minor rules on pentatonic, whole-tone or custom scales, or invent a “correct” quality.",
         "Example / C natural minor\n1 → C minor · 2 → D diminished · b3 → Eb major · 4 → F minor · 5 → G minor · b6 → Ab major · b7 → Bb major. These are fitting triads for this scale, not compulsory choices. Harmonic minor generates a different set because its seventh differs.",
-        "Custom / shared and editable\nCustom contains user-created, copied or search-generated chords and remains shared across sets under the existing revision policy. Copy Default or copy Custom creates a new editable identity. Save from Chord Search writes Custom. Phrase chord references pin the selected shape revision so a later key change does not silently change a saved major/minor quality.",
+        "Custom / shared and editable\nCustom contains user-created, copied or search-generated chords and remains shared through the library under the existing revision policy. Copy Default or copy Custom creates a new editable identity. Save from Chord Search writes Custom. Phrase chord references pin the selected shape revision so a later key change does not silently change a saved major/minor quality.",
         "Phrase override and chord search\nA phrase-local scale does not mutate the song Default bank. The popup shows both the bank key and the effective phrase scale when different. Chord Search can filter by song scale, effective phrase scale, chosen notes, root, quality or intervals; show candidate notes and fit before Save to Custom. A no-match result keeps the selected interval set and allows an explicit custom name."
       ],
       "links": []
@@ -451,5 +451,10 @@
       ],
       "links": []
     }
-  ]
+  ],
+  "revision": {
+    "date": "2026-09-21",
+    "scope": "Single Song document; library sound revisions pinned until explicit update; song-local routing/mix.",
+    "figmaSync": "synchronized"
+  }
 }

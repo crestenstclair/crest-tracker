@@ -2,97 +2,97 @@
   "project": "Crest Tracker",
   "prepared": "2026-09-21",
   "figma": "https://www.figma.com/design/mvRQEFZc5Oi2ZbRkoHhXjH/Crest-Tracker",
-  "architectureContentVersion": 4,
+  "architectureContentVersion": 5,
   "files": [
     {
       "path": "Crest-Tracker-Architecture-v1.md",
-      "bytes": 52531,
-      "sha256": "9c2797a6f7ebf09dc2735c298d6ad9e68e74ca5129be75dad1a32bb2a923690d"
+      "bytes": 56062,
+      "sha256": "8b9471558aa8c4ec9c5e60687a210c9689f60e12cc90fb2b1586d199976d277d"
     },
     {
       "path": "README.md",
-      "bytes": 3669,
-      "sha256": "2af9ab17fd3ded6525fc64699c53410786471d1cd0a11a632d4adf22b7a78aff"
+      "bytes": 4610,
+      "sha256": "596c8a178d9aeb022332ad1c04d545b817be95d1d487f85da14b29342b51bdaf"
     },
     {
       "path": "archive/Crest-Tracker-Design-Notes.md",
-      "bytes": 25194,
-      "sha256": "0762d4e110705bdc2bdf4773be3fdaaa1f02957d4c6adb1325089301b2c4a1c2"
+      "bytes": 25280,
+      "sha256": "2782a00bc0dcc74b4e62dc5d60f8a39f02b541877a30a17e10f072b684914884"
     },
     {
       "path": "design/chord-voicing.png",
-      "bytes": 34588,
-      "sha256": "fdf6eccb07df2ecb243857bd8fb747c1c134171607eb7310c6f105750e5e2cdc"
+      "bytes": 34573,
+      "sha256": "8f5512b60a3ad6bc954c35def6ae4f296ccf76a977841c94bdbb06d3e6ff9eed"
     },
     {
       "path": "design/default-chord-bank.png",
-      "bytes": 51396,
-      "sha256": "949ac7de91f6fa978bc79877ec2b967358c55258c19f60a1141c24028825ad30"
+      "bytes": 51574,
+      "sha256": "d1ea9155844100bdb3a63bdd901047e7db3368f668ad2152b0bd971c049b0edc"
     },
     {
       "path": "design/design-contracts.md",
-      "bytes": 19499,
-      "sha256": "082aae9705ee7a0dd900f40fd666efd9b7ad97e221849a8cc0064cb6d5fccfa5"
+      "bytes": 19835,
+      "sha256": "b7d1e028ca849c251c19428ad7a5533d89eb6984bb457e250e1e1aa40b78f593"
     },
     {
       "path": "design/event-map.png",
-      "bytes": 177531,
-      "sha256": "5cfb646fdf4d1474f36630cc868b3dc8a0397bc75ef6d62459ab592db6e75331"
+      "bytes": 179606,
+      "sha256": "06f99edf71a41439cef020a65c269a189c4761a7ed0f63a7d8a4584987208980"
     },
     {
       "path": "design/expanded.png",
       "bytes": 106448,
-      "sha256": "d9bc94faadc188860b3211d5698d88ae40f4dc77714b211bd1c65553f31ce2f3"
+      "sha256": "6df8ba22e4ea9e7d5bd9c55908cc9bc7f0daf5640c400cef62a1df4f70483f36"
     },
     {
       "path": "design/figma-architecture.json",
-      "bytes": 49434,
-      "sha256": "05ef34268b0889aa85f3873cc5c14abba38068c0b4f68bfd2bc8098cc37867f7"
+      "bytes": 50217,
+      "sha256": "b5881e843d1d06a3130a8478a64e4d60f8b073f4877d88653d67a8aba9dcdcbb"
     },
     {
       "path": "design/figma-components.json",
-      "bytes": 13669,
-      "sha256": "516c00abc204c4286b05def1438f8a26575f80073032fc823ff7a514208edc8d"
+      "bytes": 13864,
+      "sha256": "f4330ce109ac8470c38684af1ed71ee1671c088ea278a8122c7ffae551e05cf4"
     },
     {
       "path": "design/figma-contracts.json",
-      "bytes": 21452,
-      "sha256": "f8ada91369f3258f2a2ec7a5cb1c2b44bc421f78c6b292def105c90e21032925"
+      "bytes": 21828,
+      "sha256": "65fed985fe7c34cb77b6f9ce943470bf59962545a4a1575d8372d22f1b5eba91"
     },
     {
       "path": "design/figma-flows.json",
-      "bytes": 23178,
-      "sha256": "032bb6ba0058d8139d06dd7648269f0c86bda9745530d1a9cbd3e05259b2f31b"
+      "bytes": 23413,
+      "sha256": "ec75b4b71c3e527e9ec2486478804b83fccb935846e8559ff93f576cce4bea95"
     },
     {
       "path": "design/figma-guide.json",
-      "bytes": 6170,
-      "sha256": "1677c12d18c01a21efba3290cbebc60452406727d62e04e2d68c292a25d666ca"
+      "bytes": 6487,
+      "sha256": "55289a491e610f4a333eee978a9ac16cdfa24e4971c226e5dc1774d0a8bcd796"
     },
     {
       "path": "design/figma-screens.json",
-      "bytes": 399560,
-      "sha256": "70ab0d87c30c60ca7b765313ed69eafee628d4dadb382996d7c4bc5559999695"
+      "bytes": 401063,
+      "sha256": "1afccadfbd95636b687bae902e0e42b02cf9f8ad18bb75c7b43bf764e5b554fe"
     },
     {
       "path": "design/minimap.png",
-      "bytes": 62000,
-      "sha256": "0dfa2e6ec8f4861ebe1ced510dc965085104cce1a8a77a215b9aafe79d956570"
+      "bytes": 62620,
+      "sha256": "0bda644f0feefb1824d38e974692db01cec79eb95cc92b10253fd7125ce88aba"
     },
     {
       "path": "design/phrase-fx-pipeline.png",
-      "bytes": 171717,
-      "sha256": "e604ebfbda9183676d98f9aee476c425c6a616b7287492296924fde703d171aa"
+      "bytes": 173662,
+      "sha256": "d6564bbd76e266dc1ecaaab210ad34a43bb6608521a18b1e51a61fe6aa000102"
     },
     {
       "path": "design/phrase.png",
-      "bytes": 54972,
-      "sha256": "72e40a4f7f37e839d82e540b06ae13c1443addda6f597a784dd6f33274d95748"
+      "bytes": 55417,
+      "sha256": "a7c748700d27f09fe7459a249a7889cfac4bd6047513cc21f85b953d4d0b11da"
     },
     {
       "path": "design/screen-index.md",
-      "bytes": 15136,
-      "sha256": "aa056c0095a32c32edc8158f79a2db546a98e01e7998e04b237c94f2888217bc"
+      "bytes": 15155,
+      "sha256": "dcf0672efabd53a559082a102e38ddf55ea4a40e3ee58a2bedf1722314bd0709"
     },
     {
       "path": "design/song-minimap.md",
@@ -101,13 +101,13 @@
     },
     {
       "path": "design/song-view-picker.png",
-      "bytes": 25958,
-      "sha256": "d98d5cc86ded30b3dd357f88abce801c29aceee2a544122969e9aaadc4ce7a38"
+      "bytes": 26265,
+      "sha256": "d388034df83a457655eeaf9bd062e15f01062fba6862cbaadc97c6e47be24fd6"
     },
     {
       "path": "design/song.png",
-      "bytes": 54547,
-      "sha256": "f3efbd5c94c7aef234c6d6ace59a7481da24176173ce9e17041342dca4039987"
+      "bytes": 54995,
+      "sha256": "7b7f720c2854586770c7a60a322819850842d47d2de63f79e536f7aa5f4c36ad"
     },
     {
       "path": "design/tokens.json",
@@ -115,29 +115,34 @@
       "sha256": "8bb92bd18a8e99fbe779003eb2b4d086412bff96520c4f51fc2a775a7e3585b9"
     },
     {
+      "path": "domain-driven-design.html",
+      "bytes": 78880,
+      "sha256": "1f915cda3d899301ad580f21b5fb07343685f9c0db503eadb7c38ff535a93bc5"
+    },
+    {
       "path": "event-map.md",
-      "bytes": 8112,
-      "sha256": "aa4e4beb72ecdd3eda176a4ece759966a1dcb5400d5d4515ea119bb619b81fb9"
+      "bytes": 8599,
+      "sha256": "632b6e39f9c5db654ab5c451c0109c4441c0f02e955ef7cb4a5e75c4482b255d"
     },
     {
       "path": "implementation-kickoff.md",
-      "bytes": 4326,
-      "sha256": "9cc74fcb2f8008003125d321f47a58e12b8d9187ed0fe62c2ae196d4176e0ed9"
+      "bytes": 4799,
+      "sha256": "84db0e877a0b639b0671198770cb608199ef5192878fecee724e121a6149b5e3"
     },
     {
       "path": "implementation-plan.md",
-      "bytes": 8437,
-      "sha256": "01d755d08925adc750e044bd42a23279f20a01ada55fcfdaf0a60879ab4a0b66"
+      "bytes": 8760,
+      "sha256": "7a52a00be248bae0faffcaeed8c5b691d3d4c905ba2ad2fe148d1dc537f6251b"
     },
     {
       "path": "open-decisions.md",
-      "bytes": 5781,
-      "sha256": "815c8fdb5b5d75508391834d656a103fb70a33883f7f71f4092e3bd1b7da4182"
+      "bytes": 6250,
+      "sha256": "3ed4ca6def0e03d6b6faa2fe221e7cf1ce36a8a6422ec4dc817b753150d1e035"
     },
     {
       "path": "product-spec.md",
-      "bytes": 12578,
-      "sha256": "4131d3446d9db85bbfb559cf67b3e6cd94bd39da1c07b3a989884a68eed4d6ed"
+      "bytes": 13436,
+      "sha256": "db8bc0a7e8b135732d82d2ea03eecdb0464ccd1cb1fee7e384a5cbeb19f0cfa8"
     },
     {
       "path": "references/6988270f-b552-4f0c-955e-7e2084d22c27.png",

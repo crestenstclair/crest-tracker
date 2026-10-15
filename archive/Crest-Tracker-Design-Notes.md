@@ -2,6 +2,8 @@
 
 Planning draft · September 18, 2026
 
+Historical notes, with document ownership corrected on 21 September 2026: Song is the sole saved document. Follow product-spec.md for current requirements and unresolved decisions.
+
 Crest Tracker will use a reusable song, chain, and phrase model, with a controller-oriented hierarchical editor and an expanded multi-track editor over the same data. The expanded editor should provide the useful part of a conventional pattern tracker: seeing and editing concurrent parts together. Changing views must preserve the arrangement, references, timing, and playback state.
 
 This document records the current requirements and proposes how the two views can work together. Requirements below come from the planning discussion. Details labeled as proposals remain design recommendations, not settled implementation decisions. Comparisons with LSDJ, Dirtywave M8, and Polyend describe the workflow distinction raised in that discussion, rather than a compatibility specification for those products.
@@ -13,8 +15,8 @@ The subsequent discussion confirmed the shared hierarchical model and expanded e
 - Crest Tracker is a separate library that imports Crest Synth and uses it as a library.
 - Crest Tracker owns sequencing and MIDI emission. Tracker concerns must not enter Crest Synth.
 - Crest Synth retains its existing functionality, including synthesis and mixing. It remains the service that receives MIDI and produces sound. “Service” describes its responsibility; it does not require a separate process or network protocol.
-- A set contains the full saved state, including the existing Crest Synth state and the tracker state.
-- Sets contain songs. A song supports up to 16 tracks.
+- One Song document contains the full saved state, including Synth-owned sound/routing/mix and Tracker state.
+- The Song supports up to 16 tracks. There is no parent container or additional song collection.
 - Each track has an ordered arrangement of chain references. Chains contain ordered phrase references. Phrases contain the musical note and FX information, or the mode-specific information that generates it.
 - Chains and phrases are reusable. A chain can appear at multiple song positions, and a phrase can appear in multiple chains.
 - Tracks advance independently through their arrangements. Playback tracks the song position, chain position, and phrase position separately for each track.
@@ -131,7 +133,7 @@ Crest Tracker resolves the arrangement and emits timed MIDI events. Crest Synth 
 
 Tracker FX belong in one of two categories: operations on sequencing, such as repeats or transposition, and operations that emit supported MIDI messages. Existing audio effects and mixer behavior remain owned by Crest Synth. A tracker command must not require Crest Synth to interpret phrase rows or chain state.
 
-For persistence, the proposed set container composes tracker-owned state with Synth-owned state. The Synth portion is saved and restored through Synth's existing public facilities and retains its own schema. A complete set does not require adding tracker fields to a Synth-owned set type. The exact container and migration format should be decided after inspecting the existing Synth persistence API.
+For persistence, one Song file captures Tracker-owned composition and Synth-owned sound/routing/mix. The Synth portion uses its public capture/restore facilities and retains its own schema. The host owns document assembly; Synth acquires no Tracker types. Sound references retain their saved revisions until explicit update. Exact retention and embedding details remain implementation decisions.
 
 The choice of 16 musical tracks is a project constraint. Track identity and MIDI routing should be separate concepts; this document does not assume that one track means one voice or permanently binds a track number to a channel number.
 
@@ -141,8 +143,7 @@ Distinguish reusable definitions from their placements. A phrase definition cont
 
 | Object | Responsibility |
 | --- | --- |
-| Set | Full saved project state: Synth state, songs, reusable content, and tracker settings |
-| Song | Transport settings and up to 16 tracks |
+| Song | Complete saved document, transport settings, local sound/mix and up to 16 tracks |
 | Track | Musical lane, MIDI destination, and ordered chain references |
 | Chain reference | A placement of a chain in a track, with occurrence identity and any supported placement settings |
 | Chain | An ordered list of phrase references |
@@ -150,7 +151,7 @@ Distinguish reusable definitions from their placements. A phrase definition cont
 | Phrase | Length, rhythmic grid, mode, and musical content or generation parameters |
 | View group | Optional saved editor selection for opening related tracks and a time range together |
 
-Proposed storage: reusable chains and phrases live in set-level collections with stable IDs. Songs and chains refer to those IDs. This supports reuse across the set, but the pool scope remains a recommendation; it is not essential to the hybrid view.
+Reusable chains and phrases live in song-local collections with stable IDs. The Song and its chains refer to those IDs. The same definition can be used at several positions within this one Song.
 
 Each placement also needs a stable identity. Two placements may refer to the same phrase or chain while occupying different places in the arrangement. A repeated placement additionally has a playback iteration. These distinctions let the editor identify exactly what the user is looking at without duplicating musical content.
 
@@ -241,7 +242,7 @@ For edits that span repeated appearances of the same phrase, identical edits can
 
 The useful convenience is **open these parts together**, with optional **edit or move these placements together** commands. It does not require a second ordered list of patterns.
 
-Propose an optional saved **view group** containing a name, song identity, track selection, anchor occurrence, and viewing span. Avoid calling it a set because set already means the full project state. A group has no notes, no independent playback cursor, and no responsibility for advancing the song.
+Propose an optional saved **view group** containing a name, track selection, anchor occurrence, and viewing span within the current Song. A group is an editor selection: it has no notes, independent playback cursor or responsibility for advancing the Song.
 
 For example, a user can save “Verse” as a group that opens the relevant tracks around a particular chain occurrence. Editing the group edits the underlying phrases. The group does not make the selected chains start together. If its anchor is deleted, mark the group unresolved rather than silently jumping to another occurrence.
 
@@ -301,4 +302,4 @@ Before implementation, settle track-end and song-end behavior, the scope of repe
 - Editing a reused phrase changes every linked occurrence in both views.
 - Making one occurrence unique under a shared chain preserves the other uses.
 - A combined edit involving multiple appearances of the same phrase handles conflicting source edits explicitly.
-- Saving and loading a set retains tracker state and the complete existing Synth state without introducing tracker schema into Crest Synth.
+- Saving and loading one Song retains its composition, pinned sound references and local Synth state without introducing Tracker schema into Crest Synth.

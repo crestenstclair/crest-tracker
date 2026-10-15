@@ -54,11 +54,11 @@ Add the requested Minimap projection after deciding its bounded preview, density
 
 **Gate:** chain, expanded and minimap focus resolves to the correct source occurrence; editing in either editor changes the same content; changing views never rewrites notes, restarts playback or creates pattern data. Musical-time alignment survives unequal lengths, meter changes and jumps.
 
-## Phase 5 — Sets, multiple songs and shared resources
+## Phase 5 — Song persistence and shared resources
 
-Add Set open/save/save-as, song create/rename/duplicate/delete/reorder/switch, shared instrument and Custom chord references, resource revision policy, atomic persistence, schema migration and missing-resource handling. Add portable export semantics only after clarifying shared versus embedded assets.
+Add New Song, Open Song, Save, Save As and rename for one Song document. New/Open replace the current Song after Save/Discard/Cancel when dirty. Save As writes that Song to another file; it does not create a second arrangement inside the document. Preserve song-local Chain/Phrase definitions, pinned shared sound/Custom chord references and local routing/mix. Add recoverable persistence, schema migration and missing-resource handling; asset embedding/export remains an explicit policy choice.
 
-**Gate:** reopen restores the authored composition and sound/resource identities; unsaved-change handling is coherent; interrupted saves are recoverable; updating one shared resource does not silently alter pinned older sets.
+**Gate:** each file reopens exactly one Song with its composition, pinned sound/resource identities and local mix. New/Open never append a Song. Cancel leaves the current document intact; failed Open preserves it; later edits remain dirty after an earlier capture saves. Publishing a sound revision does not change the Song until explicit update.
 
 ## Phase 6 — full Synth presentation and asset browsing
 
@@ -74,7 +74,7 @@ Add configurable input mappings and MIDI controllers through semantic input adap
 
 ## Phase 8 — performance, recovery and release
 
-Measure jitter and scheduling cost under dense FX, 16 tracks and large sets. Validate bounded lookahead/queues, overflow handling, disconnect/reconnect, panic, live edits, undo/redo, interrupted save, migrations and missing assets. Do not broaden testing without a concrete correctness or release risk.
+Measure jitter and scheduling cost under dense FX, 16 tracks and large Song arrangements. Validate bounded lookahead/queues, overflow handling, disconnect/reconnect, panic, live edits, undo/redo, interrupted save, migrations and missing assets. Do not broaden testing without a concrete correctness or release risk.
 
 **Gate:** documented timing workload/budget passes, deterministic core and real Synth contract checks pass, output never silently drops required note-offs, and recovery produces useful diagnostics.
 

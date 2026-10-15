@@ -213,7 +213,7 @@
         {
           "id": "2034:76",
           "name": "Interaction rule",
-          "text": "SET AND SONGS / Shift + Up → settings for the selected song, including rename, edit and delete.",
+          "text": "SONG FILE / Shift + Up → current Song settings: name, meter and arrangement. New/Open replace the document through Save/Discard/Cancel.",
           "font": {
             "family": "Azeret Mono",
             "style": "Regular",
@@ -853,5 +853,10 @@
       "links": []
     }
   ],
-  "variables": []
+  "variables": [],
+  "revision": {
+    "date": "2026-09-21",
+    "scope": "Single Song document; library sound revisions pinned until explicit update; song-local routing/mix.",
+    "figmaSync": "synchronized"
+  }
 }

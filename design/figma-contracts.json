@@ -13,7 +13,7 @@
       "x": 80,
       "y": 80,
       "width": 1440,
-      "height": 1085,
+      "height": 1143,
       "texts": [
         {
           "id": "2030:3654",
@@ -33,12 +33,12 @@
         {
           "id": "2031:2",
           "name": "CONFIRMED / The boundary",
-          "text": "CONFIRMED / The boundary\nCrest Tracker is a separate library importing Crest Synth. Tracker owns sequencing, time, songs, chains, phrases, MIDI events and its UI. Crest Synth remains the MIDI-driven sound server, including instruments, effects and mixer. Tracker domain objects and sequencing behavior do not enter Synth."
+          "text": "CONFIRMED / The boundary\nCrest Tracker is a separate library importing Crest Synth. Tracker owns sequencing, time, the Song, chains, phrases, MIDI events and its UI. Crest Synth remains the MIDI-driven sound server, including instruments, effects and mixer. Tracker domain objects and sequencing behavior do not enter Synth."
         },
         {
           "id": "2031:3",
           "name": "CONFIRMED / Full state and shared banks",
-          "text": "CONFIRMED / Full state and shared banks\nA set contains complete musical state. Instruments and Custom chords are shared across sets through revisioned references. Each song separately derives an immutable Default chord bank from its key/scale. Songs belong to sets; chains and phrases are reusable. Portable export pins the referenced musical and sound resources."
+          "text": "CONFIRMED / Full state and shared banks\nOne Song contains the complete musical document: one arrangement, reusable Chain/Phrase definitions, pinned shared sound/Custom chord references and local Synth routing/mix. No parent container or additional songs exist inside it. New/Open replace the document; Save/Save As preserve it. Library sound edits require explicit revision adoption. Default chords derive from this Song key/scale."
         },
         {
           "id": "2031:4",
@@ -127,7 +127,7 @@
       "x": 80,
       "y": 1320,
       "width": 1440,
-      "height": 1056,
+      "height": 1085,
       "texts": [
         {
           "id": "2030:3662",
@@ -151,8 +151,8 @@
         },
         {
           "id": "2031:15",
-          "name": "CONFIRMED / Mixer, quick jump and songs",
-          "text": "CONFIRMED / Mixer, quick jump and songs\nShift + Down in Song opens Mixer. Shift + Down in every other view opens Quick Jump. Shift + Back in Song opens Tracker / Instruments / Chord Bank / Mixer / Sends / Settings. Sends opens the FX send levels. Quick Jump also includes Sends and Settings. Shift + Up in Set and Songs opens the selected Song Settings for rename, editing, duplication and deletion."
+          "name": "CONFIRMED / Mixer, quick jump and Song File",
+          "text": "CONFIRMED / Mixer, quick jump and Song File\nShift + Down in Song opens Mixer; elsewhere it opens Quick Jump. Shift + Back in Song opens Tracker / Instruments / Chord Bank / Mixer / Sends / Settings. Quick Jump includes Song File, Sends and Settings. Shift + Up in Song File opens settings for the current Song: name, meter and arrangement. File actions never add, reorder or delete child songs."
         },
         {
           "id": "2031:16",
@@ -184,7 +184,7 @@
       "x": 1680,
       "y": 1320,
       "width": 1440,
-      "height": 998,
+      "height": 1027,
       "texts": [
         {
           "id": "2030:3666",
@@ -241,7 +241,7 @@
       "x": 80,
       "y": 2560,
       "width": 1440,
-      "height": 1056,
+      "height": 1085,
       "texts": [
         {
           "id": "2030:3670",
@@ -266,7 +266,7 @@
         {
           "id": "2032:3656",
           "name": "CONFIRMED / Shared chord bank",
-          "text": "CONFIRMED / Default and Custom chords\nDefault is a read-only per-song bank derived from Settings key/scale, showing fitting chord choices for each root interval. Custom is editable and shared across sets: copy Default or Custom entries, or save results from Chord Search. Selected chord quality and intervals stay explicit and are never scale-quantized. Edit + Up opens the contextual popover; Edit + Left/Right browses; release Edit, move down and select Save."
+          "text": "CONFIRMED / Default and Custom chords\nDefault is a read-only per-song bank derived from Settings key/scale, showing fitting chord choices for each root interval. Custom is editable and shared through the library: copy Default or Custom entries, or save results from Chord Search. Selected chord quality and intervals stay explicit and are never scale-quantized. Edit + Up opens the contextual popover; Edit + Left/Right browses; release Edit, move down and select Save."
         },
         {
           "id": "2032:3657",
@@ -293,12 +293,12 @@
     },
     {
       "id": "2030:3673",
-      "name": "06 / Set lifecycle & implementation gates",
+      "name": "06 / Song lifecycle & implementation gates",
       "type": "FRAME",
       "x": 1680,
       "y": 2560,
       "width": 1440,
-      "height": 1085,
+      "height": 1172,
       "texts": [
         {
           "id": "2030:3674",
@@ -308,7 +308,7 @@
         {
           "id": "2030:3675",
           "name": "Document title",
-          "text": "06 / Set lifecycle & implementation gates"
+          "text": "06 / Song lifecycle & implementation gates"
         },
         {
           "id": "2030:3676",
@@ -322,13 +322,13 @@
         },
         {
           "id": "2032:3662",
-          "name": "CONFIRMED / Set and Song management",
-          "text": "CONFIRMED / Sets and songs\nSets support rename/save and multiple songs. Song settings handle rename/delete and meter. Songs use shared instruments and shared Custom chords, with a derived read-only Default chord bank per song key/scale. Changing key/scale refreshes Default; it does not rewrite Custom shapes."
+          "name": "CONFIRMED / Song document lifecycle",
+          "text": "CONFIRMED / One Song document\nSong is the sole saved document. Song File supports New/Open/Save/Save As; settings edit its name and meter. New/Open replace the current Song after Save/Discard/Cancel when dirty. Sound definitions and Custom chords use pinned library references; routing/mix remains song-local. Changing key refreshes read-only Default without rewriting Custom shapes."
         },
         {
           "id": "2032:3663",
           "name": "PROPOSED / Persistence and transport",
-          "text": "IMPLEMENTATION PROPOSAL / Persistence and transport\nArchitecture A02 defines versioned set snapshots with pinned shared-resource revisions and portable export. A04 defines independent cursor stacks; A08 defines note and parameter cleanup. These are proposed coding contracts. Exact Synth resource APIs, external clock-loss timeout and MIDI capabilities remain Phase 0 gates."
+          "text": "IMPLEMENTATION PROPOSAL / Persistence and transport\nArchitecture A02 defines a versioned single-Song document with pinned shared-resource revisions and local sound/mix state. A04 defines independent cursor stacks; A08 defines note and parameter cleanup. Exact retention/export, timing and control protocols remain implementation gates. There is no multi-song container schema to implement or migrate."
         },
         {
           "id": "2032:3664",
@@ -348,5 +348,10 @@
       ],
       "links": []
     }
-  ]
+  ],
+  "revision": {
+    "date": "2026-09-21",
+    "scope": "Single Song document; library sound revisions pinned until explicit update; song-local routing/mix.",
+    "figmaSync": "synchronized"
+  }
 }

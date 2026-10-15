@@ -13,7 +13,7 @@
       "x": 80,
       "y": 80,
       "width": 1440,
-      "height": 1157,
+      "height": 1186,
       "texts": [
         {
           "id": "2030:3118",
@@ -121,8 +121,8 @@
         },
         {
           "id": "2032:3672",
-          "name": "06 / Sets, songs and shared banks",
-          "text": "06 / Sets, songs and shared banks ↗\nRename/save the set, open songs and use Shift Up for Song Settings. Instruments and Custom chords are shared across sets. Each song derives its own Default chords from key/scale.",
+          "name": "06 / Song file and shared libraries",
+          "text": "06 / Song file and shared libraries ↗\nNew, open, rename and save one Song document. Song File holds file actions; Song Settings edits the current Song. Sound definitions and Custom chords use the shared library. Sound revisions stay pinned until explicit update; routing/mix stays local. Default chords derive from the Song key/scale.",
           "font": {
             "family": "Azeret Mono",
             "style": "Bold",
@@ -176,5 +176,10 @@
       "links": []
     }
   ],
-  "variables": []
+  "variables": [],
+  "revision": {
+    "date": "2026-09-21",
+    "scope": "Single Song document; library sound revisions pinned until explicit update; song-local routing/mix.",
+    "figmaSync": "synchronized"
+  }
 }

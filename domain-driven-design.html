@@ -1,0 +1,937 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="description" content="Whole-product domain-driven design for Crest Tracker and Crest Synth: one Song, reusable sound definitions, local mix, proposed bounded contexts, invariants and evidence.">
+<title>Crest — Domain-driven design</title><style>
+:root{--ink:#182c2a;--muted:#526864;--paper:#f6f5ef;--panel:#fffefa;--line:#d7ded6;--teal:#006b60;--teal-soft:#e5f1eb;--amber:#8a4b17;--amber-soft:#f7ecdc;--blue:#335989;--blue-soft:#eaf0f8;--serif:Georgia,'Times New Roman',serif;--sans:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;--mono:'SFMono-Regular',Consolas,monospace}
+*{box-sizing:border-box}html{scroll-behavior:smooth;scroll-padding-top:30px}body{margin:0;background:var(--paper);color:var(--ink);font-family:var(--sans);font-size:16px;line-height:1.7}a{color:var(--teal);text-decoration-thickness:1px;text-underline-offset:3px}a:hover{color:#00443d}a:focus-visible,button:focus-visible,summary:focus-visible,[tabindex]:focus-visible{outline:3px solid var(--amber);outline-offset:4px}button{font:600 13px var(--sans);background:var(--panel);border:1px solid var(--line);padding:10px 15px;border-radius:5px;color:var(--ink);cursor:pointer}button:hover{background:var(--teal-soft)}.skip-link{position:fixed;left:20px;top:-100px;background:var(--panel);padding:10px;z-index:10}.skip-link:focus{top:12px}
+.sidebar{position:fixed;inset:0 auto 0 0;width:246px;padding:36px 23px 24px;border-right:1px solid var(--line);display:flex;flex-direction:column;background:#eef1e9;overflow:auto}.brand{font-size:18px;font-weight:850;letter-spacing:-.8px;line-height:1.2}.brand small{display:block;font:10px var(--mono);letter-spacing:1.8px;text-transform:uppercase;color:var(--muted);margin-top:9px}.sidebar nav{margin-top:38px;display:grid;gap:2px}.sidebar nav a{display:flex;gap:10px;align-items:baseline;text-decoration:none;font-size:12px;line-height:1.4;padding:10px 6px;color:var(--muted);border-radius:4px}.sidebar nav a span{font:10px var(--mono);color:#64766d}.sidebar nav a:hover{background:#e0e7da;color:var(--ink)}.sidebar nav a[aria-current="location"]{background:#dce9df;color:var(--teal);font-weight:750}.sidebar-foot{margin-top:auto;padding-top:36px;font-size:11px;line-height:1.7;color:var(--muted)}.sidebar-foot b{display:block;color:var(--teal);font-size:12px}.sidebar-foot .dot{display:inline-block;width:7px;height:7px;background:var(--teal);border-radius:50%;margin-right:6px}
+.document{margin-left:246px;padding:52px clamp(28px,5vw,90px) 0;max-width:1600px}.hero{padding-bottom:43px;border-bottom:1px solid var(--ink);position:relative}.eyebrow{font:11px var(--mono);letter-spacing:1.5px;text-transform:uppercase;color:var(--teal);margin:0 0 22px}.hero h1{font:normal clamp(38px,4.6vw,69px)/1.06 var(--serif);letter-spacing:-2.5px;max-width:920px;margin:0 0 22px}.hero h1 em{font-weight:normal;color:var(--teal)}.hero .lead{font-size:19px;line-height:1.55;max-width:720px;color:var(--muted);margin:0 0 27px}.hero-actions{display:flex;gap:12px;align-items:center;flex-wrap:wrap}.meta{font:11px var(--mono);color:var(--muted)}.stats{display:grid;grid-template-columns:repeat(3,1fr);margin:35px 0 0;border:1px solid var(--line);border-radius:7px;background:var(--panel)}.stat{padding:18px 24px;border-right:1px solid var(--line)}.stat:last-child{border:0}.stat b{display:block;font:35px/1.15 var(--serif)}.stat span{font-size:12px;color:var(--muted)}.status-line{padding:14px 18px;border-left:3px solid var(--amber);background:var(--amber-soft);font-size:13px;line-height:1.6;margin:26px 0 0}.status-line a{color:var(--amber)}
+main{padding-top:9px}h2{font:normal 31px/1.25 var(--serif);letter-spacing:-.65px;margin:64px 0 23px;padding-top:21px;border-top:1px solid var(--line);scroll-margin-top:22px}h3{font-size:18px;line-height:1.4;margin:31px 0 14px;letter-spacing:-.2px}p{margin:0 0 18px}li{margin:7px 0}ul,ol{padding-left:25px;margin:15px 0 25px}strong{font-weight:720}code{font:12px/1.6 var(--mono);background:#e9ede6;padding:2px 5px;border-radius:3px;overflow-wrap:anywhere}table{width:100%;border-collapse:collapse;margin:22px 0 28px;font-size:13px;line-height:1.65;background:var(--panel)}th{text-align:left;font-size:10px;text-transform:uppercase;letter-spacing:1px;font-weight:750;background:#e8ede5;color:var(--muted);padding:12px 15px;border-bottom:1px solid #bdc9be}td{padding:15px;vertical-align:top;border-bottom:1px solid var(--line);overflow-wrap:anywhere}td:first-child{width:23%;font-weight:550}tr:last-child td{border-bottom:1px solid #bdc9be}.principles{padding:5px 25px 2px;background:var(--teal-soft);border-left:3px solid var(--teal);border-radius:0 7px 7px 0;margin:29px 0}.principles h3{color:var(--teal)}.principles li{margin:12px 0}.source{font:10.5px/1.7 var(--mono);color:var(--muted);margin-top:21px}.source a{color:inherit}.context-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px;margin:30px 0}.context-card{border:1px solid var(--line);border-top:3px solid var(--teal);border-radius:7px;background:var(--panel);padding:23px 25px;min-width:0}.context-card h3{font-size:19px;margin:0 0 11px;scroll-margin-top:30px}.context-card p{font-size:13px;line-height:1.72;margin:0 0 16px}.context-card p:last-child{margin-bottom:0}.context-card.sound{border-top-color:var(--blue)}.context-card.resource{border-top-color:var(--amber)}.context-card:last-child{grid-column:1/-1}.badge{display:inline-block;font:9px/1.5 var(--mono);letter-spacing:.2px;border:1px solid #c6d9ce;background:var(--teal-soft);color:var(--teal);padding:3px 6px;border-radius:3px;margin-right:7px}.badge.open{color:var(--amber);background:var(--amber-soft);border-color:#dfc9ab}.domain-label{font-size:10px;color:var(--muted)}
+.map-figure{margin:30px 0;border:1px solid var(--line);border-radius:8px;background:var(--panel);overflow:hidden}.map-scroll{overflow-x:auto}.map-figure svg{display:block;width:100%;min-width:800px}.map-figure rect{stroke-width:1;stroke:#bbcdc3}.music-box{fill:var(--teal-soft)}.sound-box{fill:var(--blue-soft);stroke:#c4d1e2!important}.resource-box{fill:var(--amber-soft);stroke:#dfc9ab!important}.preservation-box{fill:#f4f2e8;stroke:#c9c5b0!important;stroke-dasharray:5 4}.map-number{font:10px var(--mono);fill:var(--muted)}.map-name{font:600 14px var(--sans);fill:var(--ink)}.map-detail{font:12px var(--sans);fill:var(--muted)}.edge-label{font:10px var(--mono);fill:var(--muted)}.map-figure a:hover rect{stroke:var(--ink)!important;stroke-width:2}.map-figure figcaption{font-size:11px;line-height:1.6;padding:15px 22px;border-top:1px solid var(--line);color:var(--muted);background:#f1f3ec}
+.workflow-tools{display:flex;align-items:center;gap:14px;margin:20px 0}.workflow-tools span{font-size:11px;color:var(--muted)}details.workflow{border:1px solid var(--line);border-radius:7px;background:var(--panel);margin:13px 0;padding:0 22px}details.workflow summary{cursor:pointer;padding:18px 0;font-size:15px;font-weight:700;list-style-position:outside;margin-left:17px}details.workflow[open] summary{border-bottom:1px solid var(--line);margin-bottom:20px}details.workflow p,details.workflow li{font-size:14px}details.workflow p:last-child{padding-bottom:4px}details.workflow summary::marker{color:var(--teal)}.review-note{border:1px solid #dcc9ae;background:var(--amber-soft);border-radius:7px;padding:20px 24px;font-size:13px;margin:25px 0}.review-note p:last-child{margin:0}.end-note{font:normal 26px/1.5 var(--serif);color:var(--teal);padding:35px 0;margin:35px 0 0;border-top:1px solid var(--ink)}footer{margin-top:20px;padding:22px 0 35px;font:10px var(--mono);color:var(--muted);border-top:1px solid var(--line);display:flex;justify-content:space-between;gap:20px}.progress{position:fixed;top:0;left:246px;height:3px;width:calc(100% - 246px);z-index:4;background:transparent;pointer-events:none}.progress i{display:block;height:100%;background:var(--teal);transform-origin:left;transform:scaleX(0)}
+@media(min-width:1500px){.document{margin-left:max(246px,calc((100vw - 1280px)/2));max-width:1280px}}@media(max-width:1100px){.sidebar{width:218px;padding-left:17px;padding-right:17px}.document{margin-left:218px;padding-left:32px;padding-right:32px}.progress{left:218px;width:calc(100% - 218px)}.context-card{padding:20px}.context-grid{gap:14px}}@media(max-width:820px){.sidebar{position:static;width:auto;border-right:0;border-bottom:1px solid var(--line);padding:20px 22px;display:block}.brand small{display:inline-block;margin:0 0 0 12px}.sidebar nav{display:flex;overflow-x:auto;margin-top:20px;padding-bottom:3px;gap:6px}.sidebar nav a{white-space:nowrap;padding:8px}.sidebar-foot{display:none}.document{margin:0;padding:32px 22px 0;max-width:none}.progress{left:0;width:100%}.hero h1{font-size:46px;letter-spacing:-1.6px}.hero .lead{font-size:17px}.context-grid{grid-template-columns:1fr}.context-card:last-child{grid-column:auto}h2{font-size:27px;margin-top:49px}table{font-size:12px;display:block;overflow-x:auto}th,td{padding:12px;min-width:150px}td:first-child{min-width:165px}.stats{margin-top:27px}.stat{padding:15px}.stat b{font-size:30px}.stat span{font-size:10px}.workflow-tools{align-items:flex-start;flex-direction:column;gap:8px}}@media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}}
+@media print{@page{size:A4;margin:16mm 14mm}body{font-size:10pt;background:white;color:#132824}.sidebar,.progress,.hero-actions button,.workflow-tools,.skip-link{display:none!important}.document{margin:0;padding:0;max-width:none}.hero{padding-bottom:15px}.hero h1{font-size:35pt;letter-spacing:-1px}.hero .lead{font-size:12pt}.eyebrow{font-size:8pt}.stats{margin-top:20px}.stat{padding:10px 15px}.stat b{font-size:24pt}.stat span{font-size:8pt}.status-line{font-size:9pt}.context-grid{display:block}.context-card{break-inside:avoid;margin:12px 0;padding:14px 17px}.context-card h3{font-size:13pt}.context-card p{font-size:9pt;line-height:1.55;margin-bottom:10px}h2{font-size:22pt;margin:30px 0 15px;break-after:avoid}h3{font-size:13pt;break-after:avoid}table{font-size:8pt;display:table;overflow:visible}thead{display:table-header-group}tr{break-inside:avoid}th,td{padding:7px;min-width:0!important}p,li{orphans:3;widows:3}.map-figure{break-inside:avoid}.map-figure svg{min-width:0}.map-scroll{overflow:visible}details.workflow{break-inside:auto;padding:0 14px}details.workflow summary{break-after:avoid;font-size:11pt}details.workflow p,details.workflow li{font-size:9pt}.review-note{font-size:9pt}a{color:inherit}code{font-size:8pt}footer{font-size:8pt}.end-note{font-size:17pt}*{-webkit-print-color-adjust:exact;print-color-adjust:exact}}
+</style></head>
+<body><a class="skip-link" href="#main">Skip to document</a>
+<aside class="sidebar"><div class="brand">CREST<span aria-hidden="true"> /</span><small>Domain design</small></div><nav aria-label="Document sections"><a href="#product"><span>01</span>The product model</a><a href="#subdomains"><span>02</span>Modeling investment</a><a href="#contexts"><span>03</span>Bounded contexts</a><a href="#map"><span>04</span>Context relationships</a><a href="#language"><span>05</span>Scoped language</a><a href="#invariants"><span>06</span>Rules & aggregates</a><a href="#workflows"><span>07</span>Workflow traces</a><a href="#contracts"><span>08</span>Commands & facts</a><a href="#integration"><span>09</span>Existing integration</a><a href="#decisions"><span>10</span>Decisions & questions</a><a href="#evidence"><span>11</span>Evidence & review</a></nav><div class="sidebar-foot"><b><span class="dot" aria-hidden="true"></span>Local document</b>Self-contained HTML<br>Tracker + Synth · 21 Sep 2026<br>Design proposal / evidence-linked</div></aside>
+<div class="progress" aria-hidden="true"><i></i></div>
+<div class="document"><header class="hero"><p class="eyebrow">Crest Tracker + Crest Synth / whole-product model</p><h1>One Song.<br><em>Clear domain ownership.</em></h1><p class="lead">A domain-driven design for composing, shaping sound, performing, mixing, and preserving music. Grounded in current product decisions and existing Synth behavior.</p><div class="hero-actions"><button type="button" id="print">Print / Save PDF</button><span class="meta">21 SEPTEMBER 2026 · LOCAL HTML · REVISION 1</span></div><div class="stats"><div class="stat"><b>1</b><span>Song per document</span></div><div class="stat"><b>9</b><span>Context candidates</span></div><div class="stat"><b>6</b><span>End-to-end workflow traces</span></div></div><p class="status-line"><strong>Design status:</strong> product decisions are confirmed; context boundaries are proposals. Infrastructure and full-product skeptic review remain incomplete. <a href="#evidence">Read evidence and review status</a>.</p></header>
+<main id="main"><h2 id="product">01 · The product model</h2>
+<p><strong>A musician composes, designs sounds, performs, mixes, curates assets, and preserves the result. The saved result is one Song.</strong> These are different responsibilities within one product, not different users or a proposed fleet of services.</p>
+<p>The most important modeling distinction is between <strong>intended music</strong>, <strong>reusable sound</strong>, <strong>the installed sound used by this Song</strong>, and <strong>what is currently sounding</strong>. Each changes for different reasons and obeys different rules.</p>
+<div class="principles">
+<h3 id="confirmed-decisions">Confirmed decisions</h3>
+<ul>
+<li><strong>One Song is the sole document.</strong> It has one arrangement, up to 16 composition tracks, local Chain/Phrase definitions, library references, and local sound/routing/mix state. There is no Set, parent project, collection of child songs, or selected-song index.</li>
+<li><strong>New and Open replace the current Song.</strong> Dirty content uses Save/Discard/Cancel. Save As writes a separate file containing the same single arrangement.</li>
+<li><strong>Sounds are shared as definitions.</strong> An installed sound use, MIDI subscription, routing, and mix belong to the current Song. Editing a library definition does not share live Patch state.</li>
+<li><strong>Saved sound revisions remain pinned.</strong> A Song adopts a newer revision only through explicit update. Adoption preserves local routing/mix; failure retains the previous pin and configuration.</li>
+<li><strong>Tracker and Synth remain independent libraries.</strong> Synth owns sound generation and stays usable without Tracker. Library boundaries do not establish the complete domain map.</li>
+<li><strong>Views do not own music.</strong> Song, Expanded, Minimap, and phrase presentations project the same composition. A view change must not rewrite notes or restart playback.</li>
+</ul>
+</div>
+<h3 id="what-the-song-contains">What the Song contains</h3>
+<div class="ownership">
+<table>
+<thead>
+<tr>
+<th>Saved with the Song</th>
+<th>Referenced from libraries</th>
+<th>Transient or machine-local</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>One arrangement; key, scale, tempo, meter</td>
+<td>Exact reusable sound-definition revisions</td>
+<td>Playback passes, cursors, generated queues, sounding voices</td>
+</tr>
+<tr>
+<td>Chain/Phrase definitions and their structural uses</td>
+<td>Explicit Custom chord shapes/revisions</td>
+<td>Temporary parameter claims, previews, pending requests</td>
+</tr>
+<tr>
+<td>Installed sound associations and local sound configuration</td>
+<td>Retained sample/SoundFont assets and exact presets</td>
+<td>Device connections, prepared graphs, decoded buffers</td>
+</tr>
+<tr>
+<td>MIDI subscriptions, routing, baseline mix and audio FX configuration</td>
+<td>Exact referenced content must remain recoverable</td>
+<td>Editor focus, display mode, paths and device preferences</td>
+</tr>
+</tbody>
+</table>
+</div>
+<p>The document is a <strong>coherent capture of several owners</strong>, not one enormous mutable aggregate. There is no extra <code>WorkspaceDocument</code> above Song. Native Synth session data can supply the sound portion without introducing Song, Chain, or Phrase into Synth. Whether referenced assets are embedded or retained externally remains a packaging decision.</p>
+<p class="source">Evidence: <a href="#e-user">E1 — stakeholder decisions</a>; <a href="#e-product">E2 — product specification</a>; <a href="#e-save">E5 — native Synth capture</a>.</p>
+
+<h2 id="subdomains">02 · Where modeling effort belongs</h2>
+<p>Subdomains describe product capabilities. Bounded contexts describe where a model has a consistent meaning. Neither is a synonym for a folder, screen, thread, or library.</p>
+<table>
+<thead>
+<tr>
+<th>Capability</th>
+<th>Classification</th>
+<th>Why it matters / investment</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Composition and harmonic authorship</td>
+<td><strong>Core</strong></td>
+<td>Reusable musical structures, explicit harmony, varied phrase forms, and safe shared editing are central product behavior. Invest in expressive rules and predictable edits.</td>
+</tr>
+<tr>
+<td>Musical sequencing and performance</td>
+<td><strong>Core</strong></td>
+<td>Independent occurrences, precise musical time, MIDI FX, and cleanup obligations turn authored intent into a performance. Invest in deterministic traces and timing contracts.</td>
+</tr>
+<tr>
+<td>Playable sound design</td>
+<td><strong>Core candidate</strong></td>
+<td>Synth is a first-class product: engines, presets, envelopes, mappings, and sound-shaping effects. Its market differentiation is not established by code size; reuse upstream DSP.</td>
+</tr>
+<tr>
+<td>Mixing and audio-effect arrangement</td>
+<td><strong>Supporting</strong></td>
+<td>Routing, independent stems, summed tracks, shared returns, mute/solo, and baseline controls require exact behavior.</td>
+</tr>
+<tr>
+<td>Sound-asset curation</td>
+<td><strong>Supporting</strong></td>
+<td>Import, retain, identify, inspect, audition, and assign usable material without silently changing identity.</td>
+</tr>
+<tr>
+<td>Sound execution</td>
+<td><strong>Supporting</strong></td>
+<td>Admit, sustain, release, and render voices with explicit resource limits and activation outcomes. Hard real-time engineering is important but does not alone make a core domain.</td>
+</tr>
+<tr>
+<td>Device connectivity</td>
+<td><strong>Supporting</strong></td>
+<td>Maintain usable physical connections and reject stale ingress. Reuse driver and protocol mechanisms.</td>
+</tr>
+<tr>
+<td>Song preservation</td>
+<td><strong>Supporting responsibility</strong></td>
+<td>Recover the exact composition and sound, including pinned resources and a truthful dirty baseline. Serialization and filesystem operations are generic mechanisms.</td>
+</tr>
+</tbody>
+</table>
+<p>Use existing parsers, codecs, DSP engines, effect implementations, operating-system dialogs, and device libraries. No new domain is justified merely to wrap one of them.</p>
+<h2 id="contexts">03 · Proposed bounded contexts</h2>
+<p><strong>Nine candidates describe the whole product.</strong> This is a proposed semantic map, not a claim that today's Synth already has nine clean modules. The ninth candidate—Song Preservation—may be satisfied by application orchestration. Device Connectivity may also remain a cohesive host module. Neither needs a dedicated service or an extra document type.</p>
+<div class="context-grid">
+<article class="context-card music">
+<h3 id="c01">C01 · Composition Authoring</h3>
+<p><span class="badge proposed">Proposed context</span> <span class="domain-label">Core music</span></p>
+<p><strong>Purpose:</strong> preserve musical intent and the consequences of reuse.</p>
+<p><strong>Owns:</strong> Song arrangement, composition tracks, Chain/Phrase definitions, structural uses, note and FX data, generator inputs, and shared/unique editing rules. Definitions and incoming references are scoped to this Song.</p>
+<p><strong>Does not own:</strong> active playback passes, physical devices, sound-engine settings, or sounding voices.</p>
+<p><strong>Boundary test:</strong> changing a shared Phrase changes all its uses. Make Unique isolates only the selected occurrence, including its containing Chain when needed. The complete current reference topology must be checked at commit.</p>
+<p><strong>Rationale:</strong> editing an intention and executing it have different lifecycles. There is no evidence for separate Arrangement, Phrase, or Generator bounded contexts yet; forms resolve to a common event contract.</p>
+<p class="source"><a href="#e-product">E2</a> · <a href="#e-architecture">E3</a></p>
+</article>
+<article class="context-card music">
+<h3 id="c02">C02 · Harmony</h3>
+<p><span class="badge proposed">Proposed context</span> <span class="domain-label">Core music</span></p>
+<p><strong>Purpose:</strong> preserve explicit pitch and chord meaning while helping the musician choose material.</p>
+<p><strong>Owns:</strong> scale and interval rules, literal chord shapes, voicing, harmonic queries, the derived read-only Default bank, and editable Custom chord definitions.</p>
+<p><strong>Does not own:</strong> arrangement order, transport state, instrument voices, or a competing note array for interval display.</p>
+<p><strong>Boundary test:</strong> choosing C major in a minor Song still yields C–E–G. A scale change may refresh suggestions; it cannot silently turn a selected major chord into minor.</p>
+<p><strong>Rationale:</strong> a reusable editable vocabulary and contextual derivation have a lifecycle beyond one phrase edit. A module within Composition remains a credible simpler implementation; do not split chord math and chord storage into invented contexts.</p>
+<p class="source"><a href="#e-product">E2</a></p>
+</article>
+<article class="context-card music">
+<h3 id="c03">C03 · Musical Performance</h3>
+<p><span class="badge proposed">Proposed context</span> <span class="domain-label">Core performance</span></p>
+<p><strong>Purpose:</strong> turn musical intent into timed actions.</p>
+<p><strong>Owns:</strong> performance runs, occurrence passes, exact musical time, tempo and flow, FX evaluation, generated scheduling, note-release obligations, and the musical initiation/expiry of temporary control claims.</p>
+<p><strong>Does not own:</strong> persistent mix baselines, authoritative sound-parameter arbitration, DSP, or actual voice allocation.</p>
+<p><strong>Boundary test:</strong> two tracks can reuse one Phrase and progress independently. Stop ends future scheduling and initiates cleanup; it does not prove every external destination is silent.</p>
+<p><strong>Rationale:</strong> a structural use can be traversed many times. A live execution pass is not a Phrase field, and a scheduled note is not a sounding voice.</p>
+<p class="source"><a href="#e-product">E2</a> · <a href="#e-midi">E6</a></p>
+</article>
+<article class="context-card sound">
+<h3 id="c04">C04 · Sound Configuration</h3>
+<p><span class="badge proposed">Proposed context</span> <span class="domain-label">Synth sound model</span></p>
+<p><strong>Purpose:</strong> define and install a playable sound.</p>
+<p><strong>Owns:</strong> reusable sound definitions, engine capabilities, exact preset/asset assignment, envelope, Drum Rack mapping, ordered sound-shaping post-FX, and musical voice configuration. Installed uses carry their pinned definition association, accepted configuration, and local subscription. This owner resolves baseline/effective values for its sound parameters.</p>
+<p><strong>Does not own:</strong> asset custody, inter-source routing/mix, actual voice lifetime, or automatic global updates.</p>
+<p><strong>Boundary test:</strong> saving a valid library definition requires no audio activation. Installing a structural revision requires a matching activation acknowledgement before committing the accepted installation.</p>
+<p><strong>Rationale:</strong> a shared recipe and a Song-local installed Patch have different identities and lifecycles. Reuse a canonical sound-configuration value; do not introduce a second independently editable copy of Synth state.</p>
+<p class="source"><a href="#e-user">E1</a> · <a href="#e-patch">E4</a> · <a href="#e-activation">E8</a></p>
+</article>
+<article class="context-card resource">
+<h3 id="c05">C05 · Sound Asset Library</h3>
+<p><span class="badge proposed">Proposed context</span> <span class="domain-label">Resource custody</span></p>
+<p><strong>Purpose:</strong> retain and identify usable sound material independently of its assignment.</p>
+<p><strong>Owns:</strong> retained sample/SoundFont content, import validation, library identity, asset metadata, preset coordinates, and availability queries. Both instruments and effects can reference retained material.</p>
+<p><strong>Does not own:</strong> installing a Patch configuration, graph activation, or audition playback.</p>
+<p><strong>Boundary test:</strong> an import can succeed even when a later assignment fails. A SoundFont preset is identified within its exact bank asset by bank/program coordinates, not by its display label.</p>
+<p><strong>Rationale:</strong> material can exist unassigned, be reused, and outlive its external source file. Existing library-relative locators are not evidence of globally immutable content identity; revision retention remains a design task.</p>
+<p class="source"><a href="#e-assets">E7</a></p>
+</article>
+<article class="context-card sound">
+<h3 id="c06">C06 · Mixing</h3>
+<p><span class="badge proposed">Proposed context</span> <span class="domain-label">Synth mix model</span></p>
+<p><strong>Purpose:</strong> combine sound contributions predictably within the Song.</p>
+<p><strong>Owns:</strong> source routes and trim, source sends, independent mixer tracks, summed-track sends, shared returns and their ordered effects, master controls, saved mix baselines, and effective mix-control resolution.</p>
+<p><strong>Does not own:</strong> reusable sound-definition content, composition tracks, note generation, or DSP algorithms.</p>
+<p><strong>Boundary test:</strong> a Patch send processes an individual stem; a track send processes the sum. A return processes the incoming sum once. Mute wins over solo. Expiring a temporary send reveals the latest manual baseline, not a captured old value.</p>
+<p><strong>Rationale:</strong> empty mixer tracks and shared returns have meaning without a one-to-one instrument relationship. Current Patch route/trim/sends remain canonical Synth fields; this is a proposed ownership seam, not permission to move them or bypass the reducer.</p>
+<p class="source"><a href="#e-mixing">E9</a> · <a href="#e-save">E5</a></p>
+</article>
+<article class="context-card sound">
+<h3 id="c07">C07 · Sound Execution</h3>
+<p><span class="badge proposed">Proposed context</span> <span class="domain-label">Synth runtime</span></p>
+<p><strong>Purpose:</strong> realize admitted sound with the active configuration.</p>
+<p><strong>Owns:</strong> active sound generation, voice admission/sustain/release, transient audition, admitted compatible controls, resource exhaustion, and activation outcomes.</p>
+<p><strong>Does not own:</strong> Song traversal, asset retention, library publication, or baseline authorship.</p>
+<p><strong>Boundary test:</strong> a requested configuration, an activated graph, an accepted configuration commit, and an audibly heard result are different facts. Failure cannot silently substitute another engine, asset, or preset.</p>
+<p><strong>Rationale:</strong> actual sounding state differs from desired configuration and musical obligations. DSP processing and the real-time callback belong here as implementation mechanisms; they are not separate contexts merely because they run on another thread.</p>
+<p class="source"><a href="#e-synth-rules">E10</a> · <a href="#e-activation">E8</a></p>
+</article>
+<article class="context-card resource">
+<h3 id="c08">C08 · Device Connectivity</h3>
+<p><span class="badge proposed">Boundary candidate</span> <span class="domain-label">Host / devices</span></p>
+<p><strong>Purpose:</strong> maintain eligible physical connections and explicit recovery state.</p>
+<p><strong>Owns:</strong> device identity, selected preference, candidate/active connection revision, availability, negotiated capabilities, and recovery requests.</p>
+<p><strong>Does not own:</strong> an intended note target, Patch subscription, musical sequence, or direct mutation of voice state.</p>
+<p><strong>Boundary test:</strong> stale input from a retired connection is rejected before it reaches the current sound state. Disconnection initiates cleanup; it does not imply physical cleanup succeeded.</p>
+<p><strong>Rationale:</strong> physical identity and connection lifetime differ. A cohesive host module may be sufficient until independent model or policy complexity justifies stronger separation. There is no separate Destination Management context established by the evidence.</p>
+<p class="source"><a href="#e-devices">E11</a></p>
+</article>
+<article class="context-card resource">
+<h3 id="c09">C09 · Song Preservation</h3>
+<p><span class="badge open">Boundary unresolved</span> <span class="domain-label">Document lifecycle</span></p>
+<p><strong>Purpose:</strong> preserve and restore one coherent Song with exact referenced sound.</p>
+<p><strong>Owns as a responsibility:</strong> capture completeness, reference continuity, replacement eligibility, save outcome, and the exact captured clean baseline. File identity and pending continuations are application lifecycle metadata.</p>
+<p><strong>Does not own:</strong> another musical container, child-song membership, resource internals, device connections, playback passes, or sounding voices.</p>
+<p><strong>Boundary test:</strong> a successful save of revision 10 cannot mark edits from revision 11 clean. Failed Open retains the current Song; a missing pinned sound never falls back to latest.</p>
+<p><strong>Rationale:</strong> this adapts the earlier preservation proposal to the user's single-Song decision. A separate bounded context is not yet justified over a Song lifecycle coordinator using owner-valid captures. Keep that decision open; do not recreate Workspace or Set as a root.</p>
+<p class="source"><a href="#e-user">E1</a> · <a href="#e-save">E5</a> · <a href="#e-architecture">E3</a></p>
+</article>
+</div>
+<h3 id="boundaries-deliberately-not-invented">Boundaries deliberately not invented</h3>
+<p>No context per engine, effect slot, phrase form, screen, repository, or worker. Authoring and Harmony may share implementation packaging. Sound Configuration and Mixing could also remain in one canonical control module while their rules remain explicit. None of these choices requires microservices, a message broker, event sourcing, CQRS, an ORM, or a new domain framework.</p>
+<h2 id="map">04 · Context relationships</h2>
+<h3 id="observed-current-terrain">Observed current terrain</h3>
+<p>Synth has a mixed canonical control model: <code>Patch</code> contains sound configuration, envelope, post-FX, subscription, routing, sends, and voice settings; mixer tracks are independently persistent. <code>AppState::apply</code> is the sole product-state mutation path. The host coordinates workers, prepared graphs, activation acknowledgements, and saved captures. Tracker remains a plan and design repository, not an implemented runtime.</p>
+<figure class="map-figure">
+<div class="map-scroll" tabindex="0" role="region" aria-label="Proposed context map; scroll horizontally on small screens">
+<svg viewBox="0 0 1100 550" role="img" aria-labelledby="map-title map-desc" xmlns="http://www.w3.org/2000/svg">
+<title id="map-title">Proposed whole-product context relationships</title>
+<desc id="map-desc">Composition and Harmony provide musical meaning to Musical Performance. Performance reaches Sound Execution through host MIDI translation. Sound Configuration resolves assets and collaborates with Mixing; both supply sound execution. Device Connectivity supplies current connection eligibility to the host. Song Preservation coordinates captures of content owners, excluding runtime state. Each context box links to its detailed description.</desc>
+<defs><marker id="arrow" markerWidth="8" markerHeight="8" refX="6.5" refY="4" orient="auto"><path d="M0 0 L8 4 L0 8 Z" fill="#657b77"/></marker></defs>
+<g fill="none" stroke="#657b77" stroke-width="1.5" marker-end="url(#arrow)">
+<path d="M244 82 H283"/><path d="M475 82 H530"/><path d="M133 123 V145 H574 V123"/>
+<path d="M641 123 V169 H835 V201"/>
+<path d="M244 250 H283"/><path d="M475 250 H530"/>
+<path d="M752 250 H800"/><path d="M379 292 V346 H908 V291"/>
+<path d="M908 123 V201"/>
+</g>
+<g class="edge-label"><text x="264" y="29" text-anchor="middle">context</text><text x="503" y="29" text-anchor="middle">values</text>
+<text x="230" y="164">authored definitions / use identities</text><text x="659" y="157">musical output / host MIDI translation</text>
+<text x="264" y="197" text-anchor="middle">assets</text><text x="503" y="197" text-anchor="middle">source</text>
+<text x="778" y="197" text-anchor="middle">mix</text><text x="565" y="366">prepared configuration / activation acknowledgement</text>
+<text x="926" y="164">eligibility</text></g>
+<a href="#c01"><rect class="music-box" x="22" y="41" width="222" height="82" rx="8"/><text class="map-number" x="39" y="66">C01</text><text class="map-name" x="39" y="93">Composition Authoring</text></a>
+<a href="#c02"><rect class="music-box" x="284" y="41" width="192" height="82" rx="8"/><text class="map-number" x="301" y="66">C02</text><text class="map-name" x="301" y="93">Harmony</text></a>
+<a href="#c03"><rect class="music-box" x="531" y="41" width="222" height="82" rx="8"/><text class="map-number" x="548" y="66">C03</text><text class="map-name" x="548" y="93">Musical Performance</text></a>
+<a href="#c08"><rect class="resource-box" x="801" y="41" width="222" height="82" rx="8"/><text class="map-number" x="818" y="66">C08 · CANDIDATE</text><text class="map-name" x="818" y="93">Device Connectivity</text></a>
+<a href="#c05"><rect class="resource-box" x="22" y="209" width="222" height="82" rx="8"/><text class="map-number" x="39" y="234">C05</text><text class="map-name" x="39" y="261">Sound Asset Library</text></a>
+<a href="#c04"><rect class="sound-box" x="284" y="209" width="192" height="82" rx="8"/><text class="map-number" x="301" y="234">C04</text><text class="map-name" x="301" y="261">Sound Configuration</text></a>
+<a href="#c06"><rect class="sound-box" x="531" y="209" width="222" height="82" rx="8"/><text class="map-number" x="548" y="234">C06</text><text class="map-name" x="548" y="261">Mixing</text></a>
+<a href="#c07"><rect class="sound-box" x="801" y="209" width="222" height="82" rx="8"/><text class="map-number" x="818" y="234">C07</text><text class="map-name" x="818" y="261">Sound Execution</text></a>
+<a href="#c09"><rect class="preservation-box" x="22" y="410" width="1001" height="94" rx="8"/><text class="map-number" x="43" y="437">C09 · BOUNDARY UNRESOLVED</text><text class="map-name" x="43" y="462">Song Preservation</text><text class="map-detail" x="295" y="439">Coherent captures of Composition, chosen Harmony, Configuration, assets and baseline Mixing.</text><text class="map-detail" x="295" y="466">One Song; no parent container. Runtime execution and physical connections stay outside the file.</text></a>
+</svg></div>
+<figcaption>Proposed semantic relationships. Lines name transferred meaning, not team influence or deployment boundaries. Select a context to read its ownership rules; the table below supplies the complete contracts.</figcaption>
+</figure>
+
+<h3 id="proposed-translations-and-authority">Proposed translations and authority</h3>
+<table>
+<thead>
+<tr>
+<th>Boundary</th>
+<th>What crosses</th>
+<th>Who remains authoritative</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Composition ↔ Harmony</td>
+<td>Effective key/scale, literal chord values, selected shape revisions, derived suggestions</td>
+<td>Composition owns its selection and source notes; Harmony owns harmonic rules. Neither reads another owner's mutable internals.</td>
+</tr>
+<tr>
+<td>Composition → Musical Performance</td>
+<td>Validated definitions, structural-use identities, immutable revisions, generator inputs</td>
+<td>Authoring owns intended content; Performance owns its current execution passes and adoption timing.</td>
+</tr>
+<tr>
+<td>Musical Performance → Synth ingress</td>
+<td>Specific installed-sound target or intentional endpoint/channel message, musical controls, release obligations</td>
+<td>Host translation preserves target meaning; Synth admits messages through existing control paths. A musical event is not a direct voice call.</td>
+</tr>
+<tr>
+<td>Sound Configuration ↔ Asset Library</td>
+<td>Exact asset identity, kind, metadata, preset coordinates, assignment facts</td>
+<td>Library owns retained material; Configuration owns whether a given assignment is valid.</td>
+</tr>
+<tr>
+<td>Configuration / Mixing → Sound Execution</td>
+<td>Prepared configuration and effective controls; matching activation and failure observations return</td>
+<td>Parameter owners own accepted baselines and effective meaning; Execution owns actual active generation and voice behavior.</td>
+</tr>
+<tr>
+<td>Musical Performance → parameter owner</td>
+<td>Addressed temporary claim, lifetime, expiry/cancel</td>
+<td>Performance owns musical claim lifetime. Mixing resolves sends; Configuration resolves its sound parameters. Execution applies the admitted result.</td>
+</tr>
+<tr>
+<td>Device Connectivity ↔ host</td>
+<td>Current eligible connection revision, availability and capabilities</td>
+<td>Connectivity owns connection eligibility; the host combines it with intended target and current subscriptions.</td>
+</tr>
+<tr>
+<td>Song Preservation ↔ content owners</td>
+<td>Owner-valid captures, exact resource references, reconstruction results</td>
+<td>Each owner validates its own content. The coordinator preserves and replaces one coherent Song.</td>
+</tr>
+</tbody>
+</table>
+<p>These are model relationships, not organizational claims. No evidence establishes separate teams, a Partnership, or Customer/Supplier planning. The Tracker-to-Synth translation can serve as an <strong>anticorruption boundary</strong> where it protects musical meaning from Patch/channel/runtime details; ordinary serialization alone does not earn that label. MIDI is an interchange protocol, but current evidence does not establish a complete host mixer/send control profile.</p>
+<h2 id="language">05 · Language that must stay precise</h2>
+<table>
+<thead>
+<tr>
+<th>Term</th>
+<th>Scoped meaning</th>
+<th>Avoid confusing it with</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Song</strong></td>
+<td>One complete saved musical document and one arrangement</td>
+<td>A child of Set, a project containing songs, or a selection index</td>
+</tr>
+<tr>
+<td><strong>Composition track</strong></td>
+<td>Ordered Chain uses with independent musical progression</td>
+<td>Mixer track, instrument, or MIDI channel</td>
+</tr>
+<tr>
+<td><strong>Mixer track</strong></td>
+<td>An independently configurable audio summing destination</td>
+<td>A Song lane or exclusive instrument route</td>
+</tr>
+<tr>
+<td><strong>Definition / structural use / pass</strong></td>
+<td>Reusable content / an authored reference to it / one runtime traversal</td>
+<td>One shared cursor stored on a Phrase</td>
+</tr>
+<tr>
+<td><strong>Sound definition</strong></td>
+<td>A reusable sound recipe with retained revisions</td>
+<td>A live Patch including another document's routing/mix</td>
+</tr>
+<tr>
+<td><strong>Installed sound use</strong></td>
+<td>This Song's pinned association, accepted sound and local addressing</td>
+<td>Globally shared subscription or runtime graph identity</td>
+</tr>
+<tr>
+<td><strong>Patch</strong></td>
+<td>Current Synth's installed playable object; it presently combines several proposed responsibilities</td>
+<td>Proof that a portable shared-definition model already exists</td>
+</tr>
+<tr>
+<td><strong>Voice</strong></td>
+<td>Harmony: a pitch contribution. Execution: a sounding allocation with a release lifecycle</td>
+<td>A universal entity shared between harmony and renderer</td>
+</tr>
+<tr>
+<td><strong>FX</strong></td>
+<td>Tracker: timed MIDI/sequencing behavior. Synth: audio processing</td>
+<td>DSP performed by a phrase FX slot</td>
+</tr>
+<tr>
+<td><strong>Preset</strong></td>
+<td>An engine/asset-scoped choice; an SF2 preset uses exact asset + bank/program</td>
+<td>A globally unique display name or a nearby fallback</td>
+</tr>
+<tr>
+<td><strong>Baseline / effective</strong></td>
+<td>Authored saved control / current value after active claims</td>
+<td>A temporary override that mutates the saved control</td>
+</tr>
+<tr>
+<td><strong>Content revision / graph generation</strong></td>
+<td>Exact reusable or authored meaning / one prepared runtime realization</td>
+<td>Interchangeable versions</td>
+</tr>
+<tr>
+<td><strong>Requested / activated / committed / saved</strong></td>
+<td>Candidate intention / runtime activation / accepted owner state / successfully persisted capture</td>
+<td>One generic “updated” event</td>
+</tr>
+<tr>
+<td><strong>Device identity / connection revision</strong></td>
+<td>Which physical endpoint / which admitted connection lifetime</td>
+<td>A durable connection handle in the Song</td>
+</tr>
+<tr>
+<td><strong>Native Synth session</strong></td>
+<td>Synth-owned persisted sound/mix capture used by standalone Synth</td>
+<td>A parent document containing Tracker Songs</td>
+</tr>
+<tr>
+<td><strong>Current / initial / default tempo</strong></td>
+<td>Live tempo / this Song's initial tempo / preference for new work</td>
+<td>One mutable BPM field with three owners</td>
+</tr>
+</tbody>
+</table>
+<h2 id="invariants">06 · Invariants and consistency boundaries</h2>
+<p>An aggregate protects a true consistency rule. The fact that objects share a file does not require them to share an aggregate. These are candidate tactical boundaries, to be implemented with existing records, functions, collections, and reducer operations where sufficient.</p>
+<table>
+<thead>
+<tr>
+<th>Rule</th>
+<th>Required behavior</th>
+<th>Candidate owner / consistency</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>R01 · One document</strong></td>
+<td>New/Open replace the active Song; Save As never adds an arrangement. Failed or cancelled replacement preserves current content.</td>
+<td>Song lifecycle coordinator; validated replacement publication, with Synth activation semantics respected. No parent aggregate.</td>
+</tr>
+<tr>
+<td><strong>R02 · Safe isolation</strong></td>
+<td>Make Unique changes exactly the selected occurrence. Validate path, source revisions and complete current incoming-reference topology together.</td>
+<td>Song/Chain/Phrase authoring owners; one serialized atomic copies-and-relinks transaction.</td>
+</tr>
+<tr>
+<td><strong>R03 · Independent playback</strong></td>
+<td>Reused content has independent cursor, RNG, repeat and FX memory per execution occurrence. Views do not mutate it.</td>
+<td>ActivePerformance runtime owner; definitions remain free of runtime state.</td>
+</tr>
+<tr>
+<td><strong>R04 · Literal harmony</strong></td>
+<td>Default is derived/read-only. Custom edits preserve valid explicit shapes. Selected chords retain their intended pitches and quality.</td>
+<td>CustomChord root plus immutable harmonic values and pure derivation. No mutable Default aggregate.</td>
+</tr>
+<tr>
+<td><strong>R05 · Pinned reuse</strong></td>
+<td>Library publication never updates the Song implicitly. Explicit adoption preserves local subscription, routing/mix and unrelated pins.</td>
+<td>SoundDefinition revision and InstalledSoundUse association; distinct publication and adoption operations.</td>
+</tr>
+<tr>
+<td><strong>R06 · Acknowledged installation</strong></td>
+<td>A structural candidate commits only after its matching activation acknowledgement. Stale or failed results cannot replace accepted sound.</td>
+<td>Existing Synth structural coordination plus the relevant installed configuration/mix owner.</td>
+</tr>
+<tr>
+<td><strong>R07 · Faithful assets</strong></td>
+<td>Retain validated content before publishing its identity. Assignment and audition are separate. Restore exact preset identity or report failure.</td>
+<td>RetainedAsset can be a simple immutable record. Assignment belongs to Configuration; preview belongs to Execution.</td>
+</tr>
+<tr>
+<td><strong>R08 · Correct mix</strong></td>
+<td>Preserve stem-versus-sum sends, one processing pass per return, ordered effects, mute/solo and tap semantics.</td>
+<td>One coherent local mix candidate referencing installed sound uses; no repository per send or fader.</td>
+</tr>
+<tr>
+<td><strong>R09 · Temporary means temporary</strong></td>
+<td>Claim expiry recomputes from the latest baseline. Claims and voices are excluded from saved capture.</td>
+<td>Mixing or Configuration owns parameter resolution; Performance owns musical claim lifetime. Exact overlap/recovery policy is still open.</td>
+</tr>
+<tr>
+<td><strong>R10 · Exact save baseline</strong></td>
+<td>Only the successfully written capture becomes clean. Later edits remain dirty; a pending replacement must protect them.</td>
+<td>Application save/capture lifecycle using owner-valid immutable snapshots.</td>
+</tr>
+<tr>
+<td><strong>R11 · Honest delivery</strong></td>
+<td>Queued MIDI does not prove admission, audible playback, or silence. Release obligations survive relevant target changes.</td>
+<td>Musical Performance, host ingress and Sound Execution each report their own outcome. No blind MIDI retry.</td>
+</tr>
+<tr>
+<td><strong>R12 · Current connection</strong></td>
+<td>Admit only the acknowledged connection revision; disable obsolete ingress before recovery.</td>
+<td>DeviceBinding runtime state and the existing connection lifecycle.</td>
+</tr>
+</tbody>
+</table>
+<h3 id="smallest-useful-tactical-model">Smallest useful tactical model</h3>
+<ul>
+<li><strong>Song, Chain, Phrase:</strong> identity-bearing authored roots with outgoing structural uses. A normal edit updates its natural owner. Make Unique is a justified cross-root atomic operation; unrelated edits do not require a giant composition-graph aggregate.</li>
+<li><strong>CustomChord:</strong> an editable definition with literal shape and voicing values. Default banks are replaceable query results.</li>
+<li><strong>SoundDefinition:</strong> identity plus exact retained content revisions. A valid library save has no requirement to produce sound.</li>
+<li><strong>InstalledSoundUse:</strong> Song-local association with a pinned definition and accepted configuration. Reuse the canonical configuration value. Local persistent sound overrides are not assumed by this proposal.</li>
+<li><strong>Local mix:</strong> routes, sources, tracks, returns, master and baseline/effective rules. In standalone Synth, the same semantics are native session-local; Synth does not gain a Tracker-specific <code>SongMix</code> type.</li>
+<li><strong>RetainedAsset:</strong> immutable retained content and metadata may suffice; a catalog is not automatically a large mutable aggregate.</li>
+<li><strong>ActivePerformance / ActiveSoundExecution / DeviceBinding:</strong> distinct runtime consistency owners. Individual voices, UI rows, decoded buffers, and meter samples do not need repositories.</li>
+</ul>
+<p>Useful values include exact musical durations, typed pitch/interval/chord shapes, a specific-sound versus endpoint/channel target, validated parameter values, and scoped revision identities. Prefer meaningful values over a wrapper class for every primitive. A row position, graph revision, library path, or display label is not a substitute for the identity a workflow actually needs.</p>
+<h3 id="why-make-unique-needs-more-than-optimistic-source-versions">Why Make Unique needs more than optimistic source versions</h3>
+<p>Suppose a Phrase isolation preview appears safe. Before commit, another edit adds a new incoming use of the containing Chain within this Song. The selected path and Phrase revision might be unchanged, yet the isolation consequences changed. Commit must validate the authoritative topology and recompute the plan; a changed preview fails without partial writes. This is the retained earlier Tracker skeptic correction, narrowed to the current Song.</p>
+<h2 id="workflows">07 · Representative workflows</h2>
+<div class="workflow-tools"><button type="button" id="expand-all">Expand all workflows</button><span>Each trace includes its failure boundary.</span></div>
+
+<details class="workflow" open="open">
+<summary>W01 · Edit a shared Phrase or make one occurrence unique</summary>
+<p><strong>Intent:</strong> edit music while choosing the scope of the change.</p>
+<ol>
+<li>Input becomes a semantic edit command containing occurrence identity, expected source/path revisions, and shared/unique intention.</li>
+<li>Composition obtains authoritative incoming references. The owner validates the edit; a pure isolation function proposes required copies and relinks.</li>
+<li>A serialized authoring commit rechecks versions and topology. Copies, relinks, result and any session request deduplication commit together; undo is one operation.</li>
+<li>Projectors read the accepted version. Performance may adopt a new realization at its defined boundary; that policy does not alter the editing transaction.</li>
+</ol>
+<p><strong>Reject:</strong> stale or ambiguous occurrence, changed isolation consequences, invalid content, or a reused request ID with another payload. No partial copies or relinks. Edit Shared intentionally affects every use in this Song.</p>
+<p><strong>Queries:</strong> where is this definition used, what will be copied, which revision is currently executing?</p>
+</details>
+<details class="workflow">
+<summary>W02 · Publish a sound revision, then explicitly adopt it</summary>
+<p><strong>Intent:</strong> improve a reusable sound without changing existing music unexpectedly.</p>
+<ol>
+<li>Sound Configuration validates and retains a new library definition revision using exact required assets. Publication leaves the current Song's pin unchanged.</li>
+<li>The musician explicitly chooses a revision for a particular installed use. Resolve exact content and build a candidate using this use's local addressing and preserved mix.</li>
+<li>Validate compatibility. A structural change uses Synth's preparation, preflight, activation and matching acknowledgement lifecycle through the canonical reducer.</li>
+<li>Only the accepted installation updates the committed association and marks the Song dirty. Other pins stay unchanged. Saving the Song captures the adopted association and local state.</li>
+</ol>
+<p><strong>Reject:</strong> missing retained revision or asset, unsupported configuration, stale expected revision, or failed/mismatched activation. Keep the previous pin, accepted configuration and mix. No global live propagation, automatic latest-on-open, or cross-document transaction is implied.</p>
+<p><strong>Queries:</strong> which revision is pinned, which newer revisions exist, what failed during adoption? Retention/deletion and graph-swap claim/tail policies still require decisions.</p>
+</details>
+<details class="workflow">
+<summary>W03 · Import, assign, activate, and audition an asset</summary>
+<p><strong>Intent:</strong> retain useful material, hear it, and deliberately assign it to a sound.</p>
+<ol>
+<li>The asset adapter validates kind/content and retains a usable library resource off the audio callback.</li>
+<li>A correlated result identifies the originating request. Configuration validates the assignment against current origin, request and graph/configuration state.</li>
+<li>A worker prepares the graph; the existing control path preflights and admits it. Matching activation acknowledgement commits the installed configuration.</li>
+<li>Audition is a separate transient operation through the origin's sound/mix path. It does not assign the asset or change the saved document.</li>
+</ol>
+<p><strong>Reject:</strong> invalid content, wrong capability, missing exact preset, stale origin or late completion. A successful import survives a failed assignment. Never retry an uncorrelated installation or replace a missing preset with a nearby one.</p>
+</details>
+<details class="workflow">
+<summary>W04 · Temporary send, manual mix edit, and Save</summary>
+<p><strong>Intent:</strong> automate a temporary sound change while preserving authored mix.</p>
+<ol>
+<li>Performance initiates an addressed claim with a musical lifetime. Mixing owns the send baseline and resolves the effective value.</li>
+<li>While a send is temporarily 35%, the musician changes the baseline from 20% to 25%. The active claim still determines the effective value under the chosen policy.</li>
+<li>Save captures the 25% baseline, not the temporary 35%. When the claim expires, resolution exposes 25%, never the old 20%.</li>
+<li>Stop/seek cancels or expires owned claims through the agreed cleanup contract. Sound Execution applies admitted effective controls.</li>
+</ol>
+<p><strong>Implementation gate:</strong> current ordinary Synth send setters change fields captured by <code>SavedSession</code>. That path does not prove the proposed baseline/effective overlay exists. Exact overlap precedence, external unknown baselines, reconnect and graph-swap compatibility remain open. Do not implement this as “write a send, then restore the old value.”</p>
+</details>
+<details class="workflow">
+<summary>W05 · Save, then replace the current Song</summary>
+<p><strong>Intent:</strong> preserve work and open or create one replacement document.</p>
+<ol>
+<li>Capture owner-valid authored content, exact resource pins, installed sound state and mix baselines. Exclude runtime claims, voices, prepared graphs, devices and editor state.</li>
+<li>A persistence worker writes the immutable capture. Only correlated success updates file identity and the clean baseline; later edits remain dirty.</li>
+<li>Dirty New/Open uses Save/Discard/Cancel. Cancel or failed prerequisite Save leaves the current Song intact. Protect any edits made after capture before continuing replacement, either by a validated admission gate or by checking the current revision again.</li>
+<li>Read/migrate/validate/prepare the candidate before publishing it. Coordinate native Synth activation and accepted content replacement; failure preserves the prior Song and usable sound state.</li>
+</ol>
+<p><strong>No new container:</strong> the coordinator has lifecycle state, not a collection of Songs. The native Synth replacement workflow is reusable evidence, not proof that a complete Tracker Song adapter already exists.</p>
+</details>
+<details class="workflow">
+<summary>W06 · Perform, stop, and survive connection changes</summary>
+<p><strong>Intent:</strong> play the intended notes and discharge their release obligations.</p>
+<ol>
+<li>Performance validates content/target capability and starts independent execution passes on one musical timeline.</li>
+<li>The host translates a specific installed sound into Patch-targeted normalized MIDI, or intentionally uses endpoint/channel delivery. Channel delivery fans out to current subscribers.</li>
+<li>Sound Execution admits actual voices independently of the sequencer's intended note obligations. A queue acknowledgement does not prove a sound was heard.</li>
+<li>Stop cuts off future scheduling and starts owned cleanup. Lost connections disable stale ingress and request recovery; status distinguishes pending, failed and completed work.</li>
+</ol>
+<p><strong>Open counterexample:</strong> changing a Patch subscription between channel Note On and Note Off can change the receiving set. Current fanout alone does not guarantee release of the original recipients. Capture/resolve release ownership and graph/device generation semantics before promising safe cleanup. Never blindly retry a potentially delivered Note On.</p>
+</details>
+<h2 id="contracts">08 · Commands, facts, queries, and access</h2>
+<p>Names below describe proposed semantics. They are not a demand for one class, queue, event schema, or repository interface per row.</p>
+<table>
+<thead>
+<tr>
+<th>Intention</th>
+<th>Meaningful result / fact</th>
+<th>Actual consumer or purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Edit Phrase / Make Unique</td>
+<td><code>PhraseChanged</code> / <code>ReferencesRelinked</code> after atomic authoring commit</td>
+<td>Projections, reference queries, compiler and capture coordinator</td>
+</tr>
+<tr>
+<td>Save a Custom chord</td>
+<td><code>ChordRevisionPublished</code> after a valid literal definition is retained</td>
+<td>Catalog and explicit selection/update; existing chosen meaning remains stable</td>
+</tr>
+<tr>
+<td>Publish reusable sound</td>
+<td><code>SoundDefinitionSaved</code> identifying exact retained revision</td>
+<td>Library queries and explicit adoption; not automatic installation</td>
+</tr>
+<tr>
+<td>Import material</td>
+<td><code>AssetRetained</code> or a typed result</td>
+<td>Catalog and the correlated requesting workflow; assignment may still fail</td>
+</tr>
+<tr>
+<td>Adopt structural configuration</td>
+<td>Runtime <code>GraphActivated</code>, then <code>InstalledConfigurationCommitted</code> after matching control acknowledgement</td>
+<td>Accepted state projection, pin association and save capture; neither proves audibility</td>
+</tr>
+<tr>
+<td>Stop performance</td>
+<td><code>PerformanceHalted</code> with outstanding cleanup status</td>
+<td>Transport UI and cleanup coordination; not an invented <code>AllSoundSilent</code> guarantee</td>
+</tr>
+<tr>
+<td>Save Song</td>
+<td><code>SongSaved</code> with the exact captured content identity</td>
+<td>Clean baseline and any guarded continuation; no success on failure/stale completion</td>
+</tr>
+<tr>
+<td>Observe connection loss</td>
+<td><code>EndpointLost</code> with connection revision</td>
+<td>Ingress gating, recovery and user-visible status</td>
+</tr>
+</tbody>
+</table>
+<p>Facts follow their governing commit and retain the identity/correlation their consumer needs. There is no global wall-clock ordering guarantee or exactly-once external MIDI guarantee. Direct results and reducer effects are sufficient where they express the workflow. Durable event delivery, an outbox, event sourcing, and a message broker have no demonstrated requirement here.</p>
+<h3 id="access-and-behavior-ownership">Access and behavior ownership</h3>
+<table>
+<thead>
+<tr>
+<th>Need</th>
+<th>Smallest sufficient mechanism</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Retrieve/edit Song-local authored definitions</td>
+<td>Identity-keyed collections and root-owned commands. Make Unique uses one authoring transaction, not independent repository saves.</td>
+</tr>
+<tr>
+<td>Look up reusable sounds</td>
+<td>A collection/query returning exact identity and revision. Do not load “latest” when a pin was requested.</td>
+</tr>
+<tr>
+<td>Read or mutate installed Synth sound/mix</td>
+<td>Existing canonical state projections and <code>AppState::apply</code>; no second mutable store for another context's state.</td>
+</tr>
+<tr>
+<td>Retain/list/resolve assets</td>
+<td>Existing asset catalog and import adapters; parsing, copying and decoding remain infrastructure.</td>
+</tr>
+<tr>
+<td>Derive Default chords or plan isolation</td>
+<td>Pure domain functions over explicit validated inputs; no generic service registry needed.</td>
+</tr>
+<tr>
+<td>Save/open complete Song</td>
+<td>Application orchestration over owner-valid captures and native persistence adapters. No universal document repository hierarchy.</td>
+</tr>
+</tbody>
+</table>
+<p>The application sequences commands, transactions, workers, correlations and I/O. Natural domain owners decide validity. No multiuser authorization scheme is evidenced; adapter input validation and existing capability/eligibility checks still apply.</p>
+<h2 id="integration">09 · Integration with the existing product</h2>
+<h3 id="reuse-what-is-already-demonstrated">Reuse what is already demonstrated</h3>
+<ul>
+<li><strong>Canonical Synth mutation:</strong> keep <code>AppState::apply</code>, existing AppLoop ingress, correlated effects and read projections. Multiple semantic contexts do not create multiple mutable copies or bypass routes.</li>
+<li><strong>Targeted MIDI:</strong> <code>AppEvent::Midi { patch_id, message }</code> supports normalized Patch-targeted ingress. <code>dispatch_midi_from</code> separately implements intentional channel fanout. Translate user channels 1–16 to internal 0–15 at the boundary.</li>
+<li><strong>Graph lifecycle:</strong> reuse off-thread preparation, preflight, block-boundary activation, acknowledgement and off-thread retirement. A library-definition save is separate from installation.</li>
+<li><strong>Native capture:</strong> current <code>SavedSession</code> schema version is <strong>4</strong>. It captures configuration, subscriptions, routing and mix, and excludes device/runtime/editor state. An older “version 2 JSON” sentence remains in the Synth design reference; current source is the schema evidence.</li>
+<li><strong>Resource capabilities:</strong> use existing engine/effect/asset/device ports, typed failure, exact presets and upstream implementations. Existing hard-coded Synth capacities are implementation debt, not new product requirements. Tracker's 16 composition tracks and three musical FX slots are separate confirmed limits.</li>
+</ul>
+<h3 id="capabilities-that-must-not-be-assumed">Capabilities that must not be assumed</h3>
+<table>
+<thead>
+<tr>
+<th>Gap</th>
+<th>Evidence / risk</th>
+<th>Smallest proof before implementation</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Precise scheduling ingress</td>
+<td>Inspected <code>AudioCommand::PatchMidi</code> has no timestamp. Queue draining before rendering does not prove sample-offset scheduling.</td>
+<td>Trace or implement one timestamped scheduling contract and measure its jitter/latency under the real render path.</td>
+</tr>
+<tr>
+<td>Temporary baseline/effective controls</td>
+<td>Ordinary send setters modify persisted Patch/mixer fields.</td>
+<td>Demonstrate temporary claim + concurrent manual edit + save + expiry without changing the saved baseline accidentally.</td>
+</tr>
+<tr>
+<td>Portable sound revisions</td>
+<td>Current Patch identity is installed identity; a library-relative asset locator is not a retained content revision.</td>
+<td>Define exact definition/revision identity and restore one pinned old sound after publication of a new revision.</td>
+</tr>
+<tr>
+<td>Generic host MIDI controls</td>
+<td>Engine CC behavior is not proof of mixer/send/patch lifecycle coverage.</td>
+<td>Audit the supported control profile, units, targeting and unsupported outcomes. Keep lifecycle/resource operations distinct from live musical control.</td>
+</tr>
+<tr>
+<td>Owned release after target changes</td>
+<td>Channel fanout resolves current subscribers per message.</td>
+<td>Exercise subscription change, graph replacement and device loss between Note On and release.</td>
+</tr>
+<tr>
+<td>Complete Song replacement</td>
+<td>Native Synth has guarded session replacement; Tracker Song persistence is unbuilt.</td>
+<td>Prove one captured Song restores composition, exact sound pins and local mix; failed preparation leaves the prior document usable.</td>
+</tr>
+</tbody>
+</table>
+<h3 id="incremental-path-without-a-speculative-rewrite">Incremental path, without a speculative rewrite</h3>
+<ol>
+<li>Keep the two library APIs usable. Record semantic ownership around existing canonical Synth operations before considering field moves.</li>
+<li>Prove a playable Phrase slice through current MIDI ingress, with common events, three FX slots, occurrence-owned state and deterministic capture.</li>
+<li>Implement shared authoring/isolation and explicit harmonic values before adding more views or independent models.</li>
+<li>Introduce portable definition revisions and installed-use associations at the reuse boundary. Preserve native sound types and local mix.</li>
+<li>Add owner-scoped transient control resolution only after the baseline/save contract is proved.</li>
+<li>Build one-Song capture/replacement around existing persistence and activation behavior. Validate old revision recovery and dirty-state safety before widening scope.</li>
+</ol>
+<p>This report is a design input for Tracker and the host. Synth's current <code>DESIGN.md</code> remains its as-built reference. No Synth code or specification is replaced by this document.</p>
+<h2 id="decisions">10 · Decisions, alternatives, and open questions</h2>
+<table>
+<thead>
+<tr>
+<th>Decision</th>
+<th>Status</th>
+<th>Reason / alternative</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>One Song, no parent document</td>
+<td><strong>Confirmed</strong></td>
+<td>Explicit user decision. A renamed Workspace/Project containing songs would violate it.</td>
+</tr>
+<tr>
+<td>Shared sound definitions; local routing/mix</td>
+<td><strong>Confirmed</strong></td>
+<td>Reuse sound intent without cross-document live-state leakage.</td>
+</tr>
+<tr>
+<td>Keep saved sound until explicit update</td>
+<td><strong>Confirmed</strong></td>
+<td>Latest-on-open and live library propagation are rejected alternatives.</td>
+</tr>
+<tr>
+<td>Library boundaries are not the full domain map</td>
+<td><strong>Accepted modeling basis</strong></td>
+<td>Whole-product responsibilities and conflicting meanings extend beyond Tracker versus Synth.</td>
+</tr>
+<tr>
+<td>Composition / Harmony separation</td>
+<td><strong>Proposed</strong></td>
+<td>Independent harmonic vocabulary and library lifecycle support it; a cohesive authoring module remains viable.</td>
+</tr>
+<tr>
+<td>Configuration / Mixing separation</td>
+<td><strong>Proposed</strong></td>
+<td>Sound recipes differ from relationships among sources, independent tracks and shared returns. Existing canonical control can host both.</td>
+</tr>
+<tr>
+<td>Song Preservation as a bounded context</td>
+<td><strong>Unresolved</strong></td>
+<td>Preservation rules are real; a separate context is not established merely by a file lifecycle. An application coordinator may suffice.</td>
+</tr>
+<tr>
+<td>Device Connectivity as a bounded context</td>
+<td><strong>Provisional</strong></td>
+<td>Connection identity/admission has distinct semantics; a host module may suffice.</td>
+</tr>
+<tr>
+<td>Cross-root atomic Make Unique</td>
+<td><strong>Proposed, evidence-backed</strong></td>
+<td>Isolation cannot tolerate partially published copies/relinks or stale incoming topology. A giant document aggregate is the rejected broader alternative.</td>
+</tr>
+<tr>
+<td>Separate runtime and saved state</td>
+<td><strong>Accepted basis</strong></td>
+<td>Current native capture already excludes runtime data; musical passes, claims and voices must not become authored fields.</td>
+</tr>
+</tbody>
+</table>
+<h3 id="open-policies-and-the-next-evidence-check">Open policies and the next evidence check</h3>
+<table>
+<thead>
+<tr>
+<th>Question</th>
+<th>What it blocks</th>
+<th>Next concrete check</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>How are pinned revisions retained, deleted and packaged?</td>
+<td>Faithful portable save/reopen and safe library cleanup</td>
+<td>Save an old revision, publish a new one, remove the original external asset, then reopen with exact identity or a typed missing-resource result.</td>
+</tr>
+<tr>
+<td>What happens to active claims and release tails during sound adoption?</td>
+<td>Safe live structural update</td>
+<td>Trace old-generation claims and sounding releases through one acknowledged graph swap.</td>
+</tr>
+<tr>
+<td>How do overlapping controls and external unknown baselines resolve?</td>
+<td>Full temporary send/parameter FX</td>
+<td>Choose precedence, expiry order, manual-edit behavior, stop/seek and reconnect policy for a concrete two-claim trace.</td>
+</tr>
+<tr>
+<td>What is the scheduling and cancellation budget?</td>
+<td>Timing guarantees and live-edit activation</td>
+<td>Use the actual audio-command path and hardware workload; distinguish unsent, queued and already delivered work.</td>
+</tr>
+<tr>
+<td>What releases original channel recipients after subscription changes?</td>
+<td>Stuck-note prevention</td>
+<td>Test changed recipient sets and retain an explicit release/recovery obligation.</td>
+</tr>
+<tr>
+<td>How do generators preserve authored changes and regenerate live?</td>
+<td>Phase-form conversion and cache semantics</td>
+<td>Decide manual overlays/bake behavior and effective context/revision/seed keys using one concrete Phrase.</td>
+</tr>
+<tr>
+<td>Which exact harmonic/FX policies ship?</td>
+<td>Catalogs, unusual scales, voicing/spread and flow behavior</td>
+<td>Validate explicit fixtures and command semantics; do not infer exact OXI/M8 parity from broad inspiration.</td>
+</tr>
+<tr>
+<td>Are the candidate context seams worth separate modules?</td>
+<td>Final implementation packaging</td>
+<td>Complete the infrastructure review and skeptic challenge; compare simpler merges against the same workflows and invariants.</td>
+</tr>
+</tbody>
+</table>
+<h2 id="evidence">11 · Evidence and review status</h2>
+<h3 id="how-to-read-this-document">How to read this document</h3>
+<p><strong>Confirmed</strong> means an explicit stakeholder decision. <strong>Observed</strong> means a concrete current Synth source path or repository fact. <strong>Proposed</strong> means a model justified by those behaviors, not a claim that it is implemented or finally approved. Unresolved details remain visible rather than becoming defaults by accident.</p>
+<p>The earlier whole-product review completed sequential discovery through application orchestration (phases 1–13). This document consolidates that work, applies the subsequent pinned-revision and single-Song decisions, and removes obsolete Set membership and aggregate assumptions. It is not a newly completed 16-phase design audit.</p>
+<div class="review-note">
+<p><strong>Review limitation.</strong> Earlier infrastructure review (phase 14) and full-product adversarial skeptic (phase 15) did not complete because fresh delegation returned <code>agent thread limit reached</code>. A fresh context-revision attempt for this document hit the same limit. The single-Song normalization is explicit, but its affected boundaries have not received the required fresh downstream review. No final skeptic approval is claimed.</p>
+<p>The <a href="/Users/crestenstclair/.codex/skills/domain-driven-design/SKILL.md">domain-driven-design skill</a> requires: “If delegation is unavailable or fails, report incomplete coverage and the precise limitation; do not silently replace the required workflow with a single-agent design.” The document is delivered with that coverage gap rather than presenting a new parent-only design as reviewed.</p>
+</div>
+<h3 id="challenges-and-dispositions">Challenges and dispositions</h3>
+<table>
+<thead>
+<tr>
+<th>Challenge</th>
+<th>Disposition</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>A new incoming use can invalidate a Make Unique preview without changing the selected source revision.</td>
+<td><strong>Accepted from earlier Tracker skeptic.</strong> Validate full current topology within the atomic authoring commit. The scope is now this Song.</td>
+</tr>
+<tr>
+<td>An old Workspace/Set boundary would reintroduce a parent container.</td>
+<td><strong>Superseded by explicit user decision.</strong> Remove membership/order/selection lifecycle; preserve one Song and application capture metadata. C09's context status remains unresolved.</td>
+</tr>
+<tr>
+<td>The sequencer could own all temporary sound arbitration.</td>
+<td><strong>Rejected by whole-product ownership evidence.</strong> It owns musical claim lifetime; the corresponding sound parameter owner resolves baseline/effective values for all producers.</td>
+</tr>
+<tr>
+<td>Shared sound publication must wait for audio activation.</td>
+<td><strong>Rejected.</strong> Valid retained library content can exist uninstalled. Matching activation acknowledgement governs structural installation/adoption.</td>
+</tr>
+<tr>
+<td>Current source proves precise timestamps, safe temporary sends, and complete owned MIDI cleanup.</td>
+<td><strong>Unsupported.</strong> The concrete integration gaps above remain gates.</td>
+</tr>
+<tr>
+<td>Nine contexts are necessarily better than fewer contexts.</td>
+<td><strong>Not established.</strong> The proposal records distinct semantics; context count and packaging are not goals. Stronger device/preservation splits and simpler merges still need adversarial review.</td>
+</tr>
+</tbody>
+</table>
+<h3 id="source-register">Source register</h3>
+<table>
+<thead>
+<tr>
+<th>Evidence</th>
+<th>Source and what it establishes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><span id="e-user"><strong>E1 · Stakeholder decisions</strong></span></td>
+<td>Current conversation: whole product including Synth; reject inherited DDD boundaries; one Song; shared definitions with local routing/mix; saved revisions retained until explicit update. Consolidated in <a href="product-spec.md">product-spec.md</a>.</td>
+</tr>
+<tr>
+<td><span id="e-product"><strong>E2 · Tracker behavior</strong></span></td>
+<td><a href="product-spec.md">Product specification</a>, especially Musical hierarchy and reuse, Phrase forms and time, Chords, Phrase MIDI effects, and Settings and Song files. Tracker currently contains plans/design artifacts, not a runtime.</td>
+</tr>
+<tr>
+<td><span id="e-architecture"><strong>E3 · Current planning contracts</strong></span></td>
+<td><a href="Crest-Tracker-Architecture-v1.md">Architecture v5</a>, A01–A02 and Minimum acceptance scenarios; <a href="event-map.md">event contracts</a>; <a href="open-decisions.md">open decisions</a>. Mechanisms in these files remain proposals where marked.</td>
+</tr>
+<tr>
+<td><span id="e-patch"><strong>E4 · Current installed Patch</strong></span></td>
+<td><a href="../crest-synth/src/synth/patch.rs">Synth Patch source</a>, lines 69–101, identity at 131–134; <a href="../crest-synth/src/mixer/mixer_state.rs">MixerState</a>, lines 5–32. Field co-location is observed, not proof of the proposed semantic boundaries.</td>
+</tr>
+<tr>
+<td><span id="e-save"><strong>E5 · Native preservation</strong></span></td>
+<td><a href="../crest-synth/src/control/saved_session.rs">SavedSession</a>, version/fields at 20–46 and capture at 134–163; <a href="../crest-synth/src/shell/session_document.rs">session document state</a>, 36–65; <a href="../crest-synth/DESIGN.md">Synth DESIGN</a>, native session lifecycle around 739–773.</td>
+</tr>
+<tr>
+<td><span id="e-midi"><strong>E6 · MIDI ingress and scheduling gap</strong></span></td>
+<td><a href="../crest-synth/src/control/app_event.rs">AppEvent</a>, 494–498; <a href="../crest-synth/src/control/app_loop.rs">AppLoop</a>, 1112–1148; <a href="../crest-synth/src/real_time/audio_command.rs">AudioCommand</a>, 9–20; <a href="../crest-synth/src/real_time/audio_renderer.rs">audio renderer</a>, 125–265. Targeted ingress and channel fanout differ; the inspected command carries no timestamp.</td>
+</tr>
+<tr>
+<td><span id="e-assets"><strong>E7 · Asset semantics</strong></span></td>
+<td><a href="../crest-synth/src/adapter/filesystem_sample_catalog.rs">Filesystem sample catalog</a>, 22–35 and 285–321; <a href="../crest-synth/DESIGN.md">Synth DESIGN</a>, asset/preset rules around 530–575 and import correlation around 663–704.</td>
+</tr>
+<tr>
+<td><span id="e-activation"><strong>E8 · Requested versus accepted sound</strong></span></td>
+<td><a href="../crest-synth/src/control/app_state.rs">AppState</a>, assignment/activation paths around 2582–2664 and 3607–3737; <a href="../crest-synth/DESIGN.md">Synth DESIGN</a>, canonical state and graph lifecycle around 260–374.</td>
+</tr>
+<tr>
+<td><span id="e-mixing"><strong>E9 · Signal and saved-control semantics</strong></span></td>
+<td><a href="../crest-synth/DESIGN.md">Synth DESIGN</a>, Patch/track/return ownership around 378–414 and taps/mute/solo around 489–503; <a href="../crest-synth/src/control/app_state.rs">AppState</a>, saved send edits around 4364–4372 and 5381–5399.</td>
+</tr>
+<tr>
+<td><span id="e-synth-rules"><strong>E10 · Synth constraints</strong></span></td>
+<td><a href="../crest-synth/AGENTS.md">Synth AGENTS.md</a>: canonical reducer, bounded preallocated callback, separate transports, prepared graph lifecycle, canonical types, typed failure, configurable resource budgets. UI contexts PATCH/MIXER are not a domain-context count.</td>
+</tr>
+<tr>
+<td><span id="e-devices"><strong>E11 · Connection lifecycle</strong></span></td>
+<td><a href="../crest-synth/src/control/midi_device.rs">MIDI device state</a>, 514–546; <a href="../crest-synth/DESIGN.md">Synth DESIGN</a>, device boundaries around 342–374 and 505–515.</td>
+</tr>
+</tbody>
+</table>
+<p>Source line references record this review and may drift. Sibling Synth links require the neighboring checkout; the report itself is fully self-contained and loads without network access. No runtime test or completed infrastructure/skeptic audit is implied by the document's HTML validation.</p>
+<p class="end-note">The implementation target is a coherent product with explicit ownership: one Song, reusable sound definitions, local sound use and mix, independent musical and sound execution, and faithful preservation.</p></main><footer><span>CREST / DOMAIN-DRIVEN DESIGN</span><span>One document. Explicit ownership. Exact saved meaning.</span></footer></div><script>
+const details = [...document.querySelectorAll('details.workflow')];
+const expand = document.getElementById('expand-all');
+function updateLabel(){expand.textContent=details.every(d=>d.open)?'Collapse all workflows':'Expand all workflows';}
+expand.addEventListener('click',()=>{const next=!details.every(d=>d.open);details.forEach(d=>d.open=next);updateLabel();});
+details.forEach(d=>d.addEventListener('toggle',updateLabel));
+document.getElementById('print').addEventListener('click',()=>window.print());
+let priorPrintState;
+window.addEventListener('beforeprint',()=>{priorPrintState=details.map(d=>d.open);details.forEach(d=>d.open=true);});
+window.addEventListener('afterprint',()=>{if(priorPrintState)details.forEach((d,i)=>d.open=priorPrintState[i]);updateLabel();});
+const bar=document.querySelector('.progress i');
+const sections=[...document.querySelectorAll('main > h2')];
+const navLinks=[...document.querySelectorAll('.sidebar nav a')];
+let scheduled=false;
+function updateProgress(){const distance=document.documentElement.scrollHeight-innerHeight;bar.style.transform='scaleX('+(distance>0?Math.min(1,scrollY/distance):0)+')';let active=sections[0]?.id;for(const section of sections){if(section.getBoundingClientRect().top<=150)active=section.id;}navLinks.forEach(a=>{if(a.hash==='#'+active)a.setAttribute('aria-current','location');else a.removeAttribute('aria-current');});scheduled=false;}
+addEventListener('scroll',()=>{if(!scheduled){scheduled=true;requestAnimationFrame(updateProgress);}},{passive:true});
+addEventListener('resize',updateProgress);updateProgress();
+</script></body></html>
