@@ -1,6 +1,6 @@
 # Crest Tracker — Domain architecture and implementation guide
 
-Version 5 · 21 September 2026 · Single-Song document and pinned sound revisions
+Version 6 · 15 October 2026 · Piano Roll recording and MPE capture
 
 Figma remains the product/design source of truth, subject to the latest explicit user decisions. This guide describes the single-Song document and related coding contracts. Product constraints are confirmed; unresolved runtime policies remain proposals. The sibling Synth source has been inspected, but the Tracker integration has not been implemented or tested.
 
@@ -11,7 +11,7 @@ Figma remains the product/design source of truth, subject to the latest explicit
 
 ## A00 — A MIDI sequencer with a hard boundary
 
-Architecture proposal v5 · 21 September 2026. Product constraints are confirmed; runtime policies below are implementation proposals, with explicit capability gates.
+Architecture proposal v6 · 15 October 2026. Product constraints are confirmed; runtime policies below are implementation proposals, with explicit capability gates.
 
 ### Tracker and Synth library boundary
 
@@ -89,7 +89,7 @@ One musical timeline uses exact rational quarter-note beats. Base divisions thro
 
 ### Percent and tempo types
 
-Velocity/amount use typed decimal percentages with an explicit Off/zero where meaningful. Note-on velocity maps 1–100% to 1–127; zero is a separate cut/off action. CC maps 0–100% to 0–127. Tempo is positive BPM, not a percentage. Current tempo, song initial tempo and preference default BPM are distinct.
+Velocity/amount use typed decimal percentages in the UI with an explicit Off/zero where meaningful. Captured velocities and controllers retain exact MIDI values; opening/saving never round-trips them through integer percentages. Note-on velocity maps 1–100% to 1–127; zero is a separate cut/off action. CC maps 0–100% to 0–127. Tempo is positive BPM, not a percentage. Current tempo, song initial tempo and preference default BPM are distinct.
 
 ### Save package / proposed
 
@@ -101,17 +101,21 @@ New/Open replaces the single active document after Save/Discard/Cancel when dirt
 
 Bar duration = numerator × 4 / denominator quarter-note beats. Meter changes alter bar boundaries and grouping without silently moving notes. A division edit explicitly retimes the phrase grid and its events; a view-only change preserves event times. Triplet and other ratios remain exact underneath. Compile to sufficiently fine scheduler timing; never equate a screen row with a transport tick.
 
-## A03 — Four phrase forms, one execution contract
+## A03 — Five phrase forms, one execution contract
 
 A common phrase envelope and timed output contract; each sequencer form owns its useful authoring representation.
 
 ### Common note data
 
-NoteData is one ordered collection of timed NoteEvent and FxEvent values. Every phrase form reads, edits or generates that representation. NoteEvent carries onset, duration, pitch, velocity and explicit target. FxEvent carries time, slot 1–3, typed effect and target when required. Mode settings describe editing/generation; they do not define another playback format.
+NoteData is one ordered collection of timed NoteEvent, ControlEvent and FxEvent values. Every phrase form reads, edits or generates that representation. NoteEvent carries onset, duration, pitch, exact attack/release velocity, explicit target and optional source/expression metadata. ControlEvent preserves timestamped channel/master controls; note-relative expression follows stable note identity. See A16. FxEvent carries time, slot 1–3, typed effect and target when required. Mode settings describe editing/generation; they do not define another playback format.
 
 ### Tracker and drum editing
 
 Tracker rows and drum lanes are projections of the same NoteData. A tracker note cell edits one timed note; a drum hit edits the same event type, grouped by voice. Empty cells add no note and do not cut existing notes. Cut is an explicit event. Both expose the shared three FX slots.
+
+### Piano Roll capture and editing
+
+Piano Roll records external MIDI/MPE into authored NoteData and edits that same source. Preserve off-grid timing, raw control precision, source identity, note expression and sustain; capture bypasses scale filtering. Input mappings stamp explicit event targets. Its edit grid is presentation/entry state, not the phrase-division retiming command. A16 defines recording, routing and take ownership.
 
 ### Euclidean and random generation
 
@@ -127,7 +131,7 @@ Seed generation by phrase revision, occurrence, cycle and stable event key so sc
 
 ### One view model
 
-Phrase, drum and expanded views project the same envelope and source references. Expanded cells retain occurrence path, phrase ID, step and FX slot. Musical-time alignment is exact and independent of visual row height; no second pattern store or playback engine.
+Phrase, piano-roll, drum and expanded views project the same envelope and source references. Expanded cells retain occurrence path, phrase ID, step and FX slot. Musical-time alignment is exact and independent of visual row height; no second pattern store or playback engine.
 
 ## A04 — Playback cursors and control flow
 
@@ -139,7 +143,7 @@ trackId + songId + chainUseId + phraseUseId + phraseStep + repeat counters + phr
 
 ### Advance transaction
 
-At the next due musical time: adopt eligible document revisions; collect due steps across tracks; evaluate mode and all FX; arbitrate global controls; schedule bounded output; resolve cursor transitions; publish a compact runtime projection. Off events and override expiry can be due between steps.
+At the next due musical time: adopt eligible document revisions; collect due steps across tracks; evaluate mode and all FX; arbitrate global controls; schedule bounded output; resolve cursor transitions; publish a compact runtime projection. Note attacks, expression/control events, off events and override expiry can be due between steps. StepFrames must retain exact due beats rather than rounding recorded attacks to a row.
 
 ### Hierarchy
 
@@ -167,7 +171,7 @@ Tracker produces musical intent. Its output adapter converts that intent to the 
 
 ### Target union
 
-EventTarget = InstrumentRef(resourceId, revision) | MidiAddress(endpointId, channel). Instrument selection is per note/hit in the phrase grid. The integration catalog resolves InstrumentRef to a MIDI-addressable destination. A track does not carry a hidden route.
+EventTarget = InstrumentRef(resourceId, revision) | MidiAddress(endpointId, channel) | MpeZoneAddress(endpointId, masterChannel, memberChannels). Instrument selection is per note/hit in the phrase grid. The integration catalog resolves InstrumentRef to a MIDI-addressable destination and declares MPE capabilities. MPE member allocation is shared across monitoring and playback; a fixed MidiAddress cannot preserve independent MPE expression. A track does not carry a hidden route.
 
 ### Confirmed / rhythmic resolution
 
@@ -305,6 +309,10 @@ Identify language/framework from the repository. Prove a MIDI note, note-off, pa
 
 Build shared NoteData, per-note target/velocity/three FX columns, controller input, length/divisions through 1/64 with subdivisions and meter, independent cursors and working settings. Add scale-only entry, Notes/Intervals display, chromatic Settings/phrase overrides and OFS in the common FX pipeline. Include timing/chance/jump/tempo and supported sends. Gate: deterministic traces, out-of-scale overrides preserved and clean Stop/Seek.
 
+### 1R / Piano Roll recording
+
+After the phrase foundation, implement timestamped external MIDI/MPE capture, input routing, monitoring, loop overdub, recoverable takes, expression-preserving gamepad edits and grid quantize. Use the existing scheduler and exact NoteData. Prove the eight recording scenarios in design/piano-roll.md before broader generators; Phase 4 adds full Song accompaniment. Recording is not deferred to Phase 7.
+
 ### 2 / Phrase forms and harmony
 
 Drum, Euclidean and Random models share NoteData and the same pitch policy/FX contract. Add per-song derived Default banks, shared Custom copy/search, explicit chord shapes, ADD, VOI and SPR with note previews. Preserve fixed drum triggers. Gate: default chords fit every supported scale; explicit chords retain their tones; voicing preserves pitch classes; modes and multiple cursors agree with previews.
@@ -331,7 +339,7 @@ Integrate or reimplement Synth presentation views, mixer, sends, patch/sample/So
 
 ### 7 / Configurable MIDI and synchronization
 
-Add mapping profiles and MIDI control-surface adapters to the existing semantic input port; add separate note-recording/performance and clock adapters as needed. Handle external clock, start/stop/continue, loss and device reconnect. Gate: no domain code branches on controller brand or raw gamepad/MIDI button codes.
+Add mapping profiles and MIDI control-surface adapters to the existing semantic input port; extend the Phase 1R performance input and add separate clock adapters. Handle external clock, start/stop/continue, loss and device reconnect. Gate: no domain code branches on controller brand or raw gamepad/MIDI button codes.
 
 ### 8 / Timing, recovery and release
 
@@ -351,8 +359,10 @@ Language-neutral type sketches. Map these to the repository’s language after t
 
 ### Phrase and FX storage
 
-NoteData = ordered collection of NoteEvent | FxEvent.
-NoteEvent = { id, startBeat, duration, pitch, velocity, target }.
+NoteData = ordered collection of NoteEvent | ControlEvent | FxEvent.
+NoteEvent = { id, startBeat, duration, pitch, velocityMidi7, releaseVelocityMidi7, target, source?, attackSequence?, releaseSequence?, initialExpression?, expressionPoints[] }.
+ExpressionPoint = { id, offsetBeat, sequence, dimension, rawValue }; dimension = Bend14 | Pressure7 | Timbre7 | PolyPressure7.
+ControlEvent = { id, beat, sequence, target, sourceScope, message }; message is a validated MIDI channel control with exact raw values.
 FxEvent = { id, beat, slot: 1..3, spec: FxSpec, target? }.
 Phrase = { id, revision, timing, scaleOverride?, pitchPolicy: Inherit | ScaleOnly | Chromatic, modeConfig, noteDataSource }.
 resolve(noteDataSource, occurrence, effectiveScaleContext, pitchPolicy, seed) → NoteData.
@@ -389,7 +399,7 @@ FxSpec means a musical MIDI/sequencer effect authored in a phrase. IoRequest mea
 
 ### Ports owned on the inside
 
-Application defines MidiOutputPort, SetRepository, AssetBrowserPort, SoundCatalogPort and ClockPort contracts as simple data. Outer adapters implement them. Only the Synth adapter / host composition root imports crest-synth. The domain imports no device SDK, renderer, filesystem or Synth type.
+Application defines MidiInputPort, MidiOutputPort, SongRepository, AssetBrowserPort, SoundCatalogPort and ClockPort contracts as simple data. Outer adapters implement them. Only the Synth adapter / host composition root imports crest-synth. The domain imports no device SDK, renderer, filesystem or Synth type.
 
 ### Suggested module layout
 
@@ -402,11 +412,11 @@ crest-synth remains its independently testable library.
 
 ### Deterministic output order
 
-For equal musical timestamps: release old notes, apply parameter changes/restorations, then attack new notes. Stable track/occurrence/event IDs break ties. Global tempo/flow arbitration occurs before timestamp conversion. Probability gates note emission; it does not randomly suppress global flow or required cleanup.
+For equal musical timestamps: release old notes, apply parameter changes/restorations, then attack new notes for generated output. Captured source packets preserve their same-time sequence inside each source stream (including post-attack expression); initialize per-note state before its attack and place owned cleanup before any channel reuse. Merge streams deterministically without reordering each stream. Stable track/occurrence/event IDs break remaining ties. Global tempo/flow arbitration occurs before timestamp conversion. Probability gates note emission; it does not randomly suppress global flow or required cleanup.
 
 ### Single readable application model
 
-AppSnapshot composes immutable DocumentSnapshot, RuntimeProjection, EditorState, Preferences and SoundProjection. Frontend selectors derive visible rows and popovers. SoundProjection is observed Synth state, not an editable copy of Synth’s aggregate. A view dispatches a command and renders the resulting snapshot.
+AppSnapshot composes immutable DocumentSnapshot, RuntimeProjection (including RecordingProjection), EditorState, Preferences and SoundProjection. Frontend selectors derive visible rows and popovers. SoundProjection is observed Synth state, not an editable copy of Synth’s aggregate. A view dispatches a command and renders the resulting snapshot.
 
 ## A12 — Scale-aware entry, one note model
 
@@ -526,6 +536,38 @@ SetSongViewMode updates EditorState and invalidates only the projection. FocusMi
 
 Acceptance: switching Chains ↔ Minimap ↔ Expanded changes neither authored NoteData nor MIDI output. After a jump or Make Unique, focus and activity refer to the correct occurrence. Preview generation is bounded and cannot starve playback.
 
+## A16 — Piano Roll capture, expression and routing
+
+Piano Roll is the fifth Phrase form. Recording external MIDI/MPE while accompaniment plays is its first responsibility. The detailed product flow, proposed defaults, controller actions and eight acceptance scenarios are in [Piano Roll](design/piano-roll.md). They extend the common phrase model; there is no parallel piano-roll scheduler or instrument store.
+
+### Owners and transitions
+
+The MIDI input adapter validates/normalizes timestamped source packets, separate from semantic button input. Application recording state owns one armed occurrence, transport anchor, source mapping, draft take and held-input identities. Pure capture transitions assemble NoteData; Composition alone commits it through expected revisions and the existing shared-reference transaction. One completed take is one undoable append. Conflict/overflow/disconnect retains a recoverable draft and a visible reason. No silent replacement of prior notes.
+
+Runtime capture state is not saved as live device handles or active subscriptions. Song saves exact committed notes, scoped controls, source/zone/bend-range metadata and explicit targets. Save finalizes an active take before immutable capture; New/Open guards include the draft. A failed commit/save preserves it. Draft recovery checkpoints are required before claiming crash-safe recording.
+
+### Exact timing and expression
+
+Convert monotonic input time through the transport tempo map into rational beats; do not snap to the grid. Each source has a stable sequence to preserve equal-time packet order. Record note-on/off velocity, 14-bit bend, pressure, CC74, sustain and other supported channel controls without reducing precision. Source endpoint/session/channel/attack identifies a note; pitch alone cannot. Channel-wide data stays channel-wide. MPE member expression is note-owned, initialized at attack and combined with separate master controls. Preserve physical key release independently of pedal-held lifetime. Unknown zone/bend-range configuration is an explicit capability/setup error.
+
+Note-relative expression is part of the NoteEvent value, not three extra FX slots. Channel/master controls are ControlEvents in the common ordered NoteData. MidiInputPort delivers timestamped packets; note ownership and destination capability checks stay in the existing MIDI boundary. StepFrames retain off-grid note/control due times. Views project these values without rounding, flattening chords or discarding unsupported columns.
+
+### Loop, monitoring and output ownership
+
+The first slice proposes raw fixed-loop overdub on one armed occurrence. Other occurrences keep advancing. Draft notes are monitored once and never replayed during their capture take. Commit activates at a future loop boundary beyond already delivered output. A held note crossing the loop stores modulo onset plus unwrapped duration and relative expression; it is not cut/re-attacked at each visual edge. Freeze source/route/timing for an active take. Leaving/deleting the capture path, seek/stop or input failure ends it visibly and preserves material.
+
+Input routing stamps InstrumentRef, MidiAddress or MpeZoneAddress onto each event. Instrument destinations need a proven MPE profile; a fixed MIDI channel must not silently flatten expression. One allocator owns each destination's MPE member leases across monitor, accompaniment and independent occurrences. Source channel provenance remains stored even when output channels are remapped. Validate zone/master compatibility and capacity before output. Independent master expression/sustain timelines require distinct zones/endpoints or a proven isolating profile; member allocation alone is insufficient. Exhaustion rejects a new attack visibly; sustain and owned release complete before reuse. Cleanup is scoped to owned notes/controllers, never a global reset that cuts accompaniment.
+
+### Editing and FX
+
+Grid choice is editor state. Nudge/quantize move selected note starts and attached expression, preserving duration unless explicitly edited. Preserve raw capture on scale changes; scale policy governs newly authored entry only. Copy/duplicate creates new note/point IDs; delete removes owned points; channel/master lanes need explicit selection. Commands are revisioned, validated and undoable. Retargeting shared-channel controls requires an explicit scope, not a guessed conversion.
+
+Probability drops a note with its owned expression; delay moves them together. Chord/retrigger expansion creates new runtime note identities and member allocations. Reject unsupported expression/FX combinations at compilation with the previous valid snapshot retained. Existing three FX slots and temporary-control arbitration remain in force. For a captured controller value and FX override on the same target, captured playback supplies the timestamped baseline; expiry reveals its latest value, never a stale setup value.
+
+### Implementation gate
+
+Phase 0 proves ingress, timestamps and MPE destination capabilities. Phase 1 establishes exact NoteData and safe output; Phase 1R implements recording/editing and minimal take persistence; Phase 4 verifies full Song jamming. The Piano Roll acceptance suite includes raw round-trip, simultaneous per-note expression, loop/tempo crossing, gamepad-only editing, quantize/undo, global member allocation, recovery and shared-reference isolation. Synth support remains unverified until those integration checks pass.
+
 ## Event contract matrix
 
 | Producer / owner | Trigger | Emitted fact or output | Consumers | Ordering / failure contract |
@@ -577,6 +619,8 @@ Acceptance: switching Chains ↔ Minimap ↔ Expanded changes neither authored N
 20. **One Song document:** New replaces the current document with one empty Song; Open replaces it with one validated Song; Save As writes a separate file containing that same single arrangement. Cancel, failed Open and failed/cancelled prerequisite Save preserve the current Song.
 21. **Save consistency:** edit after a save capture begins. Successful persistence marks only that captured revision clean; later edits remain dirty. A pending New/Open must resolve those later edits before replacing the document.
 22. **Pinned sound adoption:** publish a new sound-definition revision while a Song uses the older revision. Playback and reopen retain the saved revision until explicit adoption. Adoption preserves Song-local subscription, routing and mix; a failed activation retains the previous pin and sound configuration.
+
+23. **Piano Roll recording:** pass all eight [recording/editing acceptance scenarios](design/piano-roll.md#acceptance-scenarios-for-implementation), including exact raw-value persistence, per-note expression, monitoring, quantize/undo and failure recovery.
 
 ## Technical foundations
 

@@ -184,54 +184,99 @@
       "x": 1680,
       "y": 1320,
       "width": 1440,
-      "height": 1027,
+      "height": 1056,
       "texts": [
         {
           "id": "2030:3666",
           "name": "Document label",
-          "text": "CREST TRACKER  /  DEVELOPMENT REFERENCE"
+          "text": "CREST TRACKER  /  DEVELOPMENT REFERENCE",
+          "font": {
+            "family": "Azeret Mono",
+            "style": "Medium",
+            "variationSettings": {
+              "wght": 500
+            }
+          },
+          "fontSize": 14
         },
         {
           "id": "2030:3667",
           "name": "Document title",
-          "text": "04 / Phrases, modes & musical values"
+          "text": "04 / Phrases, modes & musical values",
+          "font": {
+            "family": "Azeret Mono",
+            "style": "Bold",
+            "variationSettings": {
+              "wght": 700
+            }
+          },
+          "fontSize": 32
         },
         {
           "id": "2030:3668",
           "name": "Document summary",
-          "text": "Note rows, phrase grids, generative modes, and display units."
+          "text": "Note rows, phrase grids, generative modes, and display units.",
+          "font": {
+            "family": "Azeret Mono",
+            "style": "Regular",
+            "variationSettings": {
+              "wght": 400
+            }
+          },
+          "fontSize": 18
         },
         {
           "id": "2032:2",
           "name": "CONFIRMED / Phrase columns",
-          "text": "CONFIRMED / Phrase columns\nThe grid contains Note or Interval, Instrument, Velocity and FX 1–3. Instrument chooses a specific instrument or a MIDI channel for each note. Scale-only input is the default; Settings and a phrase-view override permit chromatic entry. Notes/Intervals show the same underlying pitch data. OFS intentionally moves a note/root by signed semitones outside the scale."
+          "text": "CONFIRMED / Phrase columns\nThe grid contains Note or Interval, Instrument, Velocity and FX 1–3. Instrument chooses a specific instrument or a MIDI channel for each note. Scale-only authored entry is the default; recorded input preserves pitch. Settings and a phrase-view override permit chromatic entry. Notes/Intervals show the same underlying pitch data. OFS intentionally moves a note/root by signed semitones outside the scale.",
+          "font": {
+            "family": "Azeret Mono",
+            "style": "Bold",
+            "variationSettings": {
+              "wght": 700
+            }
+          },
+          "fontSize": 18
         },
         {
           "id": "2032:3",
           "name": "CONFIRMED / Grid and length",
-          "text": "CONFIRMED / Grid and length\nNo tables and no table editor. Phrase length is a step count; division controls each step’s musical duration, including triplets. Sixteen steps at 1/16 span four quarter-note beats. Twelve steps at 1/16 triplet span two beats."
+          "text": "CONFIRMED / Grid and length\nNo tables and no table editor. Phrase length is a step count; division controls each step’s musical duration, including triplets. Sixteen steps at 1/16 span four quarter-note beats. Twelve steps at 1/16 triplet span two beats.",
+          "fontSize": 18
         },
         {
           "id": "2032:4",
           "name": "CONFIRMED / Four phrase types",
-          "text": "CONFIRMED / Four phrase types\nNormal Tracker, Drum Machine, Euclidean and Randomizer are supported phrase types. All modes produce timed MIDI events with phrase-level event targets. The Phrase Type picker is approved."
+          "text": "CONFIRMED / Five phrase types\nTracker, Piano Roll, Drum Machine, Euclidean and Randomizer share timed notes and FX. Piano Roll prioritizes external MIDI/MPE capture, explicit event targets, gamepad editing, nudging and grid quantize. A16 defines proposed recording defaults and safety.",
+          "font": {
+            "family": "Azeret Mono",
+            "style": "Bold",
+            "variationSettings": {
+              "wght": 700
+            }
+          },
+          "fontSize": 18
         },
         {
           "id": "2032:5",
           "name": "PENDING DESIGN / Drum machine",
-          "text": "PENDING DESIGN / Drum machine\nThe current drum screen is provisional. Replace its layout with the user’s drum-machine reference when supplied. Preserve the per-event instrument/MIDI-channel model. Do not treat the existing four-lane sketch as the approved design."
+          "text": "PENDING DESIGN / Drum machine\nThe current drum screen is provisional. Replace its layout with the user’s drum-machine reference when supplied. Preserve the per-event instrument/MIDI-channel model. Do not treat the existing four-lane sketch as the approved design.",
+          "fontSize": 18
         },
         {
           "id": "2032:6",
           "name": "PENDING DESIGN / Euclidean and Randomizer",
-          "text": "PENDING DESIGN / Euclidean and Randomizer\nThe user is still considering these designs. Existing control layouts are exploratory examples only. Generator preview/commit behavior, random seed persistence, mode conversion, and exact control sets are not locked. Preserve authored material when testing conversions."
+          "text": "PENDING DESIGN / Euclidean and Randomizer\nThe user is still considering these designs. Existing control layouts are exploratory examples only. Generator preview/commit behavior, random seed persistence, mode conversion, and exact control sets are not locked. Preserve authored material when testing conversions.",
+          "fontSize": 18
         },
         {
           "id": "2032:7",
           "name": "CONFIRMED + PROPOSED / Numeric values",
-          "text": "CONFIRMED + PROPOSED / Numeric values\nNo hexadecimal. Normalized amounts use 1–100 percentages and pitches use note names. Proposed exceptions retain meaningful units: BPM, MIDI channels 1–16, step counts, note fractions and signed semitones. Explicit off/zero behavior and MIDI rounding remain implementation decisions."
+          "text": "CONFIRMED + PROPOSED / Numeric values\nNo hexadecimal. Normalized amounts use 1–100 percentages and pitches use note names. Proposed exceptions retain meaningful units: BPM, MIDI channels 1–16, step counts, note fractions and signed semitones. Explicit off/zero behavior and MIDI rounding remain implementation decisions.",
+          "fontSize": 18
         }
       ],
+      "instances": [],
       "links": []
     },
     {
@@ -353,5 +398,10 @@
     "date": "2026-09-21",
     "scope": "Single Song document; library sound revisions pinned until explicit update; song-local routing/mix.",
     "figmaSync": "synchronized"
-  }
+  },
+  "updated": "2026-10-15",
+  "updatedRootIds": [
+    "2030:3665"
+  ],
+  "captureNote": "Roots listed in updatedRootIds were refreshed from live Figma on the updated date; other roots retain their original capture."
 }

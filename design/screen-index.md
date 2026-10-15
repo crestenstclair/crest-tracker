@@ -1,6 +1,6 @@
 # Figma screen and board index
 
-Captured 21 September 2026. Live Figma remains authoritative. JSON snapshots retain all captured text and prototype links; they are not a native Figma backup. The current user decisions in product-spec.md supersede older visual details.
+Captured 21 September 2026; Piano Roll screens and updated architecture added 15 October 2026. Live Figma remains authoritative. JSON snapshots retain all captured text and prototype links; they are not a native Figma backup. The current user decisions in product-spec.md supersede older visual details.
 
 ## 11 · Tracker Screens
 
@@ -72,6 +72,10 @@ Captured 21 September 2026. Live Figma remains authoritative. JSON snapshots ret
 | T53 · Song view mode / Popover · Exploratory | 800 × 620 | [Open](https://www.figma.com/design/mvRQEFZc5Oi2ZbRkoHhXjH/Crest-Tracker?node-id=2110-5958) |
 | T52–53 · Minimap design contract / provisional | 1280 × 360 | [Open](https://www.figma.com/design/mvRQEFZc5Oi2ZbRkoHhXjH/Crest-Tracker?node-id=2113-5992) |
 | T54 · Unsaved song / New | 1280 × 800 | [Open](https://www.figma.com/design/mvRQEFZc5Oi2ZbRkoHhXjH/Crest-Tracker?node-id=2126-5934) |
+| T55 · Piano Roll · Recording | 1280 × 800 | [Open](https://www.figma.com/design/mvRQEFZc5Oi2ZbRkoHhXjH/Crest-Tracker?node-id=2144-6286) |
+| T56 · Piano Roll · Record setup | 1280 × 800 | [Open](https://www.figma.com/design/mvRQEFZc5Oi2ZbRkoHhXjH/Crest-Tracker?node-id=2144-6454) |
+| T57 · Piano Roll · Edit and quantize | 1280 × 800 | [Open](https://www.figma.com/design/mvRQEFZc5Oi2ZbRkoHhXjH/Crest-Tracker?node-id=2144-6530) |
+| T58 · Piano Roll · Armed | 1280 × 800 | [Open](https://www.figma.com/design/mvRQEFZc5Oi2ZbRkoHhXjH/Crest-Tracker?node-id=2149-6027) |
 
 ## 15 · Tracker Architecture
 
@@ -80,20 +84,21 @@ Captured 21 September 2026. Live Figma remains authoritative. JSON snapshots ret
 | A00 · Architecture overview | 1440 × 1485 | [Open](https://www.figma.com/design/mvRQEFZc5Oi2ZbRkoHhXjH/Crest-Tracker?node-id=2072-3) |
 | A01 · Ownership, aggregates and references | 1440 × 1085 | [Open](https://www.figma.com/design/mvRQEFZc5Oi2ZbRkoHhXjH/Crest-Tracker?node-id=2075-6137) |
 | A02 · State and storage contracts | 1440 × 1423 | [Open](https://www.figma.com/design/mvRQEFZc5Oi2ZbRkoHhXjH/Crest-Tracker?node-id=2075-6153) |
-| A03 · Four phrase forms, one execution contract | 1440 × 1114 | [Open](https://www.figma.com/design/mvRQEFZc5Oi2ZbRkoHhXjH/Crest-Tracker?node-id=2075-6170) |
+| A03 · Five phrase forms, one execution contract | 1440 × 1114 | [Open](https://www.figma.com/design/mvRQEFZc5Oi2ZbRkoHhXjH/Crest-Tracker?node-id=2075-6170) |
 | A04 · Playback cursors and control flow | 1440 × 1167 | [Open](https://www.figma.com/design/mvRQEFZc5Oi2ZbRkoHhXjH/Crest-Tracker?node-id=2075-6186) |
 | A05 · MIDI bridge and Synth integration | 1440 × 1254 | [Open](https://www.figma.com/design/mvRQEFZc5Oi2ZbRkoHhXjH/Crest-Tracker?node-id=2075-6203) |
 | A06 · Event emit map | 1440 × 1225 | [Open](https://www.figma.com/design/mvRQEFZc5Oi2ZbRkoHhXjH/Crest-Tracker?node-id=2076-6137) |
 | A07 · Event contracts and consumers | 1440 × 1254 | [Open](https://www.figma.com/design/mvRQEFZc5Oi2ZbRkoHhXjH/Crest-Tracker?node-id=2076-6154) |
 | A08 · Phrase MIDI FX are foundational | 1440 × 1423 | [Open](https://www.figma.com/design/mvRQEFZc5Oi2ZbRkoHhXjH/Crest-Tracker?node-id=2076-6171) |
-| A09 · Implementation phases / foundation to song | 1440 × 1003 | [Open](https://www.figma.com/design/mvRQEFZc5Oi2ZbRkoHhXjH/Crest-Tracker?node-id=2077-2) |
+| A09 · Implementation phases / foundation to song | 1440 × 1032 | [Open](https://www.figma.com/design/mvRQEFZc5Oi2ZbRkoHhXjH/Crest-Tracker?node-id=2077-2) |
 | A10 · Implementation phases / persistence to release | 1440 × 1143 | [Open](https://www.figma.com/design/mvRQEFZc5Oi2ZbRkoHhXjH/Crest-Tracker?node-id=2077-17) |
 | D01 · Domain event emission map | 1800 × 1522 | [Open](https://www.figma.com/design/mvRQEFZc5Oi2ZbRkoHhXjH/Crest-Tracker?node-id=2077-33) |
-| A11 · Coding contracts and dependency rules | 1440 × 1515 | [Open](https://www.figma.com/design/mvRQEFZc5Oi2ZbRkoHhXjH/Crest-Tracker?node-id=2079-26) |
+| A11 · Coding contracts and dependency rules | 1440 × 1573 | [Open](https://www.figma.com/design/mvRQEFZc5Oi2ZbRkoHhXjH/Crest-Tracker?node-id=2079-26) |
 | D02 · Every phrase form passes through MIDI FX | 1800 × 1491 | [Open](https://www.figma.com/design/mvRQEFZc5Oi2ZbRkoHhXjH/Crest-Tracker?node-id=2079-43) |
 | A12 · Scale-aware entry, one note model | 1440 × 1370 | [Open](https://www.figma.com/design/mvRQEFZc5Oi2ZbRkoHhXjH/Crest-Tracker?node-id=2096-6020) |
 | A13 · Default and Custom chord banks | 1440 × 1143 | [Open](https://www.figma.com/design/mvRQEFZc5Oi2ZbRkoHhXjH/Crest-Tracker?node-id=2096-6036) |
 | A14 · Chord FX and harmony contracts | 1440 × 1650 | [Open](https://www.figma.com/design/mvRQEFZc5Oi2ZbRkoHhXjH/Crest-Tracker?node-id=2096-6052) |
+| A16 · Piano Roll recording and MPE | 1440 × 1083 | [Open](https://www.figma.com/design/mvRQEFZc5Oi2ZbRkoHhXjH/Crest-Tracker?node-id=2145-52) |
 
 ## 13 · Tracker Flows
 
@@ -135,3 +140,5 @@ Captured 21 September 2026. Live Figma remains authoritative. JSON snapshots ret
 ## PNG previews
 
 [Song](song.png) · [Phrase](phrase.png) · [Expanded](expanded.png) · [Minimap](minimap.png) · [Song view picker](song-view-picker.png) · [Default bank](default-chord-bank.png) · [Voicing](chord-voicing.png) · [Event map](event-map.png) · [FX pipeline](phrase-fx-pipeline.png)
+
+[Piano Roll](piano-roll.png) · [Armed](piano-roll-armed.png) · [Record setup](piano-roll-setup.png) · [Edit and quantize](piano-roll-edit.png) · [Phrase types](phrase-types.png) · [Recording architecture](piano-roll-architecture.png)

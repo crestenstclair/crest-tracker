@@ -24,3 +24,9 @@ Crest uses those behaviors as inspiration while retaining explicit chord quality
 - [Dirtywave support](https://dirtywave.com/pages/support): obtain the relevant official M8 manual/version when defining the exact supported FX catalog. The user requested M8-inspired effects; exhaustive command parity has not been audited here.
 
 No dedicated drum-machine reference was found among these five user images. Euclidean and Randomizer visuals were explicitly left for further design. Crest Synth source code, its native API specification and a native Figma `.fig` export are not included in this package.
+
+## KORG Gadget controller reference
+
+[KORG Gadget for Nintendo Switch User Manual](https://www.detune.co.jp/KORG_Gadget_User_Manual_en.html), reviewed 15 October 2026, sections Basic Controller Operation, Piano Roll Screen Operations and Play/Record Operations. Verified: cursor navigation, A note entry/held length, right-stick length and velocity editing, ZL grid length adjustment, ZR range selection, contextual menus, copy/paste, undo, triplets, Y play/stop with long-press record, and automation capture. The basic summary has an inconsistent range-trigger label; the detailed Piano Roll section uses ZR.
+
+Use these as interaction inspiration for [Piano Roll](../design/piano-roll.md). Crest retains semantic/configurable controls, existing Shift/Edit navigation and explicit recording actions. MPE capture/routing and quantize semantics are Crest requirements/proposals, not verified KORG features. No KORG eight-bar limit or artwork is imported.

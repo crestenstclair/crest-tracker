@@ -15,7 +15,7 @@
       "width": 1440,
       "height": 1485,
       "text": [
-        "CREST TRACKER  /  ARCHITECTURE v5",
+        "CREST TRACKER  /  ARCHITECTURE v6",
         "A00 / A MIDI sequencer with a hard boundary",
         "Implementation proposal · 20 September 2026. Confirmed product rules are preserved; policy choices and Synth capability checks are marked explicitly.",
         "Tracker and Synth library boundary\nCrest Tracker owns musical composition and sequencing. Crest Synth owns instruments, patches, voices, audio DSP, mixer and send processing. Only the host’s Synth adapter imports the Synth library. Synth never imports Tracker.",
@@ -25,7 +25,7 @@
         "Source status\nSynth source provides Patch-targeted normalized MIDI, canonical AppState::apply, acknowledged graph activation and native session schema v4. Timestamp scheduling, temporary controls and shared sound revisions still require integration proof. Tracker remains unimplemented.",
         "Visual event map ↗\nInput → domain facts → playback → MIDI → Synth.",
         "Phrase FX pipeline ↗\nAll phrase forms share effect evaluation and cursor control.",
-        "Implementation phases ↗\nPhrase + FX first, then forms, chains, Song and persistence.",
+        "Implementation phases ↗\nPhrase + FX, Piano Roll capture, then forms, chains and Song.",
         "Coding contracts ↗\nConcrete type sketches, ports and import boundaries.",
         "Technical foundations\nMIDI Association message summary defines channel and message semantics. Robert C. Martin’s Clean Architecture defines the inward dependency rule. All project-specific policies here are proposed contracts.",
         "MIDI Association / Message summary ↗",
@@ -70,7 +70,7 @@
       "width": 1440,
       "height": 1085,
       "text": [
-        "CREST TRACKER / ARCHITECTURE v5 · PROPOSED IMPLEMENTATION",
+        "CREST TRACKER / ARCHITECTURE v6 · PROPOSED IMPLEMENTATION",
         "A01 / Ownership, aggregates and references",
         "Song is the only saved document. Chain and Phrase definitions retain their own editing invariants; saving the document captures their references and sound state together.",
         "Composition / Phrase aggregate\nOwns shared NoteData, length, division, optional scale override, mode editing/generation settings and three typed FX slots per step. All phrase forms use the same note and FX event types. It validates timing, note bounds and effects without knowing controllers or Synth patch internals.",
@@ -91,7 +91,7 @@
       "width": 1440,
       "height": 1423,
       "text": [
-        "CREST TRACKER / ARCHITECTURE v5 · PROPOSED IMPLEMENTATION",
+        "CREST TRACKER / ARCHITECTURE v6 · PROPOSED IMPLEMENTATION",
         "A02 / State and storage contracts",
         "Views read projections. Commands are the only path to edits. Save musical state independently of transient playback and UI.",
         "DocumentState / persistent\nStore one Song record, song-local maps of Chain/Phrase definitions, pinned shared sound/chord references and Synth-native sound/mix state. Stable ChainUse/PhraseUse IDs connect definitions within the Song. Store schemaVersion and revisions; validate references before committing. No songs collection, selectedSongId or song-order field is needed.",
@@ -107,17 +107,17 @@
     },
     {
       "id": "2075:6170",
-      "name": "A03 · Four phrase forms, one execution contract",
+      "name": "A03 · Five phrase forms, one execution contract",
       "type": "FRAME",
       "x": 80,
       "y": 1980,
       "width": 1440,
       "height": 1114,
       "text": [
-        "CREST TRACKER / ARCHITECTURE v5 · PROPOSED IMPLEMENTATION",
-        "A03 / Four phrase forms, one execution contract",
+        "CREST TRACKER / ARCHITECTURE v6 · PROPOSED IMPLEMENTATION",
+        "A03 / Five phrase forms, one execution contract",
         "A common phrase envelope and timed output contract; each sequencer form owns its useful authoring representation.",
-        "Common note data\nNoteData is one ordered collection of timed NoteEvent and FxEvent values. Every phrase form reads, edits or generates that representation. NoteEvent carries onset, duration, pitch, velocity and explicit target. FxEvent carries time, slot 1–3, typed effect and target when required. Mode settings describe editing/generation; they do not define another playback format.",
+        "Common note data\nNoteData is one ordered collection of timed NoteEvent, ControlEvent and FxEvent values. Piano Roll preserves raw timing and expression (A16). Every phrase form reads, edits or generates that representation. NoteEvent carries onset, duration, pitch, velocity and explicit target. FxEvent carries time, slot 1–3, typed effect and target when required. Mode settings describe editing/generation; they do not define another playback format.",
         "Tracker and drum editing\nTracker rows and drum lanes are projections of the same NoteData. A tracker note cell edits one timed note; a drum hit edits the same event type, grouped by voice. Empty cells add no note and do not cut existing notes. Cut is an explicit event. Both expose the shared three FX slots.",
         "Euclidean and random generation\nEuclidean and Random models retain their own parameters, seed and editing state, but generate the same NoteData. Their previews and playback use the same resolved event timeline. Generated output is a versioned result of its inputs, not a second independently editable source of truth. Manual overrides are explicit and use the same event types.",
         "One playback representation\nResolve authored or generated content to NoteData, group due events into StepFrames, apply the shared phrase FX pipeline, then schedule MIDI. The same clock advances every mode. Different divisions and meters change musical positions and grouping; they never select a different scheduler or note representation.",
@@ -135,11 +135,11 @@
       "width": 1440,
       "height": 1167,
       "text": [
-        "CREST TRACKER / ARCHITECTURE v5 · PROPOSED IMPLEMENTATION",
+        "CREST TRACKER / ARCHITECTURE v6 · PROPOSED IMPLEMENTATION",
         "A04 / Playback cursors and control flow",
         "Each track has an independent cursor stack. Shared content never means shared playback position.",
         "TrackCursor\ntrackId + songId + chainUseId + phraseUseId + phraseStep + repeat counters + phraseCycle + nextDueBeat + revision. The cursor path uses stable IDs and derives current indices for display. Phrase audition uses the same cursor with synthetic parent occurrences.",
-        "Advance transaction\nAt the next due musical time: adopt eligible document revisions; collect due steps across tracks; evaluate mode and all FX; arbitrate global controls; schedule bounded output; resolve cursor transitions; publish a compact runtime projection. Off events and override expiry can be due between steps.",
+        "Advance transaction\nAt the next due musical time: adopt eligible document revisions; collect due steps across tracks; evaluate mode and all FX; arbitrate global controls; schedule bounded output; resolve cursor transitions; publish a compact runtime projection. Off-grid attacks, expression, controls, releases and override expiry can occur between steps.",
         "Hierarchy\nAdvance within phrase; on phrase end, repeat the PhraseUse or advance inside the chain; on chain end, advance that track’s ChainUse. Song lanes need not arrive together. Proposed empty song slots stop that lane; explicit rests belong in phrases. Loop ranges and end policy are explicit transport data.",
         "Jump semantics / proposed\nA phrase jump changes the next local step; a chain jump changes the next PhraseUse; an arrangement jump changes that track’s next ChainUse. Apply after the current positive-duration step. Global time never rewinds. Invalid targets are rejected; defensive runtime faults stop the affected lane and release its notes.",
         "Conflicts and loops\nEvaluate FX1 → FX2 → FX3; the last command for the same local control scope wins. Stop takes precedence over jumps. Simultaneous global tempo conflicts use lowest track order, then last slot, with a visible diagnostic. Cap transitions per scheduling window; a zero-time loop faults instead of hanging.",
@@ -157,10 +157,10 @@
       "width": 1440,
       "height": 1254,
       "text": [
-        "CREST TRACKER / ARCHITECTURE v5 · PROPOSED IMPLEMENTATION",
+        "CREST TRACKER / ARCHITECTURE v6 · PROPOSED IMPLEMENTATION",
         "A05 / MIDI bridge and Synth integration",
         "Tracker produces musical intent. Its output adapter converts that intent to the public MIDI contract; Synth sees sound control only.",
-        "Target union\nEventTarget = InstrumentRef(resourceId, revision) | MidiAddress(endpointId, channel). Instrument selection is per note/hit in the phrase grid. The integration catalog resolves InstrumentRef to a MIDI-addressable destination. A track does not carry a hidden route.",
+        "Target union\nEventTarget = InstrumentRef(resourceId, revision) | MidiAddress(endpointId, channel) | MpeZoneAddress(endpointId, master, members). Instrument selection is per note/hit in the phrase grid. The integration catalog resolves InstrumentRef to a MIDI-addressable destination. A track does not carry a hidden route.",
         "Confirmed / rhythmic resolution\nThe clarified 1/64 requirement refers to note division: quarter, eighth, sixteenth, thirty-second and sixty-fourth notes, including triplets and other subdivisions. Time signatures define bars and beat groupings on the same exact timeline. MIDI channel addressing and instrument capacity are separate from this rhythmic resolution.",
         "Hard capability gate\nVerify direct instrument addressing. If instruments share one MIDI channel and all receive its notes, a normal Note On cannot select just one. Use an existing dedicated MIDI endpoint/channel or a Synth-owned generic MIDI addressing profile. Do not invent a Tracker callback into a Synth voice or patch object.",
         "Synth parameter controls\nMixer, send and instrument edits must translate through supported CC, NRPN or Synth-owned SysEx mappings. Unsupported controls remain explicit capability gaps. No phrase/chain/jump opcode crosses the bridge. The host handles resource loading and opaque Synth-native state via its existing lifecycle boundary; any exception to strict MIDI ingress must be documented before coding.",
@@ -179,7 +179,7 @@
       "width": 1440,
       "height": 1225,
       "text": [
-        "CREST TRACKER / ARCHITECTURE v5 · PROPOSED IMPLEMENTATION",
+        "CREST TRACKER / ARCHITECTURE v6 · PROPOSED IMPLEMENTATION",
         "A06 / Event emit map",
         "Commands request changes; domain facts describe accepted changes; effect requests cross ports. MIDI is an output protocol, not the domain event bus.",
         "Input → application\nGamepad adapters emit semantic intents: MoveFocus, AdjustValue, BeginEdit, EndEdit, Select, Back, Start, Shift. The interaction controller resolves current screen/focus and dispatches typed commands. Future MIDI-controller mappings reuse these intents; MIDI clock and performance-note input take separate adapters.",
@@ -201,7 +201,7 @@
       "width": 1440,
       "height": 1254,
       "text": [
-        "CREST TRACKER / ARCHITECTURE v5 · PROPOSED IMPLEMENTATION",
+        "CREST TRACKER / ARCHITECTURE v6 · PROPOSED IMPLEMENTATION",
         "A07 / Event contracts and consumers",
         "Initial contract inventory. Names are proposals; ownership, payload and delivery semantics are the implementation contract.",
         "Composition commands and facts\nEditPhraseStep / SetPhraseFx / ConfigurePhrase { phraseId, expectedRevision, edit } → PhraseChanged { newRevision, dirtySteps }. MakeUnique { occurrencePath } → ReferencesRelinked { copiedIds, path }. ReorderChain / ArrangeSong → ChainChanged / SongChanged. Compiler, UI and save coordinator consume committed facts.",
@@ -223,7 +223,7 @@
       "width": 1440,
       "height": 1423,
       "text": [
-        "CREST TRACKER / ARCHITECTURE v5 · PROPOSED IMPLEMENTATION",
+        "CREST TRACKER / ARCHITECTURE v6 · PROPOSED IMPLEMENTATION",
         "A08 / Phrase MIDI FX are foundational",
         "FX storage, evaluation, target resolution and cleanup ship in the first playable phrase slice. Every phrase mode uses this pipeline.",
         "Typed effect model\nFxSpec is a closed/versioned tagged union, not an arbitrary string plus byte. Descriptor: parameter type/range, target scope, stage, duration, conflict rule and capability requirement. Phrase step stores [Fx1?, Fx2?, Fx3?]. FX-only steps execute even when the note cell is empty.",
@@ -244,14 +244,14 @@
       "x": 80,
       "y": 5780,
       "width": 1440,
-      "height": 1003,
+      "height": 1032,
       "text": [
-        "CREST TRACKER / ARCHITECTURE v5 · PROPOSED IMPLEMENTATION",
+        "CREST TRACKER / ARCHITECTURE v6 · PROPOSED IMPLEMENTATION",
         "A09 / Implementation phases / foundation to song",
         "Phrase first, including MIDI FX. Each phase leaves an executable slice and a measurable completion gate.",
         "0 / Boundary and timing spike\nIdentify language/framework from the repository. Prove a MIDI note, note-off, parameter control, direct instrument addressing and timestamps against unchanged Synth. Audit patch/sample persistence and page reuse. Establish dependency checks, fake clock and MIDI capture sink. Gate: unresolved sound capabilities are documented, never hidden in Tracker-to-Synth calls.",
         "1 / Playable tracker phrase + FX\nBuild shared NoteData, per-note target/velocity/three FX columns, controller input, length/divisions through 1/64 with subdivisions and meter, independent cursors and working settings. Add scale-only entry, Notes/Intervals display, chromatic Settings/phrase overrides and OFS in the common FX pipeline. Include timing/chance/jump/tempo and supported sends. Gate: deterministic traces, out-of-scale overrides preserved and clean Stop/Seek.",
-        "2 / Phrase forms and harmony\nDrum, Euclidean and Random models share NoteData and the same pitch policy/FX contract. Add per-song derived Default banks, shared Custom copy/search, explicit chord shapes, ADD, VOI and SPR with note previews. Preserve fixed drum triggers. Gate: default chords fit every supported scale; explicit chords retain their tones; voicing preserves pitch classes; modes and multiple cursors agree with previews.",
+        "1R / Recording, then 2 / Forms and harmony\nFirst implement Piano Roll capture, MPE routing, monitoring, gamepad edits and quantize; see A16. Drum, Euclidean and Random models share NoteData and the same pitch policy/FX contract. Add per-song derived Default banks, shared Custom copy/search, explicit chord shapes, ADD, VOI and SPR with note previews. Preserve fixed drum triggers. Gate: default chords fit every supported scale; explicit chords retain their tones; voicing preserves pitch classes; modes and multiple cursors agree with previews.",
         "3 / Chain arrangement\nBuild ordered reusable PhraseUse entries, repeats, length calculation and chain jump resolution. Add shared-use inspection and transactional Make Unique. Gate: mixed phrase lengths/divisions and nested repeats/jumps produce expected cursor/MIDI traces with two simultaneous uses of one definition.",
         "4 / Single-song workflow\nMake Song the default entry, with up to 16 independent track arrangements and full controller navigation. Add chain multi-select, expanded tracker projection, phrase separators and saved view groups. Gate: editing either view changes one source model; playback stays aligned by musical time through jumps and live edits."
       ],
@@ -266,12 +266,12 @@
       "width": 1440,
       "height": 1143,
       "text": [
-        "CREST TRACKER / ARCHITECTURE v5 · PROPOSED IMPLEMENTATION",
+        "CREST TRACKER / ARCHITECTURE v6 · PROPOSED IMPLEMENTATION",
         "A10 / Implementation phases / persistence to release",
         "Song save/open and additional input methods extend the proven phrase, FX and cursor foundation.",
         "5 / Song persistence and shared resources\nAdd New Song, Open Song, Save, Save As and rename for the sole document. New/Open replace the current Song through Save/Discard/Cancel; Save As writes a separate document, never adds a nested song. Preserve exact shared sound/chord revisions and song-local routing/mix. Gate: reopen restores one complete Song; explicit sound updates preserve local mix; interrupted saves remain recoverable.",
         "6 / Complete Synth pages and asset browsing\nIntegrate or reimplement Synth presentation views, mixer, sends, patch/sample/SoundFont selection and settings. The minimal sound adapter ships in Phases 0–1; this phase completes UI coverage. Apply starting-directory preferences and platform location tokens. Gate: all control paths respect the MIDI boundary and original Synth behavior remains intact.",
-        "7 / Configurable MIDI and synchronization\nAdd mapping profiles and MIDI control-surface adapters to the existing semantic input port; add separate note-recording/performance and clock adapters as needed. Handle external clock, start/stop/continue, loss and device reconnect. Gate: no domain code branches on controller brand or raw gamepad/MIDI button codes.",
+        "7 / Configurable MIDI and synchronization\nAdd mapping profiles and MIDI control-surface adapters to the existing semantic input port; extend Phase 1R recording and add clock adapters. Handle external clock, start/stop/continue, loss and device reconnect. Gate: no domain code branches on controller brand or raw gamepad/MIDI button codes.",
         "8 / Timing, recovery and release\nMeasure jitter and queue budgets under dense FX and large Song arrangements; exercise overflow, stuck-note prevention, hotplug, undo/redo, save interruption and schema migrations. Gate: deterministic core tests, Synth contract tests, bounded scheduling and useful diagnostics pass under a documented workload.",
         "Continuous engineering gates\nImport rules forbid Synth → Tracker, domain → UI/OS/filesystem and view → mutable domain data. Keep meaningful tests around timing, ownership, effect lifetime, serialization and bridge contracts. Test long mixed-division runs; performance tests use a declared latency budget established in Phase 0.",
         "Decision log before implementation\nConfirm phrase maximum length, default gate/overlap behavior, the exact subdivision presets and meter-change editing policy, supported M8 FX subset and Synth MIDI profile. Review arbitration/jump policies and external-clock loss timeout. Rhythmic division through 1/64 is confirmed. Drum, Euclidean and Random visual details remain open; all use shared NoteData."
@@ -287,7 +287,7 @@
       "width": 1800,
       "height": 1522,
       "text": [
-        "CREST TRACKER / ARCHITECTURE v5 · PROPOSED IMPLEMENTATION",
+        "CREST TRACKER / ARCHITECTURE v6 · PROPOSED IMPLEMENTATION",
         "D01 / Domain event emission map",
         "Follow accepted edits into playback and MIDI. Arrows show data flow; card headings name the owner.",
         "Input adapters",
@@ -326,17 +326,17 @@
       "x": 3280,
       "y": 5780,
       "width": 1440,
-      "height": 1515,
+      "height": 1573,
       "text": [
-        "CREST TRACKER / ARCHITECTURE v5 · PROPOSED IMPLEMENTATION",
+        "CREST TRACKER / ARCHITECTURE v6 · PROPOSED IMPLEMENTATION",
         "A11 / Coding contracts and dependency rules",
         "Language-neutral type sketches. Map these to the repository’s language after the Phase 0 audit; do not introduce a framework just to implement the diagram.",
-        "Phrase and FX storage\nNoteData = ordered collection of NoteEvent | FxEvent.\nNoteEvent = { id, startBeat, duration, pitch, velocity, target }.\nFxEvent = { id, beat, slot: 1..3, spec: FxSpec, target? }.\nPhrase = { id, revision, timing, scaleOverride?, pitchPolicy, modeConfig, noteDataSource }.\nresolve(noteDataSource, occurrence, effectiveScaleContext, pitchPolicy, seed) → NoteData.\nAn authored source holds NoteData; a generator source produces the identical representation. Target-dependent FX-only rows require an explicit grid target.",
+        "Phrase and FX storage\nNoteData = ordered collection of NoteEvent | ControlEvent | FxEvent.\nNoteEvent = { id, startBeat, duration, pitch, rawVelocity, releaseVelocity, target, source?, expression[] }. See A16 for exact capture.\nFxEvent = { id, beat, slot: 1..3, spec: FxSpec, target? }.\nPhrase = { id, revision, timing, scaleOverride?, pitchPolicy, modeConfig, noteDataSource }.\nresolve(noteDataSource, occurrence, effectiveScaleContext, pitchPolicy, seed) → NoteData.\nAn authored source holds NoteData; a generator source produces the identical representation. Target-dependent FX-only rows require an explicit grid target.",
         "Pure transitions and evaluation\nhandle(ownerState, command) → Accepted(nextState, facts, requests) | Rejected(reason).\nresolvePhrase(snapshot, cursor, effectiveScaleContext, pitchPolicy, seed) → shared NoteData.\nreadDueEvents(noteData, window) → StepFrames.\napplyPhraseFx(frames, fxState) → notes + parameters + flow + nextFxState.\nadvance(runtime, snapshot, window) → nextRuntime + MusicalOutput + RuntimeFacts.\nClock and seed are explicit inputs; every mode advances on the same timeline.",
         "Separate the two meanings of effect\nFxSpec means a musical MIDI/sequencer effect authored in a phrase. IoRequest means a request to an output/file/device adapter. Use different types and names. A musical effect may yield a parameter intent, but it never performs I/O inside the domain.",
         "Ports owned on the inside\nApplication defines MidiOutputPort, SetRepository, AssetBrowserPort, SoundCatalogPort and ClockPort contracts as simple data. Outer adapters implement them. Only the Synth adapter / host composition root imports crest-synth. The domain imports no device SDK, renderer, filesystem or Synth type.",
         "Suggested module layout\ncrest-tracker/domain/{composition,harmony,playback,music}\ncrest-tracker/application/{commands,projections,ports}\ncrest-tracker/adapters/{gamepad,midi,storage,assets}\ncrest-tracker/presentation/{screens,view-models}\ncrest-tracker-host/{composition-root,synth-adapter,synth-views}\ncrest-synth remains its independently testable library.",
-        "Deterministic output order\nFor equal musical timestamps: release old notes, apply parameter changes/restorations, then attack new notes. Stable track/occurrence/event IDs break ties. Global tempo/flow arbitration occurs before timestamp conversion. Probability gates note emission; it does not randomly suppress global flow or required cleanup.",
+        "Deterministic output order\nFor generated output at equal times: old releases, parameters, then new attacks. Captured packets retain within-source sequence; initialization precedes attack and cleanup precedes channel reuse. Stable track/occurrence/event IDs break ties. Global tempo/flow arbitration occurs before timestamp conversion. Probability gates note emission; it does not randomly suppress global flow or required cleanup.",
         "Single readable application model\nAppSnapshot composes immutable DocumentSnapshot, RuntimeProjection, EditorState, Preferences and SoundProjection. Frontend selectors derive visible rows and popovers. SoundProjection is observed Synth state, not an editable copy of Synth’s aggregate. A view dispatches a command and renders the resulting snapshot."
       ],
       "links": []
@@ -350,11 +350,11 @@
       "width": 1800,
       "height": 1491,
       "text": [
-        "CREST TRACKER / ARCHITECTURE v5 · PROPOSED IMPLEMENTATION",
+        "CREST TRACKER / ARCHITECTURE v6 · PROPOSED IMPLEMENTATION",
         "D02 / Every phrase form passes through MIDI FX",
         "One execution pipeline emits sound-control intents and cursor-control intents. MIDI FX belong to the core phrase contract.",
-        "Tracker",
-        "Scale-aware authored note cells",
+        "Authored phrases",
+        "Tracker + Piano Roll / MIDI + MPE",
         "Drum machine",
         "Fixed triggers / pitched hits",
         "Euclidean",
@@ -362,7 +362,7 @@
         "Randomizer",
         "Scale-filtered candidates + seed",
         "Shared NoteData",
-        "Timed notes + FX1 / FX2 / FX3\nOne musical clock; all modes",
+        "Notes + expression + FX 1 / 2 / 3\nOne musical clock; all modes",
         "Pitch + FX evaluator",
         "Resolved root → OFS → CRD → VOI → SPR\nExplicit shape; add octave doubles",
         "Runtime cursor stack",
@@ -450,11 +450,51 @@
         "Auto voicing / separate proposal\nKeep Manual as Crest’s default. A future Auto option may choose octave placements to reduce movement while preserving the selected chord tones. It needs previous-voicing state per playback occurrence, deterministic ties and declared Stop/Seek/Jump resets. It must not mutate shared phrases or change chord quality. Bass doubling, strum and arpeggiation remain separate concerns, not hidden spread behavior."
       ],
       "links": []
+    },
+    {
+      "id": "2145:52",
+      "name": "A16 · Piano Roll recording and MPE",
+      "type": "FRAME",
+      "x": 80,
+      "y": 9650,
+      "width": 1440,
+      "height": 1083,
+      "text": [
+        "CREST TRACKER / ARCHITECTURE v6 · 15 OCTOBER 2026",
+        "A16 / Piano Roll recording and MPE",
+        "Record first. Preserve expressive performances while the Song plays. Proposed runtime contracts; hardware and Synth support still need proof.",
+        "One Phrase, one musical timeline\nPiano Roll is the fifth form. External input resolves to authored NoteData: notes, note-owned expression, scoped channel/master controls and three existing FX slots. No parallel recorder playback engine. Grid changes never retime captured music; incoming pitch bypasses scale filtering.",
+        "Capture and recoverable takes\nInput adapter validates source packets with timestamp and sequence. Recording state owns one armed occurrence, routing map, held identities and draft. Composition commits one undoable additive take with expected revisions. Conflicts, overflow and disconnect retain material. Save finalizes capture before an immutable Song snapshot.",
+        "Raw MIDI and MPE fidelity\nPreserve attack/release velocity, 14-bit bend, pressure, CC74, sustain, master/member scope and bend-range configuration. Note-relative expression follows attack identity; channel controls stay channel-wide. Initial controller state is captured. Percent labels never reduce saved precision.",
+        "Route without expression collisions\nInput mapping stamps each event target: instrument, fixed MIDI address or MPE zone. MPE requires proven capability. One destination allocator covers monitoring and all playback occurrences. Retain source channels as provenance; allocate independent output members. Reject exhaustion or conflicting zones visibly; no silent flattening.",
+        "Loop recording and editing\nRaw fixed-loop overdub is the proposed first slice. Monitor the draft once; replay it only after commit at an eligible future loop. Held notes retain duration across the boundary. Nudge/quantize move note-owned expression; gamepad reaches note, target, lane-point, clipboard and undo commands. Shared edits use Make Unique/Edit Shared.",
+        "Implementation and proof\nPhase 0: timestamps/MPE capability. Phase 1: exact shared notes and safe output. Phase 1R: recording, routing, editing and take persistence. Phase 4: full Song jamming. Prove two-note expression isolation, sustain, loops/tempo, quantize/undo, gamepad-only operation, cleanup and recovery. Detailed contract: design/piano-roll.md."
+      ],
+      "links": []
     }
   ],
   "revision": {
     "date": "2026-09-21",
     "scope": "Single Song document; library sound revisions pinned until explicit update; song-local routing/mix.",
     "figmaSync": "synchronized"
-  }
+  },
+  "updated": "2026-10-15",
+  "updatedRootIds": [
+    "2072:3",
+    "2075:6137",
+    "2075:6153",
+    "2075:6170",
+    "2075:6186",
+    "2075:6203",
+    "2076:6137",
+    "2076:6154",
+    "2076:6171",
+    "2077:2",
+    "2077:17",
+    "2077:33",
+    "2079:26",
+    "2079:43",
+    "2145:52"
+  ],
+  "captureNote": "Roots listed in updatedRootIds were refreshed from live Figma on the updated date; other roots retain their original capture."
 }

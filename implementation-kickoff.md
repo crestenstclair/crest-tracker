@@ -8,22 +8,24 @@ Implement Crest Tracker as a separate sequencing library integrated with unchang
 
 ## Context to load
 
-Read README.md, product-spec.md, Crest-Tracker-Architecture-v1.md (current content version 5), implementation-plan.md, open-decisions.md and event-map.md in this folder. Open the relevant frames through design/screen-index.md. Live Figma is the product/interaction source of truth; latest user decisions supersede historical mockups. Archive notes are historical.
+Read README.md, product-spec.md, Crest-Tracker-Architecture-v1.md (current content version 6), implementation-plan.md, open-decisions.md and event-map.md in this folder, plus design/piano-roll.md. Open the relevant frames through design/screen-index.md. Live Figma is the product/interaction source of truth; latest user decisions supersede historical mockups. Archive notes are historical.
 
 ## First session
 
 1. Inspect repository instructions, language, workspace/package layout, existing Synth tests and build commands. Record current behavior before changes. Do not assume an unseen public API exists.
-2. Produce a short capability map with actual file/symbol references: MIDI note-on/off, timestamps, direct instrument addressing, mixer/send parameter controls, state snapshots, assets and reusable presentation modules.
+2. Produce a short capability map with actual file/symbol references: MIDI note-on/off, timestamps, direct instrument addressing, mixer/send parameter controls, state snapshots, assets and reusable presentation modules. Include timestamped input, MPE expression/zone/bend ranges, monitoring and global member allocation.
 3. Propose the smallest package boundaries that match the repository. Only the host Synth adapter imports Synth. Pure Tracker domain/application tests must run without the renderer or Synth.
 4. Prove a MIDI note and owned release through the existing Synth ingress, using a capture sink for deterministic traces. Resolve or explicitly report missing capabilities without introducing Tracker concepts into Synth.
 5. Build the first phrase slice: shared NoteData, exact musical time, target per event, velocity, three typed FX slots, explicit occurrence state, injected clock and semantic controller commands.
 6. Wire a phrase view as a projection of state; implement working length/division/scale settings and scale-aware note entry. Include FX-only steps, local flow/timing examples and cleanup from the start.
-7. Report changed boundaries, working behavior, meaningful verification and remaining capability gaps. Update the decision log when a proposal becomes a concrete implementation decision.
+7. Follow the phrase foundation with Phase 1R: raw external MIDI/MPE capture, explicit routing, loop overdub, expression-preserving gamepad edits and quantize. Do not defer recording to Phase 7.
+8. Report changed boundaries, working behavior, meaningful verification and remaining capability gaps. Update the decision log when a proposal becomes a concrete implementation decision.
 
 ## Implementation constraints
 
 - Model exactly one Song document. Store one Song record and its local Chain/Phrase definitions, never a collection of songs or a selected-song index. New/Open replaces the active document through Save/Discard/Cancel; Save As writes another file.
 - Keep shared sound-definition revisions pinned until explicit update. Installed sound use, subscription, routing and mix belong to the current Song. Preserve Synth-native ownership and serialization through the host adapter.
+- Piano Roll is the fifth phrase type. Preserve raw captured pitch/time/control values; scale policy applies to authored entry, never incoming performances. Exact recording contracts and defaults are in design/piano-roll.md.
 - All phrase forms resolve to the same timed note and FX data. Keep generator settings distinct from resolved output; do not create independent playback engines.
 - Keep DocumentState, RuntimeState, EditorState and machine Preferences separate. One readable AppSnapshot can compose them for the frontend.
 - Cursors belong to playback occurrences, never shared phrase definitions or view widgets. UI focus and transport position are independent.
@@ -36,6 +38,6 @@ Read README.md, product-spec.md, Crest-Tracker-Architecture-v1.md (current conte
 
 ## Initial evidence to produce
 
-A dependency diagram consistent with A00/A11; a verified Synth capability table; a reproducible run/build command; deterministic phrase/FX MIDI traces; two independent uses of one phrase; straight/triplet timing equivalence; display-invariant MIDI; and Stop/Seek cleanup. Add tests for these behavioral risks rather than tests that only mirror getters or UI scaffolding.
+A dependency diagram consistent with A00/A11; a verified Synth capability table; a reproducible run/build command; deterministic phrase/FX MIDI traces; two independent uses of one phrase; straight/triplet timing equivalence; display-invariant MIDI; and Stop/Seek cleanup. For Phase 1R, include two-member MPE capture/replay, loop-crossing notes, monitor deduplication, quantize/undo and exact save/reopen fixtures. Add tests for these behavioral risks rather than tests that only mirror getters or UI scaffolding.
 
 Do not claim completion of later phases, full M8 parity, final generator layouts or exact OXI algorithm equivalence. The requested Minimap is present as an exploratory design and can follow the core single-Song workflow.

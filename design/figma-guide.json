@@ -13,7 +13,7 @@
       "x": 80,
       "y": 80,
       "width": 1440,
-      "height": 1186,
+      "height": 1215,
       "texts": [
         {
           "id": "2030:3118",
@@ -83,7 +83,7 @@
         {
           "id": "2032:3669",
           "name": "03 / Phrase notes and destinations",
-          "text": "03 / Phrase notes and destinations ↗\nNote · Instrument · Velocity · FX 1 · FX 2 · FX 3. Choose a specific instrument or a whole MIDI channel in the grid.",
+          "text": "03 / Phrase notes, destinations and recording ↗\nTracker edits Note · Target · Velocity · FX 1–3. Piano Roll captures external MIDI/MPE, with explicit input routing, gamepad editing and quantize.",
           "font": {
             "family": "Azeret Mono",
             "style": "Bold",
@@ -161,7 +161,7 @@
         {
           "id": "2081:5638",
           "name": "07 / Review the development contracts",
-          "text": "09 / Architecture, events and implementation phases ↗\nA00 defines boundaries; D01 maps domain events and D02 shows FX/cursors. A09–A10 are the implementation roadmap. A12–A14 cover scale entry, Default/Custom banks and chord voicing.",
+          "text": "09 / Architecture, events and implementation phases ↗\nA00 defines boundaries; D01/D02 map events and FX. A12–A14 cover harmony. A16 specifies Piano Roll recording, MPE ownership and Phase 1R before broader generators.",
           "font": {
             "family": "Azeret Mono",
             "style": "Bold",
@@ -181,5 +181,10 @@
     "date": "2026-09-21",
     "scope": "Single Song document; library sound revisions pinned until explicit update; song-local routing/mix.",
     "figmaSync": "synchronized"
-  }
+  },
+  "updated": "2026-10-15",
+  "updatedRootIds": [
+    "2030:3117"
+  ],
+  "captureNote": "Roots listed in updatedRootIds were refreshed from live Figma on the updated date; other roots retain their original capture."
 }

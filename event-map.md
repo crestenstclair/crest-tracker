@@ -1,6 +1,6 @@
 # Event map and contracts
 
-21 September 2026. Names are proposed application/domain contracts, not verified existing Synth API symbols. Commands request an action; facts report accepted changes; I/O requests leave through ports. MIDI/sequencer FX are musical data, not application I/O effects.
+Updated 15 October 2026. Names are proposed application/domain contracts, not verified existing Synth API symbols. Commands request an action; facts report accepted changes; I/O requests leave through ports. MIDI/sequencer FX are musical data, not application I/O effects.
 
 The [native Figma event map](https://www.figma.com/design/mvRQEFZc5Oi2ZbRkoHhXjH/Crest-Tracker?node-id=2077-33) and [phrase FX pipeline](https://www.figma.com/design/mvRQEFZc5Oi2ZbRkoHhXjH/Crest-Tracker?node-id=2079-43) are included as PNG snapshots.
 
@@ -8,6 +8,12 @@ The [native Figma event map](https://www.figma.com/design/mvRQEFZc5Oi2ZbRkoHhXjH
 flowchart TD
   Input[Input adapters] -->|semantic intents| App[Application use cases]
   App -->|commands| Composition[Song composition]
+  MidiIn[Timestamped MIDI performance input] -->|source packets| Capture[Recording state and draft take]
+  App -->|arm / record / end take| Capture
+  Clock -->|transport mapping| Capture
+  Capture -->|commit with expected revision| Composition
+  Capture -->|owned monitor output| Bridge
+  Capture -->|recording projection| Projection
   App -->|queries and commands| Harmony[Harmony]
   Composition -->|accepted revisions| Compile[Snapshot compiler]
   Harmony -->|values and revisions| Compile
@@ -30,7 +36,7 @@ This is one process with explicit ownership and ports, not a proposal for distri
 - The application validates commands and expected revisions, invokes the appropriate owner and coordinates transactions. Rejected commands emit no accepted-change fact.
 - Composition/Harmony own musical rules. The compiler produces immutable, revisioned playback snapshots and keeps old valid snapshots when compilation fails.
 - Playback owns monotonic musical time, independent occurrence cursors, FX/RNG memory, generated queues and active note ownership. Window boundaries are half-open and deterministic.
-- At a shared timestamp: old note releases, parameter changes/restoration, then new note attacks. FX stages define cross-family order; slot order resolves within-stage ties. Proposed global conflict rules are in A04/A08.
+- At a shared timestamp for generated output: old note releases, parameter changes/restoration, then new note attacks. Captured packets preserve their within-source sequence, including expression after attack; initialization precedes attack and cleanup precedes channel reuse. FX stages define cross-family order; slot order resolves within-stage ties. Proposed global conflict rules are in A04/A08.
 - Output acceptance means locally queued, not necessarily audible. Do not blindly retry Note On. Stop/seek invalidate unsent epochs and perform owned cleanup; already handed-off output requires the real adapter's cancellation contract.
 - Projectors render facts/snapshots. They do not edit the authoritative document directly. Persistence saves document/resource state, not live cursors or held buttons.
 
@@ -59,6 +65,22 @@ This is one process with explicit ownership and ports, not a proposal for distri
 | Sound configuration | AdoptSoundRevision(useId, definitionId, revision, expectedRevision) | SoundRevisionAdopted / failure | Song capture, sound projection | Explicit update preserves local routing/mix. Structural adoption commits only after matching activation acknowledgement; failure retains the previous pin and configuration. |
 | Preferences | SetBrowserRoot(assetType, token) | BrowserRootChanged | Asset browser, settings projection | Machine-local path/token; missing or inaccessible path gets a visible fallback. |
 | Synth integration | Observed public sound state | SoundSnapshotObserved | Read-only sound UI projector | No Synth object ownership crosses into Tracker; mutations still use approved MIDI controls. |
+
+## Piano Roll recording and editing
+
+| Owner | Input / command | Result | Contract |
+|---|---|---|---|
+| MIDI input adapter | Device packet | PerformanceInput(sourceSession, monotonicTime, sequence, message) | Validate bytes/zone and preserve raw values. No UI intent translation or output-loop recapture. |
+| Recording application | ConfigureCapture / ArmCapture | CaptureArmed(occurrence, mapping, revision) or rejection | Resolve shared edit policy; validate source, target capabilities and MPE configuration. Arm alone records nothing. |
+| Recording application | BeginTake / timestamped input | CaptureStateChanged, draft projection, owned monitor intents | Map through tempo history. One armed occurrence; bounded queue; no draft replay. Preserve attack identity and expression. |
+| Recording + Composition | EndTake / CommitTake(takeId, expectedRevision) | PhraseChanged and TakeCommitted, or recoverable conflict | One atomic undoable append; never overwrite concurrent edits. Activate on eligible future loop; monitor is not replay. |
+| Recording safety | Stop / Seek / input loss / overflow | TakeInterrupted or TakeFinalized, scoped cleanup | Preserve known material and diagnostic. Reconnect does not rearm. Output loss cannot prove physical silence. |
+| Composition | EditNotes / EditExpression / QuantizeSelection | PhraseChanged | Stable IDs, exact timing/values, owned expression and explicit scope; undo restores original values. |
+| Editor | SetPianoRollGrid / SetRollZoom / SelectLane | EditorDisplayChanged | No retiming, recompile, scale correction or music mutation. |
+| Output adapter | Monitor/playback intent | Allocated MPE output or capability/capacity rejection | Share destination allocation across producers; retain leases through sustain; never reset another owner's channel. |
+| Song lifecycle | Save / New / Open with capture draft | Finalized take and immutable save, or existing guard outcome | Draft counts as unsaved; failed commit/save preserves it. See design/piano-roll.md. |
+
+Detailed semantics and acceptance fixtures: [Piano Roll](design/piano-roll.md), architecture A16. Input/recording and output event names are proposed contracts, not existing Synth APIs.
 
 ## Song view-only additions
 

@@ -1,12 +1,12 @@
 # Crest Tracker — current product specification
 
-21 September 2026. This consolidates the user's decisions, including corrections made after the original screens. Architecture mechanisms and unresolved interaction choices are separated in the architecture guide and decision log.
+Updated 15 October 2026. This consolidates the user's decisions, including corrections made after the original screens. Architecture mechanisms and unresolved interaction choices are separated in the architecture guide and decision log.
 
 ## Purpose and boundary
 
 Crest Tracker is a separate sequencing library integrated with Crest Synth by the host application. Tracker emits MIDI; Synth owns sound generation, instruments, patches, samples, SoundFonts, mixer and audio FX. Synth must remain independently usable and must not acquire concepts such as phrase, chain, cursor, tracker FX or controller navigation. Existing Synth functionality remains intact.
 
-The frontend renders the authoritative application state through projections. Editing dispatches commands; widgets do not keep competing copies of song or phrase content. Start with video game controllers. Later MIDI input devices and configurable mappings enter through the same semantic input boundary. Explicit state plus pure transitions and an event loop is the architectural direction; it does not imply that playback has no state.
+The frontend renders the authoritative application state through projections. Editing dispatches commands; widgets do not keep competing copies of song or phrase content. Start with video game controllers for editing and external MIDI/MPE input for Piano Roll recording. Performance input has a separate timestamped capture boundary; MIDI control-surface mappings use the semantic command boundary. Explicit state plus pure transitions and an event loop is the architectural direction; it does not imply that playback has no state.
 
 ## Musical hierarchy and reuse
 
@@ -38,13 +38,26 @@ The scrolling phrase grid contains **Note, Instrument/Channel target, Velocity, 
 
 ## Phrase forms and time
 
-Tracker, Drum Machine, Euclidean and Randomizer forms share one underlying note/event representation and the same ticking timeline. Each form may have its own authoring/generator model, but it resolves to the same NoteData and phrase FX contract. Merely switching a view must not regenerate or rewrite music.
+Tracker, Piano Roll, Drum Machine, Euclidean and Randomizer forms share one underlying note/event representation and the same ticking timeline. Each form may have its own authoring/generator model, but it resolves to the same NoteData and phrase FX contract. Merely switching a view must not regenerate or rewrite music.
 
 Support quarter, eighth, sixteenth, thirty-second and sixty-fourth divisions, with triplets and other subdivisions, variable phrase lengths and time signatures. The 1/64 requirement is rhythmic resolution. Tracks remain capped at 16; MIDI channels are 1–16 per endpoint.
 
 There are no tables. Phrase length and grid division provide the relevant rhythmic flexibility directly. Cursors must account for repeats, jumps and local phrase/chain/song progress independently from editor focus.
 
 Drum Machine has a user-intended design reference still to be confirmed against the available materials. Euclidean and Randomizer layouts remain open. Current Figma representations are scaffolding for those modes, not approval of every control.
+
+## Piano Roll — record first
+
+Piano Roll is a phrase type for capturing external MIDI and expressive MPE performances while the Song plays. It shares Phrase references, NoteData, the exact musical timeline and three phrase FX slots with every other form. The primary flow is input/target setup → arm → record while accompaniment plays → end take → replay/edit/save. Full recording, routing, gamepad and acceptance contracts are in [Piano Roll](design/piano-roll.md).
+
+- Preserve original timing, attack/release velocity, source channels, per-note bend/pressure/CC74, master expression and sustain. Incoming pitches bypass scale filtering. Percent labels must not reduce MIDI precision.
+- Record setup visibly maps input channels or an MPE zone to specific instruments, MIDI channels or an MPE-capable endpoint zone. Stamp explicit targets into recorded events; do not add hidden track routing or an instrument field to phrase settings.
+- Proposed initial workflow: one armed occurrence, raw recording, fixed loop, additive overdubs, explicit monitoring, one undoable take. Arm does not record; Record starts at the phrase boundary. End take can leave accompaniment playing. Uncommitted input is monitored once and first replays after commit at an eligible loop boundary.
+- Roll editing includes insert/delete, time nudge, pitch, duration, velocity/release, target, range selection, copy/paste/duplicate, undo/redo, zoom/scroll, expression-point editing and explicit quantize to grid. Every action, picker and recovery state must work with gamepad alone.
+- Grid/zoom changes are view/entry settings. Quantize defaults to note starts, moves associated expression, preserves duration and is undoable. Capture never silently quantizes timing or pitch.
+- Make Unique/Edit Shared applies before arming. Preserve interrupted/conflicting takes; stop/seek/disconnect/overflow must clean up only owned notes and controls. Validate MPE destination capabilities instead of silently flattening expression.
+
+KORG Gadget for Nintendo Switch provides controller inspiration, not an MPE capability guarantee or a replacement for Crest's navigation. Exact shortcut/default choices are proposed in the dedicated contract. Recording is core feature work, not deferred to the later configurable-control-surface phase.
 
 ## Scale-aware music entry
 
@@ -118,6 +131,6 @@ Song is the only document, with one arrangement and no parent container or colle
 
 ## Interaction states to retain
 
-Include empty, stopped, playing, narrow track-window and multi-select Song states; phrase Notes/Intervals; shared-reference inspection and Make Unique; Edit Shared / remembered choice; FX type/value selection; instrument versus MIDI-channel target selection; Default versus Custom chord banks, copy-to-Custom, chord search, voicing/ADD editors and Save Chord; Song New/Open/Save As/unsaved changes; temporary sends; missing resources and unsupported capabilities.
+Include Piano Roll empty/armed/waiting/recording/interrupted states, routing/capability errors, selected notes/expression and quantize previews; empty, stopped, playing, narrow track-window and multi-select Song states; phrase Notes/Intervals; shared-reference inspection and Make Unique; Edit Shared / remembered choice; FX type/value selection; instrument versus MIDI-channel target selection; Default versus Custom chord banks, copy-to-Custom, chord search, voicing/ADD editors and Save Chord; Song New/Open/Save As/unsaved changes; temporary sends; missing resources and unsupported capabilities.
 
 See the [screen index](design/screen-index.md) for the actual frames and [open decisions](open-decisions.md) for unsettled behavior. Screens are specifications and prototypes, not evidence of implemented runtime support.

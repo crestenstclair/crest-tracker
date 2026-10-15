@@ -2,17 +2,17 @@
   "project": "Crest Tracker",
   "prepared": "2026-09-21",
   "figma": "https://www.figma.com/design/mvRQEFZc5Oi2ZbRkoHhXjH/Crest-Tracker",
-  "architectureContentVersion": 5,
+  "architectureContentVersion": 6,
   "files": [
     {
       "path": "Crest-Tracker-Architecture-v1.md",
-      "bytes": 56062,
-      "sha256": "8b9471558aa8c4ec9c5e60687a210c9689f60e12cc90fb2b1586d199976d277d"
+      "bytes": 64094,
+      "sha256": "2a6d886be63fe5de5a977a34297459cb3b01e1adaba4ac9e0a6a8c2a9fe7303e"
     },
     {
       "path": "README.md",
-      "bytes": 4610,
-      "sha256": "596c8a178d9aeb022332ad1c04d545b817be95d1d487f85da14b29342b51bdaf"
+      "bytes": 5014,
+      "sha256": "974c5de374386d8c4855b863059df813f29ddcb64cab621a3aff255da3dd5f50"
     },
     {
       "path": "archive/Crest-Tracker-Design-Notes.md",
@@ -31,8 +31,8 @@
     },
     {
       "path": "design/design-contracts.md",
-      "bytes": 19835,
-      "sha256": "b7d1e028ca849c251c19428ad7a5533d89eb6984bb457e250e1e1aa40b78f593"
+      "bytes": 20498,
+      "sha256": "7da8f50942ad6014de0cfa8264600a23497af20e97f4c10b64d67aa45e3c3301"
     },
     {
       "path": "design/event-map.png",
@@ -46,8 +46,8 @@
     },
     {
       "path": "design/figma-architecture.json",
-      "bytes": 50217,
-      "sha256": "b5881e843d1d06a3130a8478a64e4d60f8b073f4877d88653d67a8aba9dcdcbb"
+      "bytes": 53736,
+      "sha256": "b267c15f6736757181bbc1c2f457d8e198a2d9f1f2ee55d41be8f1b29419b343"
     },
     {
       "path": "design/figma-components.json",
@@ -56,8 +56,8 @@
     },
     {
       "path": "design/figma-contracts.json",
-      "bytes": 21828,
-      "sha256": "65fed985fe7c34cb77b6f9ce943470bf59962545a4a1575d8372d22f1b5eba91"
+      "bytes": 23285,
+      "sha256": "30593b704b2ed4e75d966940beb04f607bd1902cf55555fd98fceeb1dd7cd654"
     },
     {
       "path": "design/figma-flows.json",
@@ -66,13 +66,13 @@
     },
     {
       "path": "design/figma-guide.json",
-      "bytes": 6487,
-      "sha256": "55289a491e610f4a333eee978a9ac16cdfa24e4971c226e5dc1774d0a8bcd796"
+      "bytes": 6726,
+      "sha256": "c3ebd435f26fde9db69eea0cb2a89ef0f6d782ebb9f4b462c1067179dc519509"
     },
     {
       "path": "design/figma-screens.json",
-      "bytes": 401063,
-      "sha256": "1afccadfbd95636b687bae902e0e42b02cf9f8ad18bb75c7b43bf764e5b554fe"
+      "bytes": 428422,
+      "sha256": "64f6259e84b17c935d391059fb396a9f05cbe0a7e00e0892ce89d0411364c70e"
     },
     {
       "path": "design/minimap.png",
@@ -81,8 +81,13 @@
     },
     {
       "path": "design/phrase-fx-pipeline.png",
-      "bytes": 173662,
-      "sha256": "d6564bbd76e266dc1ecaaab210ad34a43bb6608521a18b1e51a61fe6aa000102"
+      "bytes": 175742,
+      "sha256": "b5f8279f6417afc8b1b1c5165c8172b22b447f70d945d54a0a332844574ce22c"
+    },
+    {
+      "path": "design/phrase-types.png",
+      "bytes": 45490,
+      "sha256": "370cf548962bd647d725eb69876d38a863525425b8d1c2184864561bcbd8ea75"
     },
     {
       "path": "design/phrase.png",
@@ -90,9 +95,39 @@
       "sha256": "a7c748700d27f09fe7459a249a7889cfac4bd6047513cc21f85b953d4d0b11da"
     },
     {
+      "path": "design/piano-roll-architecture.png",
+      "bytes": 230304,
+      "sha256": "243761886d58ed215359f3cfdca2bc0277fa4ab26bb664ee4f337b6b57e598e2"
+    },
+    {
+      "path": "design/piano-roll-armed.png",
+      "bytes": 61109,
+      "sha256": "bd3de8012eed792966dda9bbbe0ed5f6f498a623fa3f9677ffa3202b0fc7a122"
+    },
+    {
+      "path": "design/piano-roll-edit.png",
+      "bytes": 64270,
+      "sha256": "1d229bbfe3ef3b553d2a9661df59ef76626e35cedf8be546101f9f84d2dc72eb"
+    },
+    {
+      "path": "design/piano-roll-setup.png",
+      "bytes": 60827,
+      "sha256": "f1974c9c34064f0fea7ab94646f479c4dd4e9d733d58fbeff245582cf69a3d8e"
+    },
+    {
+      "path": "design/piano-roll.md",
+      "bytes": 19638,
+      "sha256": "578f700c1134bf6b6eba7ce5e0d719266f2bb932edd2d95945c9dd889819d020"
+    },
+    {
+      "path": "design/piano-roll.png",
+      "bytes": 61675,
+      "sha256": "5a796bb1fc20504bc6f1fcd6d7ba7d314e8014c02d09eb687d268486b5792ac1"
+    },
+    {
       "path": "design/screen-index.md",
-      "bytes": 15155,
-      "sha256": "dcf0672efabd53a559082a102e38ddf55ea4a40e3ee58a2bedf1722314bd0709"
+      "bytes": 16188,
+      "sha256": "c45a7a9df3bfe5e55e0f3e3214d72cfaa23f36473e6537b42776202cf664bdf4"
     },
     {
       "path": "design/song-minimap.md",
@@ -116,33 +151,33 @@
     },
     {
       "path": "domain-driven-design.html",
-      "bytes": 78880,
-      "sha256": "1f915cda3d899301ad580f21b5fb07343685f9c0db503eadb7c38ff535a93bc5"
+      "bytes": 79255,
+      "sha256": "118645baa4e50e665288505307dc380d56388a104da01d1519ae988630acb7aa"
     },
     {
       "path": "event-map.md",
-      "bytes": 8599,
-      "sha256": "632b6e39f9c5db654ab5c451c0109c4441c0f02e955ef7cb4a5e75c4482b255d"
+      "bytes": 11322,
+      "sha256": "b24d72721b76672edaf86bdba2ac2c5c28277a01b56325215afb91e611822bcd"
     },
     {
       "path": "implementation-kickoff.md",
-      "bytes": 4799,
-      "sha256": "84db0e877a0b639b0671198770cb608199ef5192878fecee724e121a6149b5e3"
+      "bytes": 5490,
+      "sha256": "158c9098ff988a91c084da6046112eb59917791178f99c9b70458ee8baecf455"
     },
     {
       "path": "implementation-plan.md",
-      "bytes": 8760,
-      "sha256": "7a52a00be248bae0faffcaeed8c5b691d3d4c905ba2ad2fe148d1dc537f6251b"
+      "bytes": 11138,
+      "sha256": "54d3a211517a1353946e7653ada684feb248d1e76aed0c6261dd78ffe005275f"
     },
     {
       "path": "open-decisions.md",
-      "bytes": 6250,
-      "sha256": "3ed4ca6def0e03d6b6faa2fe221e7cf1ce36a8a6422ec4dc817b753150d1e035"
+      "bytes": 7398,
+      "sha256": "9b18c02423ae586c89b5e42a111993c2348c0cf671c961015538861e1ad42249"
     },
     {
       "path": "product-spec.md",
-      "bytes": 13436,
-      "sha256": "db8bc0a7e8b135732d82d2ea03eecdb0464ccd1cb1fee7e384a5cbeb19f0cfa8"
+      "bytes": 15993,
+      "sha256": "146899ea86dc27302b225cacccf3795d1a3950ace114563992a697a3d3eb10a9"
     },
     {
       "path": "references/6988270f-b552-4f0c-955e-7e2084d22c27.png",
@@ -151,8 +186,8 @@
     },
     {
       "path": "references/README.md",
-      "bytes": 2776,
-      "sha256": "f3127b568de5f1c860b06110f424d5b6b45dd4e69228b1d9cfd7e3518a703b01"
+      "bytes": 3731,
+      "sha256": "36671b0f1c640d9bb6a4dab4e6eb78c02275001007a25dd6fb3d7045adf430d2"
     },
     {
       "path": "references/a420e0c0-9933-49a6-b3e2-2d430f4faffe.png",
@@ -187,6 +222,8 @@
   "limitations": [
     "No Crest Synth repository or verified API implementation included.",
     "Figma JSON exports are snapshots, not a native .fig backup.",
-    "Generator and minimap layout proposals remain explicitly provisional."
-  ]
+    "Generator and minimap layout proposals remain explicitly provisional.",
+    "Piano Roll is specified and prototyped; no Tracker recording runtime or verified hardware/MPE integration is included."
+  ],
+  "updated": "2026-10-15"
 }

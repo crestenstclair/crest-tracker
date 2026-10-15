@@ -1,6 +1,6 @@
 # Figma guide, contracts and flows — text snapshot
 
-Captured 21 September 2026. Preserve the distinction between confirmed product behavior and proposals. See product-spec.md for later corrections and explicit decisions.
+Captured 21 September 2026; guide and phrase-form text updated from live Figma on 15 October 2026. Preserve the distinction between confirmed product behavior and proposals. See product-spec.md for later corrections and explicit decisions.
 
 ## Crest Tracker / Start here
 
@@ -18,8 +18,8 @@ Default entry. Order chains across 16 tracks. Shift Up opens Settings; Shift Dow
 02 / Expand selected chains ↗
 Enable multi-select, choose chain occurrences, then expand. Chain headers stay visible, phrase separators show structure, and every phrase scrolls on musical time.
 
-03 / Phrase notes and destinations ↗
-Note · Instrument · Velocity · FX 1 · FX 2 · FX 3. Choose a specific instrument or a whole MIDI channel in the grid.
+03 / Phrase notes, destinations and recording ↗
+Tracker edits Note · Target · Velocity · FX 1–3. Piano Roll captures external MIDI/MPE, with explicit input routing, gamepad editing and quantize.
 
 04 / Contextual chord and FX popovers ↗
 Edit + Up opens the picker. Edit + Left/Right cycles chords; release Edit, move down and Save. Default is read-only per song; copy or search into editable Custom. VOI / SPR preview the exact voiced notes.
@@ -37,7 +37,7 @@ Confirmed requirements and proposed details are labeled separately. Drum awaits 
 Start from Song using the prototype link. Click controls and try Shift + arrows; E demonstrates Edit. Numeric editing and MIDI playback are illustrative.
 
 09 / Architecture, events and implementation phases ↗
-A00 defines boundaries; D01 maps domain events and D02 shows FX/cursors. A09–A10 are the implementation roadmap. A12–A14 cover scale entry, Default/Custom banks and chord voicing.
+A00 defines boundaries; D01/D02 map events and FX. A12–A14 cover harmony. A16 specifies Piano Roll recording, MPE ownership and Phase 1R before broader generators.
 
 ## 01 / Product boundary & data model
 
@@ -134,13 +134,13 @@ CREST TRACKER  /  DEVELOPMENT REFERENCE
 Note rows, phrase grids, generative modes, and display units.
 
 CONFIRMED / Phrase columns
-The grid contains Note or Interval, Instrument, Velocity and FX 1–3. Instrument chooses a specific instrument or a MIDI channel for each note. Scale-only input is the default; Settings and a phrase-view override permit chromatic entry. Notes/Intervals show the same underlying pitch data. OFS intentionally moves a note/root by signed semitones outside the scale.
+The grid contains Note or Interval, Instrument, Velocity and FX 1–3. Instrument chooses a specific instrument or a MIDI channel for each note. Scale-only authored entry is the default; recorded input preserves pitch. Settings and a phrase-view override permit chromatic entry. Notes/Intervals show the same underlying pitch data. OFS intentionally moves a note/root by signed semitones outside the scale.
 
 CONFIRMED / Grid and length
 No tables and no table editor. Phrase length is a step count; division controls each step’s musical duration, including triplets. Sixteen steps at 1/16 span four quarter-note beats. Twelve steps at 1/16 triplet span two beats.
 
-CONFIRMED / Four phrase types
-Normal Tracker, Drum Machine, Euclidean and Randomizer are supported phrase types. All modes produce timed MIDI events with phrase-level event targets. The Phrase Type picker is approved.
+CONFIRMED / Five phrase types
+Tracker, Piano Roll, Drum Machine, Euclidean and Randomizer share timed notes and FX. Piano Roll prioritizes external MIDI/MPE capture, explicit event targets, gamepad editing, nudging and grid quantize. A16 defines proposed recording defaults and safety.
 
 PENDING DESIGN / Drum machine
 The current drum screen is provisional. Replace its layout with the user’s drum-machine reference when supplied. Preserve the per-event instrument/MIDI-channel model. Do not treat the existing four-lane sketch as the approved design.
@@ -314,3 +314,7 @@ SHOW REFERENCES / See song, track, arrangement position, chain and phrase positi
 SCROLL / Continue through all phrases in each selected chain. Separators identify phrase boundaries.
 
 RETURN / Shift + Left exits Expanded Tracker to Song. Group actions and Save View Group are retained.
+
+## Piano Roll recording addition · 15 October 2026
+
+Piano Roll is the fifth phrase form. See [recording and controller contract](piano-roll.md), T55–T58 in the [screen index](screen-index.md), and architecture A16. Raw external MIDI/MPE capture, explicit input-to-event routing and gamepad editing are the priority. Fixed-loop overdub, monitoring and quantize behavior are proposed defaults. These are design contracts, not implemented recording features.

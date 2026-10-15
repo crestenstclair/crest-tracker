@@ -5717,13 +5717,19 @@
         ">",
         "NORMAL TRACKER",
         "NOTE · VELOCITY · FX 1 / 2 / 3",
+        " ",
+        "PIANO ROLL",
+        "RECORD MIDI / MPE · EDIT NOTES AND EXPRESSION  →",
+        " ",
         "DRUM MACHINE",
         "HITS AND VELOCITIES",
+        " ",
         "EUCLIDEAN",
         "PULSES · STEPS · ROTATION",
+        " ",
         "RANDOMIZER",
         "CONSTRAINED GENERATION",
-        "All phrase types use the same song and chain structure.",
+        "Five phrase types. One shared timeline, note model and FX pipeline.",
         "PHRASE TYPE",
         "D-PAD Browse   SELECT Choose   BACK Settings"
       ],
@@ -5854,6 +5860,34 @@
                   "navigation": "NAVIGATE",
                   "transition": null,
                   "resetVideoPosition": false
+                }
+              ],
+              "trigger": {
+                "type": "ON_CLICK"
+              }
+            }
+          ]
+        },
+        {
+          "id": "2144:6606",
+          "reactions": [
+            {
+              "action": {
+                "type": "NODE",
+                "destinationId": "2144:6454",
+                "navigation": "NAVIGATE",
+                "transition": null,
+                "resetVideoPosition": false,
+                "resetScrollPosition": true
+              },
+              "actions": [
+                {
+                  "type": "NODE",
+                  "destinationId": "2144:6454",
+                  "navigation": "NAVIGATE",
+                  "transition": null,
+                  "resetVideoPosition": false,
+                  "resetScrollPosition": true
                 }
               ],
               "trigger": {
@@ -14898,11 +14932,946 @@
           ]
         }
       ]
+    },
+    {
+      "id": "2144:6286",
+      "name": "T55 · Piano Roll · Recording",
+      "type": "FRAME",
+      "x": 80,
+      "y": 17900,
+      "width": 1280,
+      "height": 800,
+      "text": [
+        "CREST TRACKER",
+        "*",
+        "SONG",
+        " ",
+        "INSTRUMENTS",
+        "RECORDING",
+        "PHRASE 01",
+        " / PIANO ROLL",
+        "2 BARS · 1/16 GRID · RAW CAPTURE",
+        "■ END TAKE",
+        "RECORD SETUP",
+        "EDIT NOTES",
+        "PASS 02 · OVERDUB · MONITOR ON",
+        "IN  External controller / lower MPE     OUT  Instrument 03 / MPE     ARMED  Track 03 · Phrase 01",
+        "C5",
+        "B4",
+        "Bb4",
+        "A4",
+        "Ab4",
+        "G4",
+        "Gb4",
+        "F4",
+        "E4",
+        "Eb4",
+        "D4",
+        "Db4",
+        "C4",
+        "1.1",
+        "1.2",
+        "1.3",
+        "1.4",
+        "2.1",
+        "2.2",
+        "2.3",
+        "2.4",
+        "C4",
+        "F4",
+        "G4",
+        "Bb4",
+        "E4",
+        "G4",
+        "Eb4",
+        "C4",
+        "F4 ›",
+        "BEND  [selected]   PRESSURE   TIMBRE   VELOCITY   SUSTAIN / MASTER",
+        "E4 · Velocity 80% · Source ch 05 · 03 / MPE    |    FX 1 —   FX 2 —   FX 3 —",
+        "Take is monitored now. End take to replay next loop. Recorded timing and expression stay intact.",
+        "PIANO ROLL",
+        "D-PAD Cursor   EDIT + ←/→ Nudge   EDIT + ↑ Menu   RIGHT STICK Length / Value   SHIFT ↑ Settings"
+      ],
+      "links": [
+        {
+          "id": "2144:6286",
+          "reactions": [
+            {
+              "action": {
+                "type": "NODE",
+                "destinationId": "2044:3739",
+                "navigation": "OVERLAY",
+                "transition": null,
+                "resetVideoPosition": false
+              },
+              "actions": [
+                {
+                  "type": "NODE",
+                  "destinationId": "2044:3739",
+                  "navigation": "OVERLAY",
+                  "transition": null,
+                  "resetVideoPosition": false
+                }
+              ],
+              "trigger": {
+                "type": "ON_KEY_DOWN",
+                "device": "KEYBOARD",
+                "keyCodes": [
+                  16,
+                  40
+                ]
+              }
+            },
+            {
+              "action": {
+                "type": "NODE",
+                "destinationId": "2011:69",
+                "navigation": "NAVIGATE",
+                "transition": null,
+                "resetVideoPosition": false
+              },
+              "actions": [
+                {
+                  "type": "NODE",
+                  "destinationId": "2011:69",
+                  "navigation": "NAVIGATE",
+                  "transition": null,
+                  "resetVideoPosition": false
+                }
+              ],
+              "trigger": {
+                "type": "ON_KEY_DOWN",
+                "device": "KEYBOARD",
+                "keyCodes": [
+                  27
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "id": "2144:6290",
+          "reactions": [
+            {
+              "action": {
+                "type": "NODE",
+                "destinationId": "2010:18",
+                "navigation": "NAVIGATE",
+                "transition": null,
+                "resetVideoPosition": false
+              },
+              "actions": [
+                {
+                  "type": "NODE",
+                  "destinationId": "2010:18",
+                  "navigation": "NAVIGATE",
+                  "transition": null,
+                  "resetVideoPosition": false
+                }
+              ],
+              "trigger": {
+                "type": "ON_CLICK"
+              }
+            }
+          ]
+        },
+        {
+          "id": "2144:6291",
+          "reactions": [
+            {
+              "action": {
+                "type": "NODE",
+                "destinationId": "2026:1896",
+                "navigation": "NAVIGATE",
+                "transition": null,
+                "resetVideoPosition": false
+              },
+              "actions": [
+                {
+                  "type": "NODE",
+                  "destinationId": "2026:1896",
+                  "navigation": "NAVIGATE",
+                  "transition": null,
+                  "resetVideoPosition": false
+                }
+              ],
+              "trigger": {
+                "type": "ON_CLICK"
+              }
+            }
+          ]
+        },
+        {
+          "id": "2144:6330",
+          "reactions": [
+            {
+              "action": {
+                "type": "NODE",
+                "destinationId": "2144:6530",
+                "navigation": "NAVIGATE",
+                "transition": null,
+                "resetVideoPosition": false,
+                "resetScrollPosition": true
+              },
+              "actions": [
+                {
+                  "type": "NODE",
+                  "destinationId": "2144:6530",
+                  "navigation": "NAVIGATE",
+                  "transition": null,
+                  "resetVideoPosition": false,
+                  "resetScrollPosition": true
+                }
+              ],
+              "trigger": {
+                "type": "ON_CLICK"
+              }
+            }
+          ]
+        },
+        {
+          "id": "2144:6331",
+          "reactions": [
+            {
+              "action": {
+                "type": "NODE",
+                "destinationId": "2144:6454",
+                "navigation": "NAVIGATE",
+                "transition": null,
+                "resetVideoPosition": false,
+                "resetScrollPosition": true
+              },
+              "actions": [
+                {
+                  "type": "NODE",
+                  "destinationId": "2144:6454",
+                  "navigation": "NAVIGATE",
+                  "transition": null,
+                  "resetVideoPosition": false,
+                  "resetScrollPosition": true
+                }
+              ],
+              "trigger": {
+                "type": "ON_CLICK"
+              }
+            }
+          ]
+        },
+        {
+          "id": "2144:6332",
+          "reactions": [
+            {
+              "action": {
+                "type": "NODE",
+                "destinationId": "2144:6530",
+                "navigation": "NAVIGATE",
+                "transition": null,
+                "resetVideoPosition": false,
+                "resetScrollPosition": true
+              },
+              "actions": [
+                {
+                  "type": "NODE",
+                  "destinationId": "2144:6530",
+                  "navigation": "NAVIGATE",
+                  "transition": null,
+                  "resetVideoPosition": false,
+                  "resetScrollPosition": true
+                }
+              ],
+              "trigger": {
+                "type": "ON_CLICK"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "2144:6454",
+      "name": "T56 · Piano Roll · Record setup",
+      "type": "FRAME",
+      "x": 1560,
+      "y": 17900,
+      "width": 1280,
+      "height": 800,
+      "text": [
+        "CREST TRACKER",
+        "*",
+        "SONG",
+        " ",
+        "INSTRUMENTS",
+        "STOPPED",
+        "PHRASE 01",
+        " / RECORD SETUP",
+        "PHRASE 01 · READY TO ARM",
+        "RECORD EXTERNAL MIDI · JAM WITH THE SONG",
+        " ",
+        "INPUT",
+        "EXTERNAL CONTROLLER  →",
+        " ",
+        "MIDI MODE",
+        "MPE LOWER · MASTER 01 · MEMBERS 02–16  →",
+        " ",
+        "DESTINATION",
+        "INSTRUMENT 03 · MPE CAPABLE  →",
+        " ",
+        "MONITOR",
+        "ON · HEAR INPUT ONCE",
+        " ",
+        "CAPTURE",
+        "RAW · 2-BAR LOOP · OVERDUB",
+        " ",
+        "ARM THIS PHRASE",
+        "TRACK 03 / PHRASE 01 · RECORD AT LOOP START  →",
+        "Input zone stamps each event target. Bend ranges verified: master ±2 / members ±48 semitones.",
+        "Illustrative device/capability values. Resolve shared references and unsupported destinations before arming.",
+        "PIANO ROLL",
+        "D-PAD Browse   SELECT Change / Confirm   BACK Piano Roll   HELP Controller bindings"
+      ],
+      "links": [
+        {
+          "id": "2144:6454",
+          "reactions": [
+            {
+              "action": {
+                "type": "NODE",
+                "destinationId": "2044:3739",
+                "navigation": "OVERLAY",
+                "transition": null,
+                "resetVideoPosition": false
+              },
+              "actions": [
+                {
+                  "type": "NODE",
+                  "destinationId": "2044:3739",
+                  "navigation": "OVERLAY",
+                  "transition": null,
+                  "resetVideoPosition": false
+                }
+              ],
+              "trigger": {
+                "type": "ON_KEY_DOWN",
+                "device": "KEYBOARD",
+                "keyCodes": [
+                  16,
+                  40
+                ]
+              }
+            },
+            {
+              "action": {
+                "type": "NODE",
+                "destinationId": "2011:69",
+                "navigation": "NAVIGATE",
+                "transition": null,
+                "resetVideoPosition": false
+              },
+              "actions": [
+                {
+                  "type": "NODE",
+                  "destinationId": "2011:69",
+                  "navigation": "NAVIGATE",
+                  "transition": null,
+                  "resetVideoPosition": false
+                }
+              ],
+              "trigger": {
+                "type": "ON_KEY_DOWN",
+                "device": "KEYBOARD",
+                "keyCodes": [
+                  27
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "id": "2144:6458",
+          "reactions": [
+            {
+              "action": {
+                "type": "NODE",
+                "destinationId": "2010:18",
+                "navigation": "NAVIGATE",
+                "transition": null,
+                "resetVideoPosition": false
+              },
+              "actions": [
+                {
+                  "type": "NODE",
+                  "destinationId": "2010:18",
+                  "navigation": "NAVIGATE",
+                  "transition": null,
+                  "resetVideoPosition": false
+                }
+              ],
+              "trigger": {
+                "type": "ON_CLICK"
+              }
+            }
+          ]
+        },
+        {
+          "id": "2144:6459",
+          "reactions": [
+            {
+              "action": {
+                "type": "NODE",
+                "destinationId": "2026:1896",
+                "navigation": "NAVIGATE",
+                "transition": null,
+                "resetVideoPosition": false
+              },
+              "actions": [
+                {
+                  "type": "NODE",
+                  "destinationId": "2026:1896",
+                  "navigation": "NAVIGATE",
+                  "transition": null,
+                  "resetVideoPosition": false
+                }
+              ],
+              "trigger": {
+                "type": "ON_CLICK"
+              }
+            }
+          ]
+        },
+        {
+          "id": "2144:6523",
+          "reactions": [
+            {
+              "action": {
+                "type": "NODE",
+                "destinationId": "2149:6027",
+                "navigation": "NAVIGATE",
+                "transition": null,
+                "resetVideoPosition": false,
+                "resetScrollPosition": true
+              },
+              "actions": [
+                {
+                  "type": "NODE",
+                  "destinationId": "2149:6027",
+                  "navigation": "NAVIGATE",
+                  "transition": null,
+                  "resetVideoPosition": false,
+                  "resetScrollPosition": true
+                }
+              ],
+              "trigger": {
+                "type": "ON_CLICK"
+              }
+            }
+          ]
+        },
+        {
+          "id": "2144:6473",
+          "reactions": [
+            {
+              "action": {
+                "type": "NODE",
+                "destinationId": "2144:6286",
+                "navigation": "NAVIGATE",
+                "transition": null,
+                "resetVideoPosition": false,
+                "resetScrollPosition": true
+              },
+              "actions": [
+                {
+                  "type": "NODE",
+                  "destinationId": "2144:6286",
+                  "navigation": "NAVIGATE",
+                  "transition": null,
+                  "resetVideoPosition": false,
+                  "resetScrollPosition": true
+                }
+              ],
+              "trigger": {
+                "type": "ON_CLICK"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "2144:6530",
+      "name": "T57 · Piano Roll · Edit and quantize",
+      "type": "FRAME",
+      "x": 3040,
+      "y": 17900,
+      "width": 1280,
+      "height": 800,
+      "text": [
+        "CREST TRACKER",
+        "*",
+        "SONG",
+        " ",
+        "INSTRUMENTS",
+        "PLAYING",
+        "PHRASE 01",
+        " / EDIT NOTES",
+        "1 NOTE SELECTED · E4",
+        "NOTE ACTIONS · ALL AVAILABLE WITH GAMEPAD",
+        " ",
+        "PITCH / START / LENGTH",
+        "E4 · 1:1 + 0.03 BEAT · 1/8  →",
+        " ",
+        "VELOCITY / RELEASE / TARGET",
+        "80% / 26% / INSTRUMENT 03 · MPE  →",
+        " ",
+        "QUANTIZE SELECTED",
+        "1/16 GRID · STARTS ONLY · KEEP LENGTH  →",
+        " ",
+        "EXPRESSION",
+        "BEND · PRESSURE · TIMBRE · SUSTAIN · POINT EDITOR  →",
+        " ",
+        "SELECTION / CLIPBOARD",
+        "RANGE · ALL · COPY · PASTE · DUPLICATE · DELETE  →",
+        " ",
+        "UNDO / REDO",
+        "UNDO LAST EDIT · REDO  →",
+        "Nudge and quantize move expression with notes. Grid changes never retime recorded music.",
+        "Menu also exposes Insert, Grid / Triplets, Zoom / Scroll, FX 1–3 and Record setup.",
+        "PIANO ROLL",
+        "D-PAD Browse   SELECT Edit / Apply   BACK Roll   EDIT + ←/→ Nudge   FINE Smaller steps"
+      ],
+      "links": [
+        {
+          "id": "2144:6530",
+          "reactions": [
+            {
+              "action": {
+                "type": "NODE",
+                "destinationId": "2044:3739",
+                "navigation": "OVERLAY",
+                "transition": null,
+                "resetVideoPosition": false
+              },
+              "actions": [
+                {
+                  "type": "NODE",
+                  "destinationId": "2044:3739",
+                  "navigation": "OVERLAY",
+                  "transition": null,
+                  "resetVideoPosition": false
+                }
+              ],
+              "trigger": {
+                "type": "ON_KEY_DOWN",
+                "device": "KEYBOARD",
+                "keyCodes": [
+                  16,
+                  40
+                ]
+              }
+            },
+            {
+              "action": {
+                "type": "NODE",
+                "destinationId": "2011:69",
+                "navigation": "NAVIGATE",
+                "transition": null,
+                "resetVideoPosition": false
+              },
+              "actions": [
+                {
+                  "type": "NODE",
+                  "destinationId": "2011:69",
+                  "navigation": "NAVIGATE",
+                  "transition": null,
+                  "resetVideoPosition": false
+                }
+              ],
+              "trigger": {
+                "type": "ON_KEY_DOWN",
+                "device": "KEYBOARD",
+                "keyCodes": [
+                  27
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "id": "2144:6534",
+          "reactions": [
+            {
+              "action": {
+                "type": "NODE",
+                "destinationId": "2010:18",
+                "navigation": "NAVIGATE",
+                "transition": null,
+                "resetVideoPosition": false
+              },
+              "actions": [
+                {
+                  "type": "NODE",
+                  "destinationId": "2010:18",
+                  "navigation": "NAVIGATE",
+                  "transition": null,
+                  "resetVideoPosition": false
+                }
+              ],
+              "trigger": {
+                "type": "ON_CLICK"
+              }
+            }
+          ]
+        },
+        {
+          "id": "2144:6535",
+          "reactions": [
+            {
+              "action": {
+                "type": "NODE",
+                "destinationId": "2026:1896",
+                "navigation": "NAVIGATE",
+                "transition": null,
+                "resetVideoPosition": false
+              },
+              "actions": [
+                {
+                  "type": "NODE",
+                  "destinationId": "2026:1896",
+                  "navigation": "NAVIGATE",
+                  "transition": null,
+                  "resetVideoPosition": false
+                }
+              ],
+              "trigger": {
+                "type": "ON_CLICK"
+              }
+            }
+          ]
+        },
+        {
+          "id": "2144:6599",
+          "reactions": [
+            {
+              "action": {
+                "type": "NODE",
+                "destinationId": "2149:6027",
+                "navigation": "NAVIGATE",
+                "transition": null,
+                "resetVideoPosition": false,
+                "resetScrollPosition": true
+              },
+              "actions": [
+                {
+                  "type": "NODE",
+                  "destinationId": "2149:6027",
+                  "navigation": "NAVIGATE",
+                  "transition": null,
+                  "resetVideoPosition": false,
+                  "resetScrollPosition": true
+                }
+              ],
+              "trigger": {
+                "type": "ON_CLICK"
+              }
+            }
+          ]
+        },
+        {
+          "id": "2144:6549",
+          "reactions": [
+            {
+              "action": {
+                "type": "NODE",
+                "destinationId": "2149:6027",
+                "navigation": "NAVIGATE",
+                "transition": null,
+                "resetVideoPosition": false,
+                "resetScrollPosition": true
+              },
+              "actions": [
+                {
+                  "type": "NODE",
+                  "destinationId": "2149:6027",
+                  "navigation": "NAVIGATE",
+                  "transition": null,
+                  "resetVideoPosition": false,
+                  "resetScrollPosition": true
+                }
+              ],
+              "trigger": {
+                "type": "ON_CLICK"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "2149:6027",
+      "name": "T58 · Piano Roll · Armed",
+      "type": "FRAME",
+      "x": 4520,
+      "y": 17900,
+      "width": 1280,
+      "height": 800,
+      "text": [
+        "CREST TRACKER",
+        "*",
+        "SONG",
+        " ",
+        "INSTRUMENTS",
+        "ARMED",
+        "PHRASE 01",
+        " / PIANO ROLL",
+        "2 BARS · 1/16 GRID · RAW CAPTURE",
+        "● RECORD",
+        "RECORD SETUP",
+        "EDIT NOTES",
+        "READY · OVERDUB · MONITOR ON",
+        "IN  External controller / lower MPE     OUT  Instrument 03 / MPE     ARMED  Track 03 · Phrase 01",
+        "C5",
+        "B4",
+        "Bb4",
+        "A4",
+        "Ab4",
+        "G4",
+        "Gb4",
+        "F4",
+        "E4",
+        "Eb4",
+        "D4",
+        "Db4",
+        "C4",
+        "1.1",
+        "1.2",
+        "1.3",
+        "1.4",
+        "2.1",
+        "2.2",
+        "2.3",
+        "2.4",
+        "C4",
+        "F4",
+        "G4",
+        "Bb4",
+        "E4",
+        "G4",
+        "Eb4",
+        "C4",
+        "F4 ›",
+        "BEND  [selected]   PRESSURE   TIMBRE   VELOCITY   SUSTAIN / MASTER",
+        "E4 · Velocity 80% · Source ch 05 · 03 / MPE    |    FX 1 —   FX 2 —   FX 3 —",
+        "Armed is not recording. Record starts at phrase start, or waits for its next loop during playback.",
+        "PIANO ROLL",
+        "D-PAD Cursor   EDIT + ←/→ Nudge   EDIT + ↑ Menu   RIGHT STICK Length / Value   SHIFT ↑ Settings"
+      ],
+      "links": [
+        {
+          "id": "2149:6027",
+          "reactions": [
+            {
+              "action": {
+                "type": "NODE",
+                "destinationId": "2044:3739",
+                "navigation": "OVERLAY",
+                "transition": null,
+                "resetVideoPosition": false
+              },
+              "actions": [
+                {
+                  "type": "NODE",
+                  "destinationId": "2044:3739",
+                  "navigation": "OVERLAY",
+                  "transition": null,
+                  "resetVideoPosition": false
+                }
+              ],
+              "trigger": {
+                "type": "ON_KEY_DOWN",
+                "device": "KEYBOARD",
+                "keyCodes": [
+                  16,
+                  40
+                ]
+              }
+            },
+            {
+              "action": {
+                "type": "NODE",
+                "destinationId": "2011:69",
+                "navigation": "NAVIGATE",
+                "transition": null,
+                "resetVideoPosition": false
+              },
+              "actions": [
+                {
+                  "type": "NODE",
+                  "destinationId": "2011:69",
+                  "navigation": "NAVIGATE",
+                  "transition": null,
+                  "resetVideoPosition": false
+                }
+              ],
+              "trigger": {
+                "type": "ON_KEY_DOWN",
+                "device": "KEYBOARD",
+                "keyCodes": [
+                  27
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "id": "2149:6031",
+          "reactions": [
+            {
+              "action": {
+                "type": "NODE",
+                "destinationId": "2010:18",
+                "navigation": "NAVIGATE",
+                "transition": null,
+                "resetVideoPosition": false
+              },
+              "actions": [
+                {
+                  "type": "NODE",
+                  "destinationId": "2010:18",
+                  "navigation": "NAVIGATE",
+                  "transition": null,
+                  "resetVideoPosition": false
+                }
+              ],
+              "trigger": {
+                "type": "ON_CLICK"
+              }
+            }
+          ]
+        },
+        {
+          "id": "2149:6032",
+          "reactions": [
+            {
+              "action": {
+                "type": "NODE",
+                "destinationId": "2026:1896",
+                "navigation": "NAVIGATE",
+                "transition": null,
+                "resetVideoPosition": false
+              },
+              "actions": [
+                {
+                  "type": "NODE",
+                  "destinationId": "2026:1896",
+                  "navigation": "NAVIGATE",
+                  "transition": null,
+                  "resetVideoPosition": false
+                }
+              ],
+              "trigger": {
+                "type": "ON_CLICK"
+              }
+            }
+          ]
+        },
+        {
+          "id": "2149:6041",
+          "reactions": [
+            {
+              "action": {
+                "type": "NODE",
+                "destinationId": "2144:6286",
+                "navigation": "NAVIGATE",
+                "transition": null,
+                "resetVideoPosition": false,
+                "resetScrollPosition": true
+              },
+              "actions": [
+                {
+                  "type": "NODE",
+                  "destinationId": "2144:6286",
+                  "navigation": "NAVIGATE",
+                  "transition": null,
+                  "resetVideoPosition": false,
+                  "resetScrollPosition": true
+                }
+              ],
+              "trigger": {
+                "type": "ON_CLICK"
+              }
+            }
+          ]
+        },
+        {
+          "id": "2149:6042",
+          "reactions": [
+            {
+              "action": {
+                "type": "NODE",
+                "destinationId": "2144:6454",
+                "navigation": "NAVIGATE",
+                "transition": null,
+                "resetVideoPosition": false,
+                "resetScrollPosition": true
+              },
+              "actions": [
+                {
+                  "type": "NODE",
+                  "destinationId": "2144:6454",
+                  "navigation": "NAVIGATE",
+                  "transition": null,
+                  "resetVideoPosition": false,
+                  "resetScrollPosition": true
+                }
+              ],
+              "trigger": {
+                "type": "ON_CLICK"
+              }
+            }
+          ]
+        },
+        {
+          "id": "2149:6043",
+          "reactions": [
+            {
+              "action": {
+                "type": "NODE",
+                "destinationId": "2144:6530",
+                "navigation": "NAVIGATE",
+                "transition": null,
+                "resetVideoPosition": false,
+                "resetScrollPosition": true
+              },
+              "actions": [
+                {
+                  "type": "NODE",
+                  "destinationId": "2144:6530",
+                  "navigation": "NAVIGATE",
+                  "transition": null,
+                  "resetVideoPosition": false,
+                  "resetScrollPosition": true
+                }
+              ],
+              "trigger": {
+                "type": "ON_CLICK"
+              }
+            }
+          ]
+        }
+      ]
     }
   ],
   "revision": {
     "date": "2026-09-21",
     "scope": "Single Song document; library sound revisions pinned until explicit update; song-local routing/mix.",
     "figmaSync": "synchronized"
-  }
+  },
+  "updated": "2026-10-15",
+  "updatedRootIds": [
+    "2011:426",
+    "2144:6286",
+    "2144:6454",
+    "2144:6530",
+    "2149:6027"
+  ],
+  "captureNote": "Roots listed in updatedRootIds were refreshed from live Figma on the updated date; other roots retain their original capture."
 }
