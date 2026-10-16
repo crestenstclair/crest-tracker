@@ -21,6 +21,9 @@ pub enum PianoControl {
 }
 
 impl App {
+    pub(crate) fn piano_cursor(&self) -> (Beat, u8) {
+        (self.roll_cursor, self.roll_pitch)
+    }
     pub(super) fn focus_piano_source(&mut self, at: Beat) {
         if !self.is_piano_roll() {
             return;
@@ -59,34 +62,6 @@ impl App {
         if self.roll_range_anchor.is_some_and(|(at, _)| at >= length) {
             self.roll_range_anchor = None;
         }
-    }
-
-    pub(super) fn piano_edit_feedback_focus(&self) -> Option<crate::feedback::Focus> {
-        let (phrase, source) = self.selected_phrase()?;
-        let selected: std::collections::BTreeSet<_> =
-            self.selected_event_ids().into_iter().collect();
-        let notes: Vec<_> = source
-            .events
-            .iter()
-            .filter_map(|event| {
-                if !selected.contains(&event.id) {
-                    return None;
-                }
-                let note = event.note.as_ref()?;
-                Some(crate::feedback::EditedNote {
-                    id: event.id,
-                    at: event.at,
-                    pitch: note.pitch,
-                    duration: note.duration,
-                    velocity: note.velocity,
-                    release_velocity: note.release_velocity,
-                })
-            })
-            .collect();
-        if notes.is_empty() || notes.len() != selected.len() {
-            return None;
-        }
-        Some(crate::feedback::Focus::PianoEdit { phrase, notes })
     }
 
     pub(crate) fn is_piano_roll(&self) -> bool {

@@ -73,7 +73,7 @@ def write_artifact(path, artifact):
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--cycles", type=int, default=10_000)
-    parser.add_argument("--synth-path", type=Path, default=ROOT.parent / "crest-synth")
+    parser.add_argument("--synth-path", type=Path, default=ROOT / "crates" / "crest-synth")
     parser.add_argument("--output", type=Path)
     options = parser.parse_args(argv)
     if not 1 <= options.cycles <= 4_294_967_295:

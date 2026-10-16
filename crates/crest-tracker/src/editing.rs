@@ -392,14 +392,14 @@ fn add_phrase(song: &mut Song, track_id: TrackId, slot: usize) -> Result<(), Doc
     song.phrases.insert(
         phrase,
         Phrase {
-            name: format!("Phrase {}", phrase.get()),
+            name: format!("Phrase {:02X}", song.phrases.len()),
             ..Phrase::default()
         },
     );
     song.chains.insert(
         chain,
         Chain {
-            name: format!("Chain {}", chain.get()),
+            name: format!("Chain {:02X}", song.chains.len()),
             phrases: vec![PhraseUse {
                 id: phrase_use,
                 phrase,

@@ -57,7 +57,7 @@ def main(argv=None):
                         help="rendered audio duration, not wall-clock sleep (1..3600)")
     parser.add_argument("--strict", action="store_true",
                         help="also require zero callback deadline misses and p99 below 70%%")
-    parser.add_argument("--synth-path", type=Path, default=ROOT.parent / "crest-synth")
+    parser.add_argument("--synth-path", type=Path, default=ROOT / "crates" / "crest-synth")
     parser.add_argument("--output", type=Path)
     options = parser.parse_args(argv)
     if not 1 <= options.seconds <= 3600:

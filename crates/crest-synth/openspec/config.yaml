@@ -1,0 +1,13 @@
+schema: spec-driven
+context: |
+  OpenSpec is opt-in: use it only when the user explicitly requests it.
+  Figma owns product intent. DESIGN.md owns current architecture, durable
+  decisions, and known gaps. Source and tests provide as-built evidence.
+  Do not recreate a parallel product spec collection or phase roadmap.
+  Keep change artifacts scoped and temporary. Remove completed artifacts
+  after incorporating durable decisions into DESIGN.md; Git retains history.
+  Do not load retired plans or archived specs as routine task context.
+  Target modern desktop hardware without arbitrary caps on instruments,
+  effects, Patches, tracks, parameters, or voices. Hardware resource budgets
+  are configurable. Existing fixed capacities are implementation debt,
+  not product requirements. Preserve prepared, bounded real-time work.

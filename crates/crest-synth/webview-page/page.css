@@ -1,0 +1,1750 @@
+/* crest-synth projection page composition — PATCH and MIXER.
+ *
+ * Every color, type style, spacing step, radius, keyline, halo, fader, and
+ * mixer geometry value resolves from the generated tokens.css custom
+ * properties — this file declares no raw value the authored vocabulary
+ * already names. The fader specimen geometry (--fader-*) joined the authored
+ * vocabulary in mission webview-shell-cutover WP07; it arrives from
+ * tokens.css like everything else.
+ */
+
+/* Vendored Azeret Mono faces, served over the crest:// protocol from
+ * vendor/azeret-mono/. Deliberately no fallback stack: a missing face is a
+ * visible failure, never a silently substituted font. */
+@font-face {
+  font-family: "Azeret Mono";
+  src: url("fonts/AzeretMono-Regular.ttf") format("truetype");
+  font-weight: 400;
+}
+@font-face {
+  font-family: "Azeret Mono";
+  src: url("fonts/AzeretMono-Medium.ttf") format("truetype");
+  font-weight: 500;
+}
+@font-face {
+  font-family: "Azeret Mono";
+  src: url("fonts/AzeretMono-SemiBold.ttf") format("truetype");
+  font-weight: 600;
+}
+@font-face {
+  font-family: "Azeret Mono";
+  src: url("fonts/AzeretMono-Bold.ttf") format("truetype");
+  font-weight: 700;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html,
+body {
+  height: 100%;
+}
+
+body {
+  background: var(--color-bg-canvas);
+  color: var(--color-text-primary);
+  font-family: "Azeret Mono";
+  display: grid;
+  grid-template-rows:
+    clamp(
+      var(--shell-context-line-min),
+      var(--shell-context-line-preferred),
+      var(--shell-context-line-max)
+    )
+    clamp(
+      var(--shell-identity-header-min),
+      var(--shell-identity-header-preferred),
+      var(--shell-identity-header-max)
+    )
+    minmax(0, 1fr)
+    var(--shell-footer-track, clamp(
+      var(--shell-footer-min),
+      var(--shell-footer-preferred),
+      var(--shell-footer-max)
+    ));
+  overflow: hidden;
+  container: shell / inline-size;
+}
+
+/* ---- authored type styles (from the generated table) ------------------ */
+
+.type-display {
+  font-size: calc(var(--type-display-screen-size) * var(--shell-text-scale));
+  line-height: var(--type-display-screen-line);
+  font-weight: var(--type-display-screen-weight);
+  letter-spacing: var(--type-display-screen-tracking);
+}
+
+.type-heading {
+  font-size: calc(var(--type-heading-section-size) * var(--shell-text-scale));
+  line-height: var(--type-heading-section-line);
+  font-weight: var(--type-heading-section-weight);
+  letter-spacing: var(--type-heading-section-tracking);
+}
+
+.type-label {
+  font-size: calc(var(--type-label-control-size) * var(--shell-text-scale));
+  line-height: var(--type-label-control-line);
+  font-weight: var(--type-label-control-weight);
+  letter-spacing: var(--type-label-control-tracking);
+}
+
+.type-value {
+  font-size: calc(var(--type-code-value-size) * var(--shell-text-scale));
+  line-height: var(--type-code-value-line);
+  font-weight: var(--type-code-value-weight);
+  letter-spacing: var(--type-code-value-tracking);
+}
+
+.type-hint {
+  font-size: calc(var(--type-instruction-hint-size) * var(--shell-text-scale));
+  line-height: var(--type-instruction-hint-line);
+  font-weight: var(--type-instruction-hint-weight);
+  letter-spacing: var(--type-instruction-hint-tracking);
+}
+
+/* ---- semantic color roles --------------------------------------------- */
+
+.muted {
+  color: var(--color-text-muted);
+}
+
+.secondary {
+  color: var(--color-text-secondary);
+}
+
+.focus {
+  color: var(--color-accent-focus);
+}
+
+.positive {
+  color: var(--color-accent-positive);
+}
+
+.adjust {
+  color: var(--color-accent-adjust);
+}
+
+.warning {
+  color: var(--color-accent-warning);
+}
+
+.patch {
+  color: var(--color-accent-patch);
+}
+
+.spring {
+  flex: 1;
+}
+
+/* ---- the five shell bands --------------------------------------------- */
+
+#context-line {
+  display: flex;
+  align-items: center;
+  gap: var(--space-24);
+  padding-block: var(--space-8);
+  padding-inline: clamp(
+    var(--shell-content-inset-min),
+    var(--shell-content-inset-preferred),
+    var(--shell-content-inset-max)
+  );
+  border-bottom: var(--keyline-resting) solid var(--color-border-default);
+}
+
+#context-line .context-entry {
+  min-width: var(--space-32);
+  text-align: right;
+}
+
+#identity-header {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-12);
+  padding-block: var(--space-8);
+  padding-inline: clamp(
+    var(--shell-content-inset-min),
+    var(--shell-content-inset-preferred),
+    var(--shell-content-inset-max)
+  );
+  flex-wrap: wrap;
+  border-bottom: var(--keyline-resting) solid var(--color-border-default);
+}
+
+#main-region {
+  display: grid;
+  grid-template-columns: var(--workspace-columns);
+  grid-template-rows: var(--workspace-rows);
+  grid-template-areas: var(--workspace-areas);
+  min-height: 0;
+  min-width: 0;
+  overflow: auto;
+}
+
+#workspace {
+  grid-area: workspace;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  padding: clamp(
+    var(--shell-content-inset-min),
+    var(--shell-content-inset-preferred),
+    var(--shell-content-inset-max)
+  );
+  overflow: auto;
+}
+
+.caption-row {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: var(--space-16);
+}
+
+/* The focused track's meter reading rides the legend line as a painter
+ * would: absolutely centered, taking no layout space from the row. */
+.caption-row .meter {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+/* ---- the sixteen-column strip bank ------------------------------------ */
+
+.bank {
+  flex: 1;
+  display: grid;
+  grid-template-columns: repeat(
+    16,
+    minmax(var(--shell-mixer-column-min), 1fr)
+  );
+  column-gap: clamp(
+    var(--shell-region-gap-min),
+    var(--space-8),
+    var(--shell-region-gap-max)
+  );
+  margin: var(--space-16) 0;
+  min-height: 0;
+  overflow-x: auto;
+}
+
+.bank.bank-unavailable {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* One column = the declared five-structure anatomy in order: TrackHeader,
+ * LevelFader, LevelReadout, PanReadout, StateLine. Channels are separated
+ * by hairlines, not cards. */
+.column {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-width: 0;
+  padding: var(--space-8) 0 var(--space-12);
+  border-right: var(--keyline-resting) solid var(--color-border-default);
+}
+
+.column:first-child {
+  border-left: var(--keyline-resting) solid var(--color-border-default);
+}
+
+/* Focused column: emphasis keyline plus the authored halo — focus is also
+ * carried by the header emphasis and the Inspector cursor, never by color
+ * alone. */
+.column.focused {
+  background: var(--color-bg-panel);
+  border-left: var(--keyline-emphasis) solid var(--color-accent-focus);
+  box-shadow: 0 0 var(--focus-halo-radius) var(--focus-halo-spread)
+    color-mix(
+      in srgb,
+      var(--color-accent-focus) calc(var(--focus-halo-opacity) * 100%),
+      transparent
+    );
+}
+
+/* While the Inspector owns focus, its origin track remains correlated by a
+ * dashed emphasis keyline. This is a shape change, not a color-only cue. */
+.column.correlated {
+  background: var(--color-bg-panel);
+  border-left: var(--keyline-emphasis) dashed var(--color-accent-focus);
+}
+
+/* LevelFader — the dominant structure wherever the bank has room. */
+.level-fader {
+  position: relative;
+  flex: 1;
+  align-self: stretch;
+  display: flex;
+  justify-content: center;
+  min-height: 0;
+  margin: var(--space-8) 0;
+}
+
+.level-fader[data-row-state="focused"],
+.pan-readout[data-row-state="focused"],
+.state-part[data-row-state="focused"] {
+  outline: var(--keyline-emphasis) solid var(--color-accent-focus);
+  outline-offset: calc(-1 * var(--keyline-emphasis));
+}
+
+.level-fader[data-row-state="adjusting"],
+.pan-readout[data-row-state="adjusting"],
+.state-part[data-row-state="adjusting"] {
+  outline: var(--keyline-emphasis) double var(--color-accent-adjust);
+  outline-offset: calc(-1 * var(--keyline-emphasis));
+}
+
+.level-fader[data-row-state="error"],
+.pan-readout[data-row-state="error"],
+.state-part[data-row-state="error"] {
+  outline: var(--keyline-emphasis) dashed var(--color-accent-warning);
+}
+
+.level-fader[data-row-state="disabled"],
+.pan-readout[data-row-state="disabled"],
+.state-part[data-row-state="disabled"] {
+  border-bottom: var(--keyline-resting) dotted var(--color-border-strong);
+}
+
+.level-fader.unavailable {
+  align-items: center;
+}
+
+.fader-track {
+  position: relative;
+  width: var(--fader-track-width);
+  height: 100%;
+  background: var(--color-bg-elevated);
+  border-radius: var(--radius-small);
+}
+
+.fader-fill {
+  position: absolute;
+  bottom: var(--fader-shoulder);
+  left: 50%;
+  transform: translateX(-50%);
+  width: var(--fader-fill-width);
+  height: calc(var(--level, 0) * (100% - var(--fader-shoulder)));
+  border-radius: var(--fader-rounding);
+  background: var(--color-accent-patch);
+}
+
+.fader-cap {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  width: var(--fader-cap-width);
+  height: var(--fader-cap-height);
+  border-radius: var(--fader-rounding);
+  background: var(--color-text-primary);
+  bottom: calc(
+    var(--fader-shoulder) +
+      (100% - var(--fader-shoulder) - var(--fader-cap-height)) *
+      var(--level, 0)
+  );
+}
+
+/* Passive per-track observation: one narrow rail beside each fader. It has
+ * no control identity and therefore never enters semantic focus order. */
+.track-meter {
+  position: absolute;
+  top: 0;
+  right: var(--space-4);
+  bottom: 0;
+  width: var(--space-4);
+  overflow: hidden;
+  border: var(--keyline-resting) solid var(--color-border-strong);
+  border-radius: var(--radius-small);
+  background: var(--color-bg-canvas);
+}
+
+.track-meter-fill {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  height: calc(var(--meter-rms, 0) * 100%);
+  background: var(--color-accent-positive);
+}
+
+.track-meter[data-meter-state="stale"] {
+  border-style: dashed;
+}
+
+.track-meter[data-meter-state="zero"]::after {
+  content: "";
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  border-top: var(--keyline-emphasis) solid var(--color-text-muted);
+}
+
+/* Fill color by state; each state is also carried by text or shape (the
+ * StateLine marks, the keyline, the disabled dimming of the whole column). */
+.level-fader[data-state="focused"] .fader-fill {
+  background: var(--color-accent-focus);
+}
+
+.level-fader[data-state="muted"] .fader-fill {
+  background: var(--color-accent-warning);
+}
+
+.level-fader[data-state="soloed"] .fader-fill {
+  background: var(--color-accent-positive);
+}
+
+.level-fader[data-state="error"] .fader-fill {
+  background: var(--color-accent-warning);
+}
+
+.level-fader[data-state="disabled"] .fader-fill {
+  background: var(--color-border-strong);
+}
+
+.pan-readout {
+  display: flex;
+  align-items: center;
+  min-height: var(--min-interactive-target);
+  padding: 0 var(--space-4);
+  margin-top: var(--space-8);
+}
+
+.state-line {
+  display: flex;
+  align-items: center;
+  min-height: var(--min-interactive-target);
+  margin-top: var(--space-4);
+}
+
+.state-part {
+  display: inline-flex;
+  align-items: center;
+  align-self: stretch;
+}
+
+/* ---- PATCH Overview ----------------------------------------------------
+ * The controller order is also the reading order: Engine first, then each
+ * effect position vertically. Wide screens give those rows more room for
+ * values and hints; they never turn navigation into a sideways card scan. */
+
+.patch-overview {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: clamp(
+    var(--shell-region-gap-min),
+    var(--shell-region-gap-preferred),
+    var(--shell-region-gap-max)
+  );
+  margin: var(--space-12) 0;
+}
+
+.overview-heading {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: var(--space-8) var(--space-16);
+  padding: 0 var(--space-12) var(--space-12);
+  border-bottom: var(--keyline-resting) solid var(--color-border-default);
+}
+
+.overview-routing {
+  margin-inline-start: auto;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: var(--space-8) var(--space-16);
+}
+
+.overview-sections {
+  display: grid;
+  grid-template-columns: var(--overview-columns);
+  align-items: start;
+  gap: var(--space-12);
+  min-width: 0;
+}
+
+.overview-section {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.overview-section-heading {
+  min-height: calc(var(--space-32) + var(--space-8));
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-12);
+  padding: 0 var(--space-12);
+  border-bottom: var(--keyline-emphasis) solid var(--color-border-strong);
+}
+
+.overview-section-controls {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--space-4);
+}
+
+.overview-control {
+  min-width: 0;
+  min-height: clamp(
+    var(--shell-row-height-min),
+    var(--shell-row-height-preferred),
+    var(--shell-row-height-max)
+  );
+  padding: var(--space-8) var(--space-12);
+  border: var(--keyline-resting) solid var(--color-border-default);
+  border-inline-start: var(--keyline-emphasis) solid var(--color-border-strong);
+  display: grid;
+  grid-template-columns: minmax(8rem, 0.75fr) minmax(10rem, 1.25fr) auto;
+  grid-template-areas: "label value summary";
+  align-items: center;
+  gap: var(--space-4) var(--space-16);
+  overflow-wrap: anywhere;
+}
+
+.overview-control-label {
+  grid-area: label;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: var(--space-8) var(--space-12);
+}
+
+.overview-control-value {
+  grid-area: value;
+  color: var(--color-accent-patch);
+}
+
+.overview-control-summary {
+  grid-area: summary;
+  justify-self: end;
+}
+
+.overview-control > .lifecycle {
+  grid-column: 1 / -1;
+  padding: var(--space-8) 0 0;
+  border-top: var(--keyline-resting) dashed var(--color-border-strong);
+}
+
+.overview-control[data-focus-treatment="focused"] {
+  background: var(--color-bg-panel);
+  border-inline-start-color: var(--color-accent-focus);
+  box-shadow: 0 0 var(--focus-halo-radius) var(--focus-halo-spread)
+    color-mix(
+      in srgb,
+      var(--color-accent-focus) calc(var(--focus-halo-opacity) * 100%),
+      transparent
+    );
+}
+
+.overview-control[data-focus-treatment="focused"] .overview-control-label,
+.overview-control[data-focus-treatment="focused"] .overview-control-value {
+  color: var(--color-accent-focus);
+}
+
+.overview-control[data-focus-treatment="adjusting"] {
+  border-inline-start-style: double;
+  border-inline-start-color: var(--color-accent-adjust);
+}
+
+.overview-control[data-state="disabled"] {
+  border-inline-start-style: dotted;
+}
+
+.overview-control[data-state="loading"] {
+  border-inline-start-color: var(--color-accent-adjust);
+}
+
+.overview-control[data-state="unavailable"],
+.overview-control[data-state="error"],
+.overview-control[data-state="unknown"] {
+  border-inline-start-style: dashed;
+  border-inline-start-color: var(--color-accent-warning);
+}
+
+/* ---- shared PATCH control rows -----------------------------------------
+ * Detail, Choice, Browser, and Utility reuse one token-bound row grammar.
+ * Required content wraps or scrolls inside its owning region. */
+
+/* One listed row: label left, state mark or position indicator in the middle,
+ * value (and unit, and projected bounds) right. The left keyline carries the
+ * state's declared emphasis; rows separate with hairlines, not cards. Action
+ * guidance is centralized in the persistent footer. */
+.prow {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  /* Column rhythm is the authored inter-part step. */
+  gap: var(--space-4) var(--space-16);
+  min-height: var(--min-interactive-target);
+  padding: 0 var(--space-12);
+  border-left: var(--keyline-resting) solid var(--color-border-default);
+  border-bottom: var(--keyline-resting) solid var(--color-border-default);
+}
+
+.prow .prow-range {
+  white-space: nowrap;
+}
+
+/* The capability-declared read-only mark: the word plus the dashed keyline
+ * below, so the declaration reads in text and in shape and never in color
+ * alone. */
+.prow .prow-readonly {
+  white-space: nowrap;
+  letter-spacing: var(--type-label-control-tracking);
+}
+
+.prow[data-interaction="readOnly"]:not([data-browsable="true"]) {
+  border-left: var(--keyline-emphasis) dashed var(--color-border-strong);
+}
+
+.prow .prow-label {
+  color: var(--color-text-secondary);
+}
+
+.prow .prow-value {
+  color: var(--color-text-primary);
+}
+
+/* Focused: the emphasis keyline plus the authored halo — the same focus
+ * treatment the mixer's focused column carries, so focus reads identically
+ * across both contexts and never by color alone (the header annotation and
+ * footer breadcrumb carry it as text). */
+.prow[data-focus-treatment="focused"] {
+  background: var(--color-bg-panel);
+  border-left: var(--keyline-emphasis) solid var(--color-accent-focus);
+  box-shadow: 0 0 var(--focus-halo-radius) var(--focus-halo-spread)
+    color-mix(
+      in srgb,
+      var(--color-accent-focus) calc(var(--focus-halo-opacity) * 100%),
+      transparent
+    );
+}
+
+.prow[data-focus-treatment="focused"] .prow-label,
+.prow[data-focus-treatment="focused"] .prow-value {
+  color: var(--color-accent-focus);
+}
+
+/* Adjusting: emphasis keyline in the adjust accent, no halo (declared
+ * ComponentState treatment — shape distinguishes it from focus). */
+.prow[data-focus-treatment="adjusting"] {
+  border-left: var(--keyline-emphasis) solid var(--color-accent-adjust);
+}
+
+.prow[data-focus-treatment="adjusting"] .prow-label,
+.prow[data-focus-treatment="adjusting"] .prow-value {
+  color: var(--color-accent-adjust);
+}
+
+/* Disabled: muted throughout; the row also says "Locked" in text. */
+.prow[data-state="disabled"] .prow-label,
+.prow[data-state="disabled"] .prow-value {
+  color: var(--color-text-muted);
+}
+
+/* Loading: the adjust accent with the lifecycle word in text. */
+.prow[data-state="loading"] {
+  border-left: var(--keyline-emphasis) solid var(--color-accent-adjust);
+}
+
+/* Unavailable, error, and unknown-state rows: the warning accent with the
+ * explicit state word, typed failure, or ?state marker in text. */
+.prow[data-state="unavailable"],
+.prow[data-state="error"],
+.prow[data-state="unknown"] {
+  border-left: var(--keyline-emphasis) solid var(--color-accent-warning);
+}
+
+.prow[data-state="unavailable"] .prow-value,
+.prow[data-state="error"] .prow-value {
+  color: var(--color-accent-warning);
+}
+
+/* The position indicator: where the value sits inside its declared bounds.
+ * Fill color follows the row state; the track resolves from the elevated
+ * surface role like the fader track. */
+.prow-position {
+  flex: 1;
+  position: relative;
+  height: var(--space-4);
+  border-radius: var(--radius-small);
+  background: var(--color-bg-elevated);
+  overflow: hidden;
+}
+
+.prow-position-fill {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: calc(var(--position, 0) * 100%);
+  border-radius: var(--radius-small);
+  background: var(--color-accent-patch);
+}
+
+.prow[data-state="focused"] .prow-position-fill {
+  background: var(--color-accent-focus);
+}
+
+.prow[data-state="adjusting"] .prow-position-fill {
+  background: var(--color-accent-adjust);
+}
+
+.prow[data-state="disabled"] .prow-position-fill {
+  background: var(--color-border-strong);
+}
+
+/* The lifecycle band inside a control reporting a structural edit: a readout,
+ * not a row — it takes no focus and allocates no interactive target. */
+#workspace .lifecycle,
+#inspector .lifecycle {
+  padding: 0 var(--space-12);
+}
+
+/* ---- the CapabilityDetailShell -----------------------------------------
+ * One composition for either subject: the surface's title, the projected
+ * name of the capability the model named, its lifecycle word while it is
+ * preparing, and its ordered rows. Nothing here branches on subject kind —
+ * the projection slice differs, the composition does not. */
+
+#workspace .detail {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-8);
+  margin: var(--space-12) 0;
+  overscroll-behavior: contain;
+}
+
+.detail-title {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-8) var(--space-12);
+  min-height: var(--min-interactive-target);
+  padding: var(--space-8) var(--space-12);
+  border-bottom: var(--keyline-emphasis) solid var(--color-border-strong);
+  overflow-wrap: anywhere;
+}
+
+/* This is a scrolling flex column. Its content blocks keep their natural
+ * wrapped height; allowing the default flex shrink makes descendant text
+ * overflow a shortened header/section box and collide with the next block at
+ * enlarged text sizes. */
+.detail-title,
+.detail-sections,
+.detail-visualizations,
+.detail-section,
+.detail-section > * {
+  flex-shrink: 0;
+}
+
+.detail[data-detail-kind="instrument"] .detail-kind {
+  color: var(--color-accent-instrument-plates);
+}
+
+.detail[data-detail-kind="effect"] .detail-kind {
+  color: var(--color-accent-chorus);
+}
+
+.detail-section {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.detail-section-heading {
+  min-height: calc(var(--space-32) + var(--space-8));
+  padding: var(--space-8) var(--space-12);
+  border-bottom: var(--keyline-resting) solid var(--color-border-strong);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: var(--space-4) var(--space-12);
+}
+
+.detail-sections,
+.detail-visualizations {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-8);
+}
+
+.detail-visualization > figcaption {
+  margin: 0;
+  padding: 0 var(--space-12) var(--space-4);
+}
+
+.detail .prow {
+  min-width: 0;
+  padding-block: var(--space-4);
+  overflow-wrap: anywhere;
+}
+
+.detail .prow-cursor,
+.detail .prow-index {
+  flex: 0 0 var(--space-24);
+  text-align: center;
+}
+
+.detail .prow-cursor {
+  color: var(--color-text-muted);
+}
+
+.detail .prow[data-focus-treatment="focused"] .prow-cursor,
+.detail .prow[data-focus-treatment="adjusting"] .prow-cursor {
+  color: currentColor;
+}
+
+.detail .prow-label {
+  flex: 0 1 calc(
+    var(--min-interactive-target) + var(--min-interactive-target) +
+      var(--min-interactive-target)
+  );
+}
+
+.detail .prow-position {
+  flex-basis: calc(
+    var(--min-interactive-target) + var(--min-interactive-target) +
+      var(--min-interactive-target)
+  );
+}
+
+.detail .prow-position-fill::after {
+  content: "";
+  position: absolute;
+  inset-block: calc(var(--space-4) - var(--space-8));
+  right: 0;
+  width: var(--keyline-emphasis);
+  background: var(--color-text-primary);
+}
+
+.detail .prow[data-focus-treatment="focused"] .prow-position-fill::after {
+  background: var(--color-accent-focus);
+}
+
+.detail .prow[data-focus-treatment="adjusting"] .prow-position-fill::after {
+  background: var(--color-accent-adjust);
+}
+
+.detail-visualization {
+  margin: 0;
+  padding: var(--space-8) var(--space-12);
+  border: var(--keyline-resting) dashed var(--color-border-strong);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-8);
+}
+
+.envelope-shape {
+  display: block;
+  width: 100%;
+  height: calc(
+    var(--min-interactive-target) + var(--min-interactive-target) +
+      var(--space-16)
+  );
+  overflow: visible;
+}
+
+.envelope-baseline {
+  stroke: var(--color-border-strong);
+  stroke-width: var(--keyline-resting);
+  vector-effect: non-scaling-stroke;
+}
+
+.envelope-path {
+  fill: none;
+  stroke: var(--color-accent-patch);
+  stroke-width: var(--keyline-emphasis);
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  vector-effect: non-scaling-stroke;
+}
+
+.envelope-node {
+  fill: var(--color-bg-canvas);
+  stroke: var(--color-accent-patch);
+  stroke-width: var(--keyline-emphasis);
+  vector-effect: non-scaling-stroke;
+}
+
+.waveform-shape {
+  position: relative;
+  height: clamp(
+    calc(var(--min-interactive-target) * 3),
+    20vh,
+    calc(var(--min-interactive-target) * 4)
+  );
+  border-block: var(--keyline-resting) solid var(--color-border-strong);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.waveform-bars {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  gap: var(--keyline-resting);
+}
+
+.waveform-bars > i {
+  position: relative;
+  flex: 1 1 0;
+  min-width: 0;
+  top: calc(var(--wave-top, 0) * 100%);
+  height: calc(var(--wave-height, 0) * 100%);
+  background: var(--color-accent-adjust);
+}
+
+.waveform-shape > b {
+  position: absolute;
+  inset-block: 0;
+  left: clamp(0%, calc(var(--landmark-position, 0) * 100%), calc(100% - var(--keyline-emphasis)));
+  width: var(--keyline-emphasis);
+  border-left: var(--keyline-emphasis) solid var(--color-accent-focus);
+}
+
+.waveform-shape > b[data-landmark="loopStart"],
+.waveform-shape > b[data-landmark="loopEnd"] {
+  border-left-style: dashed;
+  border-left-color: var(--color-accent-instrument-plates);
+}
+
+.waveform-shape > b[data-landmark="playbackEnd"] {
+  border-left-style: double;
+  border-left-color: var(--color-accent-adjust);
+}
+
+.waveform-legend,
+.waveform-reading {
+  display: flex;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: var(--space-8) var(--space-16);
+  padding-block: var(--space-8);
+}
+
+.waveform-legend [data-landmark-label] {
+  border-left: var(--keyline-emphasis) solid var(--color-accent-focus);
+  padding-left: var(--space-8);
+}
+
+.waveform-legend [data-landmark-label="loopStart"],
+.waveform-legend [data-landmark-label="loopEnd"] {
+  border-left-style: dashed;
+  border-left-color: var(--color-accent-instrument-plates);
+}
+
+.waveform-legend [data-landmark-label="playbackEnd"] {
+  border-left-style: double;
+  border-left-color: var(--color-accent-adjust);
+}
+
+[data-waveform-state="unavailable"] .waveform-shape {
+  border: var(--keyline-resting) dashed var(--color-border-strong);
+}
+
+.detail-asset {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--space-8) var(--space-12);
+  padding-block: var(--space-12);
+  border-bottom: var(--keyline-resting) solid var(--color-border-strong);
+  color: var(--color-accent-adjust);
+  overflow-wrap: anywhere;
+  flex-shrink: 0;
+}
+
+.detail-asset [data-role="detail-asset-status"] {
+  margin-left: auto;
+  color: var(--color-text-secondary);
+}
+
+.has-waveform > .detail-visualization {
+  flex-shrink: 0;
+  padding: 0;
+  border: 0;
+  border-bottom: var(--keyline-resting) solid var(--color-border-default);
+}
+
+.detail[data-detail-kind="instrument"].has-waveform .detail-kind,
+.has-waveform [data-role="detail-subject"] {
+  color: var(--color-accent-adjust);
+}
+
+.has-waveform .prow-position-fill,
+.has-waveform .prow-position-fill::after {
+  background: var(--color-accent-adjust);
+}
+
+.has-waveform .detail-visualizations:empty {
+  display: none;
+}
+
+/* Shared authored subordinate modal: the same option-row primitive seats
+ * descriptor choices and browser entries. Focus and current state use shape
+ * plus explicit text, so neither depends on accent color alone. */
+.modal-shell {
+  width: min(
+    calc(
+      var(--shell-side-track-max) + var(--shell-side-track-min)
+    ),
+    calc(100% - var(--min-interactive-target))
+  );
+  max-height: min(
+    calc(
+      var(--shell-side-track-max) + var(--shell-side-track-min)
+    ),
+    calc(100% - var(--min-interactive-target))
+  );
+  margin: var(--space-24) auto;
+  border: var(--keyline-resting) solid var(--color-border-strong);
+  background: var(--color-bg-surface);
+  box-shadow: var(--space-12) var(--space-12) 0 var(--color-bg-canvas);
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  overflow: hidden;
+}
+
+.modal-title,
+.browser-status {
+  min-height: var(--min-interactive-target);
+  padding: var(--space-12) var(--space-16);
+  border-bottom: var(--keyline-resting) solid var(--color-border-default);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-16);
+}
+
+.browser-status {
+  min-height: calc(var(--space-32) + var(--space-4));
+  padding-block: var(--space-8);
+  flex-wrap: wrap;
+}
+
+.sample-browser {
+  grid-template-rows: auto auto auto auto minmax(0, 1fr);
+}
+
+/* Engine and Post FX options share the authored Figma composition while
+ * remaining inside the production shell. The one modal grows into the
+ * workspace's available band; only the option list scrolls. */
+.option-modal {
+  flex: 1 1 0;
+  min-height: var(--shell-side-track-min);
+  width: min(
+    calc(var(--shell-side-track-max) + var(--shell-side-track-max)),
+    100%
+  );
+  max-height: none;
+  margin: var(--space-12) auto;
+  padding: clamp(var(--space-16), 2vw, var(--space-24));
+  gap: var(--space-8);
+  grid-template-rows: auto auto auto auto minmax(0, 1fr) auto;
+  background: var(--color-bg-canvas);
+  box-shadow: none;
+}
+
+.option-header {
+  min-width: 0;
+  min-height: var(--space-32);
+  display: flex;
+  align-items: center;
+  gap: var(--space-16);
+  overflow-wrap: anywhere;
+}
+
+.option-modal[data-option-kind="engine"] .option-title {
+  color: var(--color-accent-instrument-plates);
+}
+
+.option-modal[data-option-kind="postFx"] .option-title {
+  color: var(--color-accent-chorus);
+}
+
+.option-modal[data-option-kind="generic"] .option-title {
+  color: var(--color-accent-patch);
+}
+
+.option-source {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.option-group {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-8) var(--space-16);
+  padding-block: var(--space-8);
+}
+
+.option-group-help {
+  margin-left: auto;
+}
+
+.option-modal:has(.option-group) {
+  grid-template-rows: auto auto auto auto auto minmax(0, 1fr);
+}
+
+.option-origin-status {
+  min-width: 0;
+  padding: var(--space-8) var(--space-12);
+  border-left: var(--keyline-emphasis) solid var(--color-border-strong);
+  background: var(--color-bg-surface);
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-4) var(--space-16);
+  overflow-wrap: anywhere;
+}
+
+.option-origin-status.state-loading,
+.option-origin-status.state-validating,
+.option-origin-status.state-preparing,
+.option-origin-status.state-activating {
+  border-left-color: var(--color-accent-adjust);
+  border-left-style: double;
+}
+
+.option-origin-status.state-unavailable,
+.option-origin-status.state-failed,
+.option-origin-status.has-cause,
+.option-origin-status.is-unavailable {
+  border-left-color: var(--color-accent-warning);
+  border-left-style: dashed;
+}
+
+.option-origin-status.state-ready .option-lifecycle-state {
+  color: var(--color-accent-positive);
+}
+
+.option-origin-status.state-loading .option-lifecycle-state,
+.option-origin-status.state-validating .option-lifecycle-state,
+.option-origin-status.state-preparing .option-lifecycle-state,
+.option-origin-status.state-activating .option-lifecycle-state {
+  color: var(--color-accent-adjust);
+}
+
+.option-origin-status.state-unavailable .option-lifecycle-state,
+.option-origin-status.state-failed .option-lifecycle-state,
+.option-origin-status.has-cause .option-lifecycle-state {
+  color: var(--color-accent-warning);
+}
+
+.option-rule {
+  height: var(--keyline-resting);
+  background: var(--color-border-default);
+}
+
+.browser-visualizations {
+  min-height: 0;
+  border-bottom: var(--keyline-resting) solid var(--color-border-default);
+}
+
+.browser-visualizations .detail-visualization {
+  border: 0;
+  padding-block: var(--space-4);
+}
+
+.browser-visualizations .waveform-shape {
+  min-height: calc(var(--min-interactive-target) + var(--space-24));
+}
+
+.preview-region {
+  --preview-playhead: 0;
+  min-height: calc(var(--space-32) + var(--space-8));
+  padding: var(--space-8) var(--space-16);
+  border-bottom: var(--keyline-resting) solid var(--color-border-default);
+  display: grid;
+  grid-template-columns: auto minmax(calc(var(--min-interactive-target) + var(--space-32)), 1fr) auto;
+  align-items: center;
+  gap: var(--space-12);
+}
+
+.preview-playhead-shape {
+  height: var(--space-8);
+  border: var(--keyline-resting) solid var(--color-border-strong);
+  position: relative;
+}
+
+.preview-playhead-marker {
+  position: absolute;
+  inset-block: calc(var(--radius-none) - var(--keyline-emphasis));
+  left: calc(var(--preview-playhead) * 100%);
+  width: calc(var(--keyline-resting) + var(--keyline-resting));
+  transform: translateX(calc(var(--radius-none) - var(--keyline-resting)));
+  background: var(--color-accent-focus);
+}
+
+.preview-region[data-preview-state="stale"] .preview-playhead-shape,
+.preview-region[data-preview-state="stopped"] .preview-playhead-shape {
+  border-style: dashed;
+}
+
+.modal-options {
+  min-height: 0;
+  overflow: hidden;
+  padding: var(--space-8);
+}
+
+.option-modal .modal-options {
+  overflow-x: hidden;
+  overflow-y: auto;
+  padding: 0;
+  overscroll-behavior: contain;
+}
+
+.modal-option {
+  min-height: var(--min-interactive-target);
+  padding: var(--space-8)
+    calc(var(--space-8) + var(--keyline-resting) + var(--keyline-resting));
+  border: var(--keyline-resting) solid transparent;
+  display: grid;
+  grid-template-columns: calc(var(--space-16) + var(--space-4)) minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: calc(var(--space-8) + var(--keyline-resting) + var(--keyline-resting));
+}
+
+.modal-option + .modal-option {
+  border-top-color: var(--color-border-default);
+}
+
+.modal-option.is-focused {
+  border-color: var(--color-accent-focus);
+  outline: var(--keyline-resting) solid var(--color-accent-focus);
+  outline-offset: calc(var(--radius-none) - var(--space-4));
+}
+
+.modal-option.is-disabled {
+  border-style: dashed;
+  opacity: 0.62;
+}
+
+.modal-option-shape,
+.modal-option-state {
+  color: var(--color-accent-focus);
+}
+
+.modal-option-label,
+.modal-option-meta,
+.modal-option-state {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.option-modal .option-row {
+  min-width: 0;
+  min-height: var(--min-interactive-target);
+  padding: var(--space-8)
+    calc(var(--space-8) + var(--keyline-resting) + var(--keyline-resting));
+  border: 0;
+  border-bottom: var(--keyline-resting) solid var(--color-border-default);
+  display: grid;
+  grid-template-columns:
+    calc(var(--space-16) + var(--space-4))
+    minmax(0, 1fr)
+    auto;
+  align-items: center;
+  gap: var(--space-4) var(--space-12);
+}
+
+.option-modal .option-row + .option-row {
+  border-top: 0;
+}
+
+.option-modal .option-row.is-focused {
+  border-color: var(--color-accent-focus);
+  border-bottom-width: var(--keyline-emphasis);
+  outline: 0;
+  background: var(--color-bg-surface);
+}
+
+.option-modal .option-row.is-current:not(.is-focused) {
+  border-left: var(--keyline-emphasis) double var(--color-border-strong);
+}
+
+.option-modal .option-row.is-disabled {
+  border-style: dashed;
+  opacity: 1;
+}
+
+.option-modal .option-row.is-unavailable {
+  border-left: var(--keyline-emphasis) dashed var(--color-accent-warning);
+}
+
+.option-modal .modal-option-shape {
+  color: var(--color-text-muted);
+}
+
+.option-modal .option-row.is-focused .modal-option-shape {
+  color: var(--color-accent-focus);
+}
+
+.option-modal[data-option-kind="engine"] .option-row.is-focused .modal-option-label {
+  color: var(--color-accent-instrument-plates);
+}
+
+.option-modal[data-option-kind="postFx"] .option-row.is-focused .modal-option-label {
+  color: var(--color-accent-chorus);
+}
+
+.option-modal .modal-option-label,
+.option-modal .modal-option-availability,
+.option-modal .modal-option-current {
+  min-width: 0;
+  overflow: visible;
+  text-overflow: clip;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+.option-modal .modal-option-availability {
+  grid-column: 2 / -1;
+  grid-row: 2;
+  color: var(--color-text-secondary);
+}
+
+.option-modal .modal-option-current {
+  grid-column: 3;
+  grid-row: 1;
+}
+
+.option-modal .option-row.is-disabled .modal-option-availability,
+.option-modal .option-row.is-unavailable .modal-option-availability {
+  color: var(--color-accent-warning);
+}
+
+/* ---- Utility panel rows ------------------------------------------------
+ * Two lines, as the design draws them (`Utility MASTER VOLUME` 36:53): the
+ * label and value on one line, the position indicator full width below it.
+ * The bounded five-row set remains independently scrollable when text or
+ * viewport scaling needs more room. */
+#inspector .prow {
+  gap: var(--space-4);
+  padding: var(--space-8);
+  align-content: center;
+}
+
+#inspector .prow .prow-label,
+#inspector .prow .prow-value {
+  flex: 0 0 auto;
+}
+
+#inspector .prow .prow-value {
+  margin-left: auto;
+}
+
+/* The position indicator takes the whole second line of a panel row. */
+#inspector .prow .prow-position {
+  flex: 0 0 100%;
+}
+
+#inspector .prow .prow-mark,
+#inspector .prow .prow-range,
+#inspector .prow .prow-unit {
+  flex: 0 0 auto;
+}
+
+/* ---- the persistent Inspector ------------------------------------------ */
+#inspector {
+  grid-area: side;
+  min-width: 0;
+  min-height: 0;
+  border-left: var(--keyline-resting) solid var(--color-border-default);
+  border-top: var(--keyline-resting) solid var(--color-border-default);
+  padding: clamp(
+    var(--shell-content-inset-min),
+    var(--shell-content-inset-preferred),
+    var(--shell-content-inset-max)
+  );
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-12);
+  overflow: auto;
+}
+
+.inspector-pinned {
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  padding-bottom: var(--space-8);
+  border-bottom: var(--keyline-emphasis) solid var(--color-border-strong);
+}
+
+.inspector-reading {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-12);
+}
+
+.inspector-meter {
+  margin-left: auto;
+}
+
+.route-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  list-style: none;
+}
+
+.route-list li {
+  display: flex;
+  gap: var(--space-12);
+}
+
+.route-id {
+  color: var(--color-accent-patch);
+}
+
+.empty-route {
+  border: var(--keyline-resting) dashed var(--color-border-strong);
+  padding: var(--space-4);
+}
+
+.inspector-controls {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+#inspector .big-readout {
+  font-weight: var(--type-heading-panel-weight);
+}
+
+#inspector .rule {
+  border-top: var(--keyline-resting) solid var(--color-border-default);
+}
+
+#inspector table {
+  border-collapse: collapse;
+  align-self: start;
+}
+
+#inspector td {
+  padding: calc(var(--space-4) / 2) var(--space-16) calc(var(--space-4) / 2) 0;
+}
+
+#footer {
+  display: flex;
+  align-items: center;
+  gap: var(--space-24);
+  padding-block: var(--space-8);
+  padding-inline: clamp(
+    var(--shell-content-inset-min),
+    var(--shell-content-inset-preferred),
+    var(--shell-content-inset-max)
+  );
+  flex-wrap: wrap;
+  overflow: auto;
+  border-top: var(--keyline-resting) solid var(--color-border-default);
+}
+
+#footer .footer-guidance {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--space-8) var(--space-16);
+  flex-wrap: wrap;
+}
+
+/* ---- Settings system workspaces --------------------------------------- */
+
+body.settings-active {
+  --shell-footer-track: auto;
+}
+
+body.settings-active #footer {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  align-items: start;
+  gap: var(--space-8);
+}
+
+body.settings-active #footer .spring {
+  display: none;
+}
+
+body.settings-active #footer .footer-guidance {
+  justify-content: flex-start;
+}
+
+body.settings-active #main-region {
+  grid-template-columns:
+    minmax(var(--shell-side-track-min), 4fr)
+    minmax(var(--shell-side-track-min), var(--shell-side-track-max));
+  grid-template-rows: minmax(0, 1fr);
+  grid-template-areas: "workspace side";
+  column-gap: clamp(
+    var(--shell-region-gap-min),
+    var(--shell-region-gap-preferred),
+    var(--shell-region-gap-max)
+  );
+}
+
+.session-file-description {
+  max-width: 80ch;
+  line-height: 1.6;
+}
+
+.session-file-row {
+  padding-block: var(--space-16);
+}
+
+.session-file-row[aria-disabled="true"] .session-action-state {
+  color: var(--color-text-secondary);
+}
+
+.session-document-name,
+.session-document-status {
+  overflow-wrap: anywhere;
+}
+
+.session-document-status {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-16);
+  padding: var(--space-16);
+}
+
+.settings-pages {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-8) var(--space-24);
+  margin-bottom: var(--space-16);
+}
+
+.settings-page {
+  padding-block: var(--space-8);
+  border-bottom: var(--keyline-resting) solid transparent;
+}
+
+.settings-page[aria-current="page"] {
+  border-bottom-color: var(--color-text-secondary);
+}
+
+.midi-device-list {
+  flex: 1;
+  min-height: 0;
+  margin-block: var(--space-16);
+  border-top: var(--keyline-resting) solid var(--color-border-default);
+  overflow: auto;
+}
+
+.midi-device-row,
+.midi-empty {
+  min-height: var(--shell-row-height-min);
+  display: flex;
+  align-items: center;
+  gap: var(--space-16);
+  padding: var(--space-8) var(--space-12);
+  border-bottom: var(--keyline-resting) solid var(--color-border-default);
+}
+
+.midi-device-row.focused,
+.midi-empty:focus-within {
+  background: var(--color-bg-selected);
+  box-shadow: inset var(--keyline-emphasis) 0 0 var(--color-accent-focus);
+}
+
+.midi-status-marker {
+  flex: 0 0 var(--space-24);
+  color: var(--color-text-secondary);
+  text-align: center;
+}
+
+.midi-device-row[data-marker="filledCircle"] .midi-status-marker {
+  color: var(--color-accent-positive);
+}
+
+.midi-device-row[data-marker="progressRing"] .midi-status-marker,
+.midi-device-row[data-marker="errorDiamond"] .midi-status-marker {
+  color: var(--color-accent-warning);
+}
+
+.midi-device-row[data-marker="slashedCircle"],
+.midi-device-row[data-marker="stopSquare"] {
+  border-left: var(--keyline-emphasis) dashed var(--color-border-strong);
+}
+
+.midi-row-identity,
+.midi-empty > div {
+  min-width: 0;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.midi-row-status {
+  color: var(--color-text-secondary);
+}
+
+.midi-row-action {
+  min-width: var(--min-interactive-target);
+  text-align: right;
+}
+
+.controller-button-row[data-editable="false"] {
+  border-left: var(--keyline-emphasis) dashed var(--color-border-strong);
+}
+
+.controller-button-value {
+  min-width: 0;
+  max-width: 55%;
+  overflow-wrap: anywhere;
+  text-align: right;
+}
+
+.controller-settings-status {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-12);
+  padding-block: var(--space-16);
+  border-top: var(--keyline-resting) solid var(--color-border-default);
+}
+
+.midi-inline-marker {
+  color: var(--color-accent-positive);
+}
+
+.midi-facts {
+  width: 100%;
+}
+
+.midi-facts td:last-child {
+  color: var(--color-text-primary);
+}
+
+.midi-facts [data-midi-activity-state="receiving"] {
+  color: var(--color-accent-positive);
+}
+
+.midi-activity-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-8);
+  margin-top: var(--space-16);
+  padding: var(--space-12);
+  border: var(--keyline-resting) solid var(--color-border-default);
+  border-left: var(--keyline-emphasis) dashed var(--color-border-strong);
+}
+
+.midi-activity-card[data-midi-activity-state="receiving"] {
+  border-left-style: solid;
+  border-left-color: var(--color-accent-positive);
+}
+
+.midi-activity-value {
+  position: relative;
+  height: var(--space-8);
+  overflow: hidden;
+  background: var(--color-bg-selected);
+  border: var(--keyline-resting) solid var(--color-border-default);
+}
+
+.midi-activity-value-fill {
+  width: calc(var(--position, 0) * 100%);
+  height: 100%;
+  background: var(--color-accent-positive);
+}
+
+/* The stack threshold is a function of the two declared 320 px region
+ * minima plus their required gap. It is a container condition, not one of the
+ * named viewport/density modes used by the performance workspaces. */
+@container shell (inline-size < 45rem) {
+  body.settings-active #main-region {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: minmax(20rem, auto) minmax(20rem, auto);
+    grid-template-areas: "workspace" "side";
+    row-gap: var(--shell-region-gap-min);
+  }
+
+  body.settings-active #inspector {
+    border-left: 0;
+  }
+}
+
+/* Sends reuse the Patch detail rows and descriptor-ordered effect sections. */
+.send-shell {
+  width: 100%;
+  margin: 0 auto;
+  padding: var(--space-16) var(--space-24) var(--space-32);
+}
+.send-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-24);
+}
+.send-name {
+  margin: var(--space-8) 0 var(--space-24);
+  overflow-wrap: anywhere;
+}
+.send-shell .detail-section { margin: var(--space-16) 0; }
+#send-name-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-12);
+  margin-top: var(--space-24);
+}
+#send-name-input {
+  font: inherit;
+  padding: var(--space-12);
+  color: inherit;
+  background: transparent;
+  border: var(--keyline-resting) solid currentColor;
+}
+.sends-active #workspace { overflow-y: auto; }
+
+/* Composition workspaces share shell geometry and Patch row components. */
+.workspace-action, .workspace-cell, .workspace-home {
+  font: inherit; color: inherit; background: transparent; border: 0;
+  text-align: left; cursor: pointer;
+}
+.workspace-action { display: block; width: 100%; }
+.workspace-action .prow { width: 100%; }
+.workspace-home { color: var(--color-accent-focus); margin-left: var(--space-4); }
+.workspace-active #identity-header { gap: var(--space-16); }
+.workspace-active #inspector { overflow-y: auto; }
+.workspace-grid-scroll { overflow: auto; min-height: 0; }
+.workspace-grid { border-collapse: collapse; width: 100%; }
+.workspace-grid th { text-align: left; padding: var(--space-4); color: var(--color-text-secondary); }
+.workspace-grid td { border: 1px solid var(--color-border-default); }
+.workspace-cell { min-width: 7em; width: 100%; padding: var(--space-8); white-space: nowrap; }
+.workspace-cell[data-focused="true"] { outline: 2px solid var(--color-accent-focus); outline-offset: -2px; color: var(--color-accent-focus); }
+.workspace-grid tr[data-playing="true"] th { color: var(--color-accent-focus); }
+.workspace-rows { overflow-y: auto; }
+#workspace-text-form { padding: var(--space-4); display: flex; gap: var(--space-4); }
+#workspace-text-form input { display: block; font: inherit; color: inherit; background: var(--color-bg-canvas); border: 1px solid var(--color-accent-focus); padding: var(--space-8); }

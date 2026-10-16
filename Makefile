@@ -1,49 +1,43 @@
-SYNTH_PATH ?= ../crest-synth
 ARGS ?=
+.DEFAULT_GOAL := dev
+.PHONY: demo-corridors test-corridors
+demo-corridors:
+ifeq ($(shell uname -s),Darwin)
+	python3 scripts/bundle_macos.py --release
+	"target/release/Crest Tracker.app/Contents/MacOS/crest-tracker-app" --demo-corridors
+else
+	cargo run --release -p crest-tracker-app -- --demo-corridors
+endif
+test-corridors:
+	cargo test --release -p crest-tracker-app corridors_event_scene -- --ignored --test-threads=1 --nocapture
 
-.PHONY: dev synth synth-inventory check-pair status-pair diff-pair pin-synth check-pinned test test-host bundle verify-bundle workload audio-workload native-feedback midi-fixture lint fmt-check
+.PHONY: dev synth test test-synth test-host check lint fmt-check bundle verify-bundle synth-inventory workload audio-workload
 
 dev:
-	python3 scripts/develop.py --synth-path "$(SYNTH_PATH)" dev -- $(ARGS)
+	cargo run -p crest-tracker-app -- $(ARGS)
 synth:
-	python3 scripts/develop.py --synth-path "$(SYNTH_PATH)" synth -- $(ARGS)
-synth-inventory:
-	python3 scripts/synth_inventory.py --synth-path "$(SYNTH_PATH)" $(ARGS)
-check-pair:
-	python3 scripts/develop.py --synth-path "$(SYNTH_PATH)" check-pair $(SYNTH_TESTS)
-status-pair:
-	python3 scripts/develop.py --synth-path "$(SYNTH_PATH)" status-pair
-diff-pair:
-	python3 scripts/develop.py --synth-path "$(SYNTH_PATH)" diff-pair
-pin-synth:
-	python3 scripts/develop.py --synth-path "$(SYNTH_PATH)" pin-synth $(REV)
-check-pinned:
-	python3 scripts/develop.py check-pinned
-bundle:
-	python3 scripts/bundle_macos.py --synth-path "$(SYNTH_PATH)" $(ARGS)
-verify-bundle:
-	python3 scripts/bundle_macos.py --synth-path "$(SYNTH_PATH)" --verify-only "$(if $(BUNDLE),$(BUNDLE),target/release/Crest Tracker.app)"
+	cargo run -p crest-synth --bin crest-synth -- $(ARGS)
+check:
+	cargo check -p crest-tracker -p crest-tracker-app -p crest-synth --all-targets
 test:
-	cargo --config 'patch."https://github.com/crestenstclair/crest-synth.git".crest-synth.path="$(abspath $(SYNTH_PATH))"' test --workspace
+	cargo test -p crest-tracker -p crest-tracker-app
 	python3 -B -m unittest discover -s scripts -p 'test_*.py'
-	node --test scripts/test_*.cjs
+test-synth:
+	cd crates/crest-synth && cargo test -p crest-synth --lib
 
 test-host:
-	cargo --config 'patch."https://github.com/crestenstclair/crest-synth.git".crest-synth.path="$(abspath $(SYNTH_PATH))"' test --release -p crest-tracker-app synth::witness:: -- --ignored --test-threads=1
-
-workload:
-	python3 scripts/workload.py --synth-path "$(SYNTH_PATH)" $(ARGS)
-
-audio-workload:
-	python3 scripts/audio_workload.py --synth-path "$(SYNTH_PATH)" $(ARGS)
-
-native-feedback:
-	python3 scripts/native_feedback.py --synth-path "$(SYNTH_PATH)" $(ARGS)
-
-midi-fixture:
-	cargo --config 'patch."https://github.com/crestenstclair/crest-synth.git".crest-synth.path="$(abspath $(SYNTH_PATH))"' run --release -p crest-tracker-app --example midi_capture_fixture
-
+	cargo test --release -p crest-tracker-app synth::witness:: -- --ignored --test-threads=1
 lint:
-	python3 scripts/develop.py --synth-path "$(SYNTH_PATH)" lint
+	cargo clippy -p crest-tracker -p crest-tracker-app -p crest-synth --all-targets --no-deps -- -D warnings
 fmt-check:
 	cargo fmt --all -- --check
+bundle:
+	python3 scripts/bundle_macos.py $(ARGS)
+verify-bundle:
+	python3 scripts/bundle_macos.py --verify-only "$(if $(BUNDLE),$(BUNDLE),target/debug/Crest Tracker.app)"
+synth-inventory:
+	python3 scripts/synth_inventory.py $(ARGS)
+workload:
+	python3 scripts/workload.py $(ARGS)
+audio-workload:
+	python3 scripts/audio_workload.py $(ARGS)

@@ -1,0 +1,126 @@
+name: Release binaries
+
+on:
+  workflow_dispatch:
+    inputs:
+      publish:
+        description: Tag this commit and publish verified packages after both builds pass
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+jobs:
+  macos:
+    name: ${{ matrix.target }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: macos-15
+            target: aarch64-apple-darwin
+          - runner: macos-15-intel
+            target: x86_64-apple-darwin
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 60
+    env:
+      MACOSX_DEPLOYMENT_TARGET: '11.0'
+      CARGO_INCREMENTAL: '0'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          lfs: true
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: '1.96.0'
+          components: rustfmt
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Verify native host and source formatting
+        run: |
+          test "$(rustc -vV | sed -n 's/^host: //p')" = '${{ matrix.target }}'
+          cargo fmt --all -- --check
+      - name: Build and verify installable bundles
+        run: bash scripts/build_release_macos.sh
+      - name: Resource and production runtime regression checks
+        run: |
+          cargo test --locked --release --lib bundled_resource
+          cargo test --locked --release --lib adapter::hidef_soundfont_asset
+          cargo test --locked --release --lib adapter::fixed_midi_event_source
+          cargo test --locked --release --test production_runtime_contracts
+      - uses: actions/upload-artifact@v4
+        with:
+          name: release-${{ matrix.target }}
+          path: target/release-assets/*
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 14
+
+  publish:
+    if: ${{ inputs.publish }}
+    needs: macos
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: release-*
+          path: dist
+          merge-multiple: true
+      - name: Verify packages and create checksums
+        run: |
+          python3 - <<'PY'
+          import hashlib, json, pathlib
+          version = json.loads(pathlib.Path('tauri.conf.json').read_text())['version']
+          paths = [pathlib.Path('dist') / f'crest-synth-v{version}-{target}.{suffix}'
+                   for target in ['aarch64-apple-darwin', 'x86_64-apple-darwin']
+                   for suffix in ['app.zip', 'dmg']]
+          lines = []
+          for path in paths:
+              assert path.stat().st_size > 0, path
+              with path.open('rb') as source:
+                  digest = hashlib.file_digest(source, 'sha256').hexdigest()
+              lines.append(f'{digest}  {path.name}\n')
+          pathlib.Path('dist/SHA256SUMS').write_text(''.join(lines))
+          PY
+      - name: Tag and publish release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          version="$(python3 -c 'import json; print(json.load(open("tauri.conf.json"))["version"])')"
+          tag="v$version"
+          cat > release-notes.md <<'NOTES'
+          First packaged release of Crest Synth.
+
+          ### Downloads
+          - Apple Silicon (M1 or newer): `aarch64-apple-darwin`.
+          - Intel Mac: `x86_64-apple-darwin`.
+          - Choose either the DMG installer or the ZIP containing the app. Move `crest-synth.app` into Applications.
+          - Minimum deployment target: macOS 11. Native CI runs on macOS 15; every OS and physical device combination has not been tested.
+          - `SHA256SUMS` verifies all four packages.
+
+          Packages include the application and diagnostic binary, required startup SoundFont and MIDI fixture, dependency notices, and Eigen source. No Rust, Node.js, CMake, checkout, or separate SDL installation is needed to run the app.
+
+          ### Included
+          PATCH and MIXER contexts, keyboard/controller/physical MIDI input, the installed instrument and effect catalog, asset browsing/import, and session save/restore. Bundled resources resolve independently of the launch working directory.
+
+          ### Release limits
+          - Packages are macOS only. Linux runs from source; Windows native keyboard capture is not implemented yet.
+          - Ad-hoc signed, not Developer ID signed or notarized. macOS may require explicit approval in System Settings > Privacy & Security for a downloaded app.
+          - The UI remains a functional blockout; this release does not claim complete Figma fidelity or universal hardware acceptance.
+
+          ### Validation
+          Both native targets passed optimized builds, packaged production smoke runs outside the checkout, architecture/system-library/signature checks, and resource, MIDI, SoundFont, and production-runtime regression checks.
+          NOTES
+          printf '\nBuild evidence: https://github.com/%s/actions/runs/%s\n' "$GITHUB_REPOSITORY" "$GITHUB_RUN_ID" >> release-notes.md
+          git -c user.name='github-actions[bot]' \
+              -c user.email='41898282+github-actions[bot]@users.noreply.github.com' \
+              tag -a "$tag" "$GITHUB_SHA" -m "Crest Synth $tag"
+          git push origin "refs/tags/$tag"
+          gh release create "$tag" --verify-tag --draft --title "Crest Synth $tag" \
+            --notes-file release-notes.md dist/*.app.zip dist/*.dmg dist/SHA256SUMS
+          gh release edit "$tag" --draft=false --latest

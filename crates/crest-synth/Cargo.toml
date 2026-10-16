@@ -1,0 +1,98 @@
+[package]
+name = "crest-synth"
+version = "0.0.1"
+edition = "2021"
+default-run = "crest-synth"
+
+[lib]
+path = "src/lib.rs"
+
+[[bin]]
+name = "crest-synth"
+path = "src/bin/crest_synth.rs"
+
+[[bin]]
+name = "crest-synth-witness"
+path = "src/bin/crest_synth_witness.rs"
+
+# The webview projection witness uses harness = false because its live-gated
+# sections open a real Tauri window, which AppKit and GTK
+# require on the main thread; the default libtest harness runs every
+# test on a worker thread. The target still runs under the declared
+# `cargo test --test webview_projection_shell -- --nocapture` command.
+[[test]]
+name = "webview_projection_shell"
+path = "tests/webview_projection_shell.rs"
+harness = false
+
+# The automated key-injection witness runs the real TauriWebviewWindow (debug
+# seam page), with AppKit event injection or Linux XTest input through GTK.
+# Native event handling stays on the main thread — harness = false for the
+# same reason as above. Gated on
+# window availability with a typed skip that fails under
+# CREST_REQUIRE_KEY_WITNESS=1.
+[[test]]
+name = "input_capture_witness"
+path = "tests/input_capture_witness.rs"
+harness = false
+
+[dependencies]
+sha2 = "0.10"
+base64 = "0.22"
+midly = "0.5.3"
+# Physical MIDI input. Default platform backends are CoreMIDI on Apple,
+# ALSA on Linux, and WinMM on Windows. JACK and WinRT remain explicit
+# packaging-time opt-ins; application/control types never depend on a backend.
+midir = "0.11.0"
+# SDL owns gamepad discovery, hardware mappings and hotplug. Build its C library
+# statically so the app has no dependency on a machine-local SDL installation.
+sdl3 = { version = "0.20", features = ["build-from-source-static"] }
+# Pinned upstream with Linux interrupted-poll recovery; see its provenance.
+cpal = { path = "vendor/cpal", version = "=0.18.1" }
+serde_json = "1.0"
+serde = { version = "1.0", features = ["derive"] }
+rustysynth = { path = "vendor/rustysynth", version = "1.3.6" }
+rtrb = "0.3.4"
+triple_buffer = "9.0.0"
+anyhow = "1.0"
+thiserror = "2.0"
+# Phase 7's bounded RIFF/WAVE-only decoder adapter. Exact pin, no features.
+hound = "=3.5.1"
+# Webview shell runtime — the product's sole shell behind the AppWindow port.
+# Native AppKit/GTK desktop runtime; no tray, updater, or CLI features.
+tauri = "2"
+# Platform-native file and unsaved-change dialogs. It is confined to the
+# Tauri shell adapter; canonical state and lifecycle orchestration depend only
+# on the host-neutral dialog port.
+rfd = "0.15"
+
+[target.'cfg(target_os = "linux")'.dependencies]
+# Use the same GTK runtime as Tauri for native, pre-WebKit keyboard capture.
+gtk = { version = "0.18", features = ["v3_24"] }
+
+# Rust-side native key capture under a focused WKWebView (research R-02):
+# the NSEvent local-monitor path lives in src/shell/webview/input_capture.rs.
+# These are the same objc2 bindings tauri/wry already carry in the tree.
+[target.'cfg(target_os = "macos")'.dependencies]
+# Read cloud-placeholder metadata in the filesystem adapter before WAV decoding.
+libc = "0.2"
+objc2 = "0.6"
+objc2-app-kit = { version = "0.3", features = ["NSEvent", "NSApplication", "NSResponder", "NSWindow", "NSGraphicsContext", "block2"] }
+objc2-foundation = "0.3"
+block2 = "0.6"
+
+[build-dependencies]
+# Native DSP compilation shares Cargo's job budget, including `cargo -j`.
+cc = { version = "1.2", features = ["parallel"] }
+tauri-build = "2"
+
+[dev-dependencies]
+# Fidelity witnesses compare parsed JSON numbers exactly with the production
+# Value document, including f32 waveform extrema promoted to f64 by serde.
+serde_json = { version = "1.0", features = ["float_roundtrip"] }
+
+[target.'cfg(target_os = "linux")'.dev-dependencies]
+libc = "0.2"
+webkit2gtk = "2.0"
+cairo-rs = { version = "0.18", features = ["png"] }
+

@@ -1,0 +1,33 @@
+# Mutable Instruments Braids source provenance
+
+This directory contains only the audited synthesis subset needed to build
+`braids::MacroOscillator`; it intentionally excludes firmware, drivers,
+bootloaders, hardware support, UI code, and runtime download inputs.
+
+- Upstream repository: `https://github.com/pichenettes/eurorack`
+- Eurorack revision: `08460a69a7e1f7a81c5a2abcc7189c9a6b7208d4`
+- `stmlib` revision: `e3bd7c9cc00e4364166f9905c0509b6ffd0535ec`
+- License: MIT. Every Braids source carries the upstream MIT notice; the
+  upstream `stmlib/LICENSE` is included verbatim.
+
+## Exact SHA-256 manifest
+
+```text
+dc7fbfe3b34314a2fdd73e81d5e4d65dd0015adf8cd4f45f678dd6ce0fda91c6  braids/analog_oscillator.cc
+6870f34dd3d6c67e12227299fca4d49ccb15a651b89293bb0f688f313b964991  braids/analog_oscillator.h
+2b46fd3d702c4570af7fadc6e187a931d0f40d69532c3bf0a46ef4d1454bad84  braids/digital_oscillator.cc
+f9a523bee6cfc04c1560815fb0255fa33d9838a0df42d512737e6b82237fa20a  braids/digital_oscillator.h
+e9555383effc411f26afaaf475a92ceabad59a4891569dc3d4c3cd14f3ee3197  braids/excitation.h
+715ee728aaae8dfaa3387c50bd6cc1f1327374ff0949c8104e48cf7c11d0d241  braids/macro_oscillator.cc
+8e34d2ef5a8914c4252999b7988e371d93cda998b660cd3ed4132a4164fe41fe  braids/macro_oscillator.h
+4be46037164cb309c56590656e83baa456d3dccae158a76724b7e9906a47cee8  braids/parameter_interpolation.h
+b28a075193e7568e53621361ba95e3c9ff952b350eafe02e47dfb070b76f6b53  braids/resources.cc
+740135940b70a1d26f965c7c80e92aae03ae7f9d843dc81706284e0adef97327  braids/resources.h
+5e2c771a4b29c23fe25056d252864489f43801425deb9adf287ef634a74fec41  braids/settings.h
+17fe7788f2b0da209d0c879a458bd2ef61537666403166f37333dacfe7e090ee  braids/svf.h
+6fde7600ac71ff9e4bdc28b642063d1a65e195f28bb07fb52a9b476efb5aa791  stmlib/LICENSE
+3afc8589a951e882d9eea16b3eda8623dd6fb0079dd11dfbce817e65be6cfba9  stmlib/stmlib.h
+c0fad7f6b5b20f053d184614a35baf595e41f1394db53f80ac742d7467dbbe1b  stmlib/utils/dsp.h
+145c4d7a30e373d001fd664ce6f97a475458f7dc8286252d24ca6f592e0cdb93  stmlib/utils/random.cc
+423f01e905fa279864878f34e42136ad1eb37a33dad58739affaaab06b793e5d  stmlib/utils/random.h
+```

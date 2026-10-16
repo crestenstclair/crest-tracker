@@ -1,6 +1,8 @@
 //! Integrated witnesses exercise the production host, workers, queues and DSP.
 //! They replace the window and audio device only; no hardware evidence is implied.
 mod audio;
+mod controller;
+mod corridors;
 mod live;
 mod recording_edits;
 mod replacement;
@@ -105,6 +107,12 @@ impl ApplicationHost<LockFreeControlHandle> for Host {
     fn session_command(&mut self, sound: &mut Sound<'_>, command: SessionCommand) -> bool {
         self.0.borrow_mut().session_command(sound, command)
     }
+    fn action_handler(&self) -> Option<Rc<dyn Fn(SemanticAction) -> bool>> {
+        self.0.borrow().action_handler()
+    }
+    fn owns_input(&self) -> bool {
+        self.0.borrow().owns_input()
+    }
 }
 
 struct Window {
@@ -184,6 +192,16 @@ fn run_with_instrument(
     wall_limit: Duration,
     capability: &str,
 ) -> Evidence {
+    run_with_devices(root, step, wall_limit, capability, false)
+}
+
+fn run_with_devices(
+    root: &std::path::Path,
+    step: Step,
+    wall_limit: Duration,
+    capability: &str,
+    system_devices: bool,
+) -> Evidence {
     let app = Rc::new(RefCell::new(App::new()));
     let runtime = Rc::new(RefCell::new(
         Runtime::with_data_directory(app, root.join("machine")).unwrap(),
@@ -224,6 +242,11 @@ fn run_with_instrument(
     .with_default_session_blueprint(DefaultSessionBlueprint::new(
         CapabilityId::new(capability).unwrap(),
     ));
+    let application = if system_devices {
+        application.with_system_input_devices()
+    } else {
+        application
+    };
     application.run_with_host(Host(runtime)).unwrap();
     // Retire the callback and its graph outside the measured region.
     output.callback.borrow_mut().take();

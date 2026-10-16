@@ -4,11 +4,12 @@ pub(crate) mod demo;
 mod drum_controls;
 mod edit_preview;
 mod grid;
-mod phrase_projection;
 mod piano_controls;
+mod reference_edit;
 pub(crate) use piano_controls::{PianoControl, PianoValue};
 mod shared_edit;
 mod timeline_focus;
+#[cfg(test)]
 mod timeline_playback;
 mod timeline_window;
 use crest_tracker::chord_bank::{
@@ -23,7 +24,8 @@ use crest_tracker::playback::{
 use crest_tracker::time::{Beat, Tempo};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
-use shared_edit::{PendingEdit, SharedChoice};
+use shared_edit::PendingEdit;
+pub(crate) use shared_edit::SharedChoice;
 use std::cell::RefCell;
 use std::collections::{BTreeMap, VecDeque};
 use std::sync::Arc;
@@ -57,10 +59,6 @@ pub enum TransportScope {
 #[derive(Clone, Debug, Deserialize)]
 #[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
 pub enum Request {
-    #[serde(skip)]
-    FeedbackReady {
-        sequence: u64,
-    },
     View {
         view: View,
     },
@@ -169,9 +167,6 @@ pub enum Request {
     TextEntry {
         active: bool,
     },
-    UiAck {
-        sequence: u64,
-    },
     Capture {
         action: CaptureAction,
     },
@@ -196,7 +191,7 @@ pub enum Request {
         bindings: Vec<crate::preferences::MidiControlBinding>,
     },
     RollBindings {
-        bindings: crate::synth::controller::RollBindings,
+        bindings: crate::preferences::RollBindings,
     },
     SoundLibrary {
         action: String,
@@ -387,14 +382,6 @@ pub struct EventRange {
     target: Option<Target>,
     include_controls: bool,
 }
-#[derive(Clone, Copy, Serialize)]
-struct UiInput {
-    sequence: u64,
-    action: &'static str,
-}
-const UI_INPUT_LIMIT: usize = 32;
-// JavaScript must compare sequence IDs without rounding.
-const UI_SEQUENCE_LIMIT: u64 = 9_007_199_254_740_991;
 #[derive(Clone, Copy, Debug, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum BakeForm {
@@ -403,11 +390,11 @@ pub enum BakeForm {
 }
 
 #[derive(Clone, Serialize)]
-struct DrumNote {
-    pitch: u8,
-    target: Target,
-    velocity: u8,
-    duration: Beat,
+pub(crate) struct DrumNote {
+    pub pitch: u8,
+    pub target: Target,
+    pub velocity: u8,
+    pub duration: Beat,
 }
 #[derive(Clone, Copy, Debug, Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -423,6 +410,7 @@ pub enum CaptureAction {
 #[serde(rename_all = "snake_case")]
 pub enum FileAction {
     Example,
+    Corridors,
     CollectAssets,
     New,
     Open,
@@ -531,7 +519,7 @@ struct Activity {
 }
 
 pub struct App {
-    pub feedback: crate::feedback::Feedback,
+    pub workspace: crate::workspace::Navigation,
     pub editor: Editor,
     pub view: View,
     pub row: usize,
@@ -567,7 +555,6 @@ pub struct App {
     pub preferences: Value,
     pub file_dialog: Value,
     pub chord_library: Value,
-    phrase_delivery: phrase_projection::PhraseDelivery,
     preview_cache: RefCell<Option<PreviewCache>>,
     expanded_selection: Vec<ChainSelection>,
     preview_bars: u32,
@@ -579,8 +566,6 @@ pub struct App {
     timeline_cache: RefCell<Option<TimelineCache>>,
     event_selection: Option<EventSelection>,
     clipboard: Vec<Event>,
-    ui_inputs: VecDeque<UiInput>,
-    ui_sequence: u64,
     chord_preview: Value,
     edit_preview: Value,
     adjustment_gesture: Option<u64>,
@@ -601,7 +586,7 @@ pub struct App {
 impl App {
     pub fn new() -> Self {
         Self {
-            feedback: crate::feedback::Feedback::default(),
+            workspace: crate::workspace::Navigation::default(),
             editor: Editor::new(Song::default()).expect("valid empty song"),
             view: View::Song,
             row: 0,
@@ -637,7 +622,6 @@ impl App {
             preferences: Value::Null,
             file_dialog: Value::Null,
             chord_library: json!({"entries":[],"loading":false}),
-            phrase_delivery: phrase_projection::PhraseDelivery::default(),
             preview_cache: RefCell::new(None),
             expanded_selection: Vec::new(),
             preview_bars: 32,
@@ -648,8 +632,6 @@ impl App {
             timeline_cache: RefCell::new(None),
             event_selection: None,
             clipboard: Vec::new(),
-            ui_inputs: VecDeque::new(),
-            ui_sequence: 0,
             chord_preview: Value::Null,
             edit_preview: Value::Null,
             adjustment_gesture: None,
@@ -679,6 +661,7 @@ impl App {
     /// A replacement document may reuse phrase IDs from the previous Song.
     pub fn reset_document_editors(&mut self) {
         self.clear_event_selection();
+        self.workspace = crate::workspace::Navigation::default();
         self.drum_drafts.clear();
         self.roll_cursor = Beat::ZERO;
         self.roll_pitch = 60;
@@ -693,231 +676,6 @@ impl App {
         self.playback_fault = None;
         self.reset_document_editors();
         Ok(())
-    }
-    /// Queue presentation navigation until the webview acknowledges it. Full queues
-    /// reject new input rather than dropping an earlier confirm or cancel action.
-    pub fn ui_input(&mut self, action: &str) -> bool {
-        let action = match action {
-            "menu" => "menu",
-            "quick_jump" => "quick_jump",
-            "phrase_settings" => "phrase_settings",
-            "context_edit" => "context_edit",
-            "focus_controls" => "focus_controls",
-            "edit_previous" => "edit_previous",
-            "edit_next" => "edit_next",
-            "shift_up" => "shift_up",
-            "previous" => "previous",
-            "next" => "next",
-            "decrease" => "decrease",
-            "increase" => "increase",
-            "confirm" => "confirm",
-            "back" => "back",
-            _ => return false,
-        };
-        if self.ui_inputs.len() == UI_INPUT_LIMIT || self.ui_sequence == UI_SEQUENCE_LIMIT {
-            return false;
-        }
-        self.ui_sequence += 1;
-        self.ui_inputs.push_back(UiInput {
-            sequence: self.ui_sequence,
-            action,
-        });
-        true
-    }
-    fn acknowledge_ui_input(&mut self, sequence: u64) -> Result<(), DocumentError> {
-        if sequence > self.ui_sequence {
-            return Err(DocumentError::Invalid(
-                "UI acknowledgement exceeds issued input",
-            ));
-        }
-        while self
-            .ui_inputs
-            .front()
-            .is_some_and(|input| input.sequence <= sequence)
-        {
-            self.ui_inputs.pop_front();
-        }
-        Ok(())
-    }
-    pub fn queue(&mut self, value: Value) {
-        let received = std::time::Instant::now();
-        let value = match crate::webview_wire::decode(value) {
-            Ok(value) => value,
-            Err(error) => {
-                self.status = format!("Invalid action: {error}");
-                return;
-            }
-        };
-        if self.receive_phrase_delivery(&value) {
-            return;
-        }
-        if value.get("kind").and_then(Value::as_str) == Some("feedback_painted") {
-            match serde_json::from_value(value) {
-                Ok(ack) => self.feedback.acknowledge(ack),
-                Err(_) => self
-                    .feedback
-                    .reject_pending("Invalid paint acknowledgement"),
-            }
-            return;
-        }
-        let queued = self.requests.len();
-        let has_extra_fields = value.as_object().is_some_and(|fields| fields.len() > 1);
-        match serde_json::from_value(value) {
-            Ok(request)
-                if has_extra_fields
-                    && matches!(
-                        request,
-                        Request::Confirm
-                            | Request::Back
-                            | Request::Clear
-                            | Request::Undo
-                            | Request::Redo
-                            | Request::Play
-                            | Request::Stop
-                            | Request::Example
-                            | Request::ResetSharedChoice
-                            | Request::SynthSettings
-                    ) =>
-            {
-                // Serde accepts extra fields on internally tagged unit variants.
-                self.status = "Invalid action: unexpected field".into();
-            }
-            Ok(request) => self.requests.push(request),
-            Err(error) => self.status = format!("Invalid action: {error}"),
-        }
-        self.measure_feedback_input(queued, crate::feedback::Origin::Webview, received);
-    }
-    /// Append a presentation fence after the actual request. Playback ticks and
-    /// projections cannot acknowledge an action before its reducer work finishes.
-    pub fn measure_feedback_input(
-        &mut self,
-        queued_before: usize,
-        origin: crate::feedback::Origin,
-        received: std::time::Instant,
-    ) {
-        if !self.feedback.enabled() || self.requests.len() != queued_before + 1 {
-            return;
-        }
-        let measured = if self.feedback.surface() == crate::feedback::Surface::DrumEdit {
-            matches!(
-                self.requests.last(),
-                Some(
-                    Request::Confirm
-                        | Request::Clear
-                        | Request::Undo
-                        | Request::Redo
-                        | Request::DrumToggle { .. }
-                )
-            )
-        } else if self.feedback.surface() == crate::feedback::Surface::PianoEdit {
-            matches!(
-                self.requests.last(),
-                Some(
-                    Request::Undo
-                        | Request::Redo
-                        | Request::SelectionEdit { .. }
-                        | Request::Edit { .. }
-                        | Request::PianoControl {
-                            control: PianoControl::Nudge { .. }
-                                | PianoControl::Resize { .. }
-                                | PianoControl::Adjust { .. }
-                        }
-                )
-            )
-        } else if self.feedback.surface() == crate::feedback::Surface::PianoSelection {
-            matches!(
-                self.requests.last(),
-                Some(Request::Confirm | Request::SelectEvents { .. })
-            )
-        } else {
-            matches!(
-                self.requests.last(),
-                Some(
-                    Request::Focus { .. }
-                        | Request::Move { .. }
-                        | Request::Adjust { .. }
-                        | Request::PianoControl {
-                            control: PianoControl::Navigate { .. } | PianoControl::Cursor { .. }
-                        }
-                )
-            )
-        };
-        if !measured {
-            return;
-        }
-        if let Some(before) = self.feedback_state() {
-            if let Some(sequence) = self.feedback.begin(before, origin, received) {
-                self.requests.push(Request::FeedbackReady { sequence });
-            }
-        }
-    }
-    pub fn feedback_state(&self) -> Option<crate::feedback::PaintState> {
-        if self.text_entry {
-            return None;
-        }
-        if matches!(self.view, View::Expanded | View::Minimap) {
-            return Some(crate::feedback::PaintState {
-                view: serde_json::to_value(self.view).ok()?.as_str()?.to_owned(),
-                revision: self.editor.revision(),
-                playing: self.playing,
-                focus: self.timeline_feedback_focus()?,
-            });
-        }
-        if !matches!(self.view, View::Song | View::Chain | View::Phrase) {
-            return None;
-        }
-        if self.is_piano_roll() {
-            let focus = if self.feedback.surface() == crate::feedback::Surface::PianoEdit {
-                self.piano_edit_feedback_focus()?
-            } else if self.feedback.surface() == crate::feedback::Surface::PianoSelection {
-                let events = self.selected_event_ids();
-                if events.len() > 1 {
-                    return None;
-                }
-                crate::feedback::Focus::PianoSelection {
-                    phrase: self.selected_phrase()?.0,
-                    at: self.roll_cursor,
-                    pitch: self.roll_pitch,
-                    selected: events.first().copied(),
-                }
-            } else {
-                crate::feedback::Focus::Piano {
-                    phrase: self.selected_phrase()?.0,
-                    at: self.roll_cursor,
-                    pitch: self.roll_pitch,
-                }
-            };
-            return Some(crate::feedback::PaintState {
-                view: "phrase".into(),
-                revision: self.editor.revision(),
-                playing: self.playing,
-                focus,
-            });
-        }
-        if self.is_drum() {
-            return Some(crate::feedback::PaintState {
-                view: "phrase".into(),
-                revision: self.editor.revision(),
-                playing: self.playing,
-                focus: self.drum_feedback_focus()?,
-            });
-        }
-        let (_, _, columns, rows) = self.grid();
-        let column = columns.get(self.column)?;
-        let value = rows
-            .values
-            .get(self.row.checked_sub(rows.start)?)?
-            .get(self.column)?;
-        Some(crate::feedback::PaintState {
-            view: serde_json::to_value(self.view).ok()?.as_str()?.to_owned(),
-            revision: self.editor.revision(),
-            focus: crate::feedback::Focus::Grid {
-                row: self.row,
-                column: self.column,
-                label: format!("{column}, row {}: {value}", self.row + 1),
-            },
-            playing: self.playing,
-        })
     }
     pub fn command(&mut self, command: Command) -> Result<(), DocumentError> {
         self.command_at(self.editor.revision(), command)
@@ -957,16 +715,9 @@ impl App {
         // between held-repeat ticks and must not split an edit gesture.
         let end_gesture = !matches!(
             request,
-            Request::AdjustGesture { .. }
-                | Request::PianoGesture { .. }
-                | Request::UiAck { .. }
-                | Request::FeedbackReady { .. }
+            Request::AdjustGesture { .. } | Request::PianoGesture { .. }
         );
         match request {
-            Request::FeedbackReady { sequence } => {
-                let state = self.feedback_state();
-                self.feedback.processed(sequence, state);
-            }
             Request::View { view } => self.open_view(view),
             Request::PianoControl { control } => self.piano_control(control)?,
             Request::PianoGesture { control, gesture } => {
@@ -976,7 +727,18 @@ impl App {
                     ));
                 }
                 self.adjustment_gesture = Some(gesture);
-                let result = self.piano_control(control);
+                let result = if self.is_piano_roll()
+                    && self.selected_event_ids().is_empty()
+                    && matches!(
+                        control,
+                        PianoControl::Nudge { delta }
+                            | PianoControl::Resize { delta }
+                            | PianoControl::Adjust { delta } if delta != 0
+                    ) {
+                    self.piano_confirm()
+                } else {
+                    self.piano_control(control)
+                };
                 self.adjustment_gesture = None;
                 result?;
             }
@@ -1108,7 +870,6 @@ impl App {
                     self.shift_held = false;
                 }
             }
-            Request::UiAck { sequence } => self.acknowledge_ui_input(sequence)?,
             Request::AppendPhrase { phrase } => self.append_phrase(phrase)?,
             Request::AssignPhrase { row, phrase } => self.assign_phrase(row, phrase)?,
             Request::AssignChain { track, slot, chain } => self.assign_chain(track, slot, chain)?,
@@ -1522,8 +1283,15 @@ impl App {
         if delta == 0 {
             return Ok(());
         }
+        if self.view == View::Song {
+            return self.adjust_chain_reference(delta);
+        }
         if self.view == View::Chain {
-            return self.adjust_repeats(delta);
+            return if self.column == 0 {
+                self.adjust_phrase_reference(delta)
+            } else {
+                self.adjust_repeats(delta)
+            };
         }
         if self.view != View::Phrase {
             return Ok(());
@@ -1689,7 +1457,7 @@ impl App {
             commands.push(Command::PutPhrase {
                 id,
                 phrase: Phrase {
-                    name: format!("Phrase {}", id.get()),
+                    name: format!("Phrase {:02X}", self.editor.song().phrases.len()),
                     ..Phrase::default()
                 },
             });
@@ -1855,6 +1623,7 @@ impl App {
     pub fn projection(&self) -> Value {
         self.build_projection(true)
     }
+    #[cfg(test)]
     fn build_projection(&self, include_phrase: bool) -> Value {
         let song = self.editor.song();
         let generator_preview = self.generator_preview();
@@ -1879,12 +1648,11 @@ impl App {
         projection.as_object_mut().expect("projection is an object").extend(
             json!({"rowStart":rows.start,"rowCount":rows.total,"rowPageSize":grid::PAGE_ROWS,
                 "timeline":self.timeline_projection(),"timelineFocus":self.timeline_focus,"timelineRow":self.timeline_row,"timelineRowAt":self.timeline_row_at,"expandedSelection":self.expanded_selection,"previewBars":self.preview_bars,
-                "selectedEvents":self.selected_event_ids(),"clipboardCount":self.clipboard.len(),"uiInputs":self.ui_inputs,"controlsFocused":self.controls_focused,
+                "selectedEvents":self.selected_event_ids(),"clipboardCount":self.clipboard.len(),"controlsFocused":self.controls_focused,
                 "playOccurrence":self.play_occurrence,"playPhraseBeat":self.play_phrase_beat})
                 .as_object().expect("presentation fields are an object").clone(),
         );
         projection["chordBank"] = self.chord_bank_projection();
-        projection["feedback"] = self.feedback.projection();
         projection["chordLibrary"] = self.chord_library.clone();
         projection["playHeads"] = json!(self.play_heads);
         projection["timelinePlayheads"] = self.timeline_playheads();
@@ -2078,6 +1846,7 @@ impl App {
             })
             .unwrap_or_default()
     }
+    #[cfg(test)]
     fn timeline_projection(&self) -> Value {
         if !matches!(self.view, View::Expanded | View::Minimap) {
             return Value::Null;
@@ -2222,7 +1991,7 @@ impl App {
                 lane.name = format!(
                     "{:02} · CHAIN {} / {}",
                     index + 1,
-                    usage.chain.get(),
+                    grid::definition_label(&song.chains, &usage.chain),
                     song.chains[&usage.chain].name
                 );
                 let mut at = Beat::ZERO;
@@ -2538,6 +2307,7 @@ impl App {
             .unwrap_or(&self.editor.song().key);
         default_bank(scale)
     }
+    #[cfg(test)]
     fn chord_bank_projection(&self) -> Value {
         let scale = self
             .selected_phrase()
@@ -3454,114 +3224,6 @@ mod timeline_tests {
     }
 
     #[test]
-    fn expanded_horizontal_navigation_uses_exact_time_and_feedback_matches_source() {
-        let mut app = two_lanes();
-        app.apply(Request::View {
-            view: View::Expanded,
-        })
-        .unwrap();
-        let timeline = app.timeline().unwrap();
-        let span = &timeline.lanes[0].spans[0];
-        app.locate(
-            SourceLocation {
-                occurrence: span.occurrence,
-                start: span.start,
-                row: 1,
-                row_at: None,
-            },
-            View::Expanded,
-        )
-        .unwrap();
-        app.apply(Request::Move {
-            horizontal: 1,
-            vertical: 0,
-        })
-        .unwrap();
-        assert_eq!(app.track, 1);
-        assert_eq!(app.timeline_row, 1);
-        assert!(matches!(app.feedback_state().unwrap().focus,
-            crate::feedback::Focus::Timeline { row: Some(1), at: Some(at), cells, .. }
-            if at == Beat::new(1, 2).unwrap() && cells.len() == 6));
-        app.apply(Request::View {
-            view: View::Minimap,
-        })
-        .unwrap();
-        assert!(matches!(app.feedback_state().unwrap().focus,
-            crate::feedback::Focus::Timeline { row: None, at: None, cells, .. } if cells.is_empty()));
-        app.text_entry = true;
-        assert!(app.feedback_state().is_none());
-    }
-
-    #[test]
-    fn expanded_offgrid_rows_keep_distinct_exact_focus_and_source_identity() {
-        let mut app = two_lanes();
-        app.apply(Request::View {
-            view: View::Expanded,
-        })
-        .unwrap();
-        let timeline = app.timeline().unwrap();
-        let span = &timeline.lanes[0].spans[0];
-        let occurrence = span.occurrence;
-        let id = span.phrase;
-        let event = Event::note(
-            EventId::new(app.editor.song().next_identity().unwrap()).unwrap(),
-            Beat::new(1, 12).unwrap(),
-            Target::Instrument {
-                id: InstrumentId::new(17).unwrap(),
-                channel: Channel::new(1).unwrap(),
-            },
-            Note::new(60, 88, Beat::new(1, 8).unwrap()).unwrap(),
-        );
-        app.command(Command::PutEvent { phrase: id, event })
-            .unwrap();
-        app.locate(
-            SourceLocation {
-                occurrence,
-                start: Beat::ZERO,
-                row: 0,
-                row_at: None,
-            },
-            View::Expanded,
-        )
-        .unwrap();
-        let song = app.editor.song().clone();
-        let revision = app.editor.revision();
-        app.apply(Request::Move {
-            horizontal: 0,
-            vertical: 1,
-        })
-        .unwrap();
-        assert_eq!(app.timeline_row, 0);
-        assert_eq!(app.timeline_row_at, Some(Beat::new(1, 12).unwrap()));
-        assert!(matches!(app.feedback_state().unwrap().focus,
-            crate::feedback::Focus::Timeline { row: Some(0), at: Some(at), .. } if at == Beat::new(1, 12).unwrap()));
-        app.apply(Request::Move {
-            horizontal: 0,
-            vertical: 1,
-        })
-        .unwrap();
-        assert_eq!(app.timeline_row, 1);
-        assert_eq!(app.timeline_row_at, Some(Beat::new(1, 3).unwrap()));
-        app.apply(Request::Move {
-            horizontal: 0,
-            vertical: -1,
-        })
-        .unwrap();
-        assert_eq!(app.timeline_row_at, Some(Beat::new(1, 12).unwrap()));
-        let invalid = Request::Locate {
-            occurrence,
-            at: Beat::ZERO,
-            row: 0,
-            row_at: Some(Beat::new(1, 13).unwrap()),
-            view: View::Expanded,
-        };
-        assert!(app.apply(invalid).is_err());
-        assert_eq!(app.timeline_row_at, Some(Beat::new(1, 12).unwrap()));
-        assert_eq!(app.editor.song(), &song);
-        assert_eq!(app.editor.revision(), revision);
-    }
-
-    #[test]
     fn expanded_source_open_preserves_exact_offgrid_time_in_repeated_piano_phrase() {
         let mut app = two_lanes();
         app.apply(Request::View {
@@ -3804,113 +3466,6 @@ mod timeline_tests {
 #[cfg(test)]
 mod materialization_tests {
     use super::*;
-
-    fn reduce_queued(app: &mut App) {
-        for request in std::mem::take(&mut app.requests) {
-            app.apply(request).unwrap();
-        }
-    }
-
-    #[test]
-    fn piano_selection_feedback_cycles_exact_overlaps_without_source_edits() {
-        let mut app = phrase_app(PhraseForm::PianoRoll);
-        let (phrase, source) = app.selected_phrase().unwrap();
-        let mut source = source.clone();
-        source.events = [9_007_199_254_740_993, 9_007_199_254_740_994]
-            .map(|id| {
-                Event::note(
-                    EventId::new(id).unwrap(),
-                    Beat::ZERO,
-                    target(),
-                    Note::new(60, 88, Beat::ONE).unwrap(),
-                )
-            })
-            .to_vec();
-        app.command(Command::PutPhrase {
-            id: phrase,
-            phrase: source.clone(),
-        })
-        .unwrap();
-        let revision = app.editor.revision();
-        app.feedback
-            .enable(crate::feedback::Surface::PianoSelection);
-        for event in source.events.iter().cycle().take(4) {
-            app.queue(json!({"kind":"confirm"}));
-            assert!(app.feedback.projection()["pending"].is_null());
-            reduce_queued(&mut app);
-            let pending = app.feedback.projection()["pending"].clone();
-            assert_eq!(pending["state"]["focus"]["kind"], "piano_selection");
-            assert_eq!(pending["state"]["focus"]["selected"], json!(event.id));
-            assert_eq!(app.editor.revision(), revision);
-            app.queue(crate::webview_wire::encode(json!({"kind":"feedback_painted","sequence":pending["sequence"],"state":pending["state"],
-                "bounds":[100,100,36,20],"viewport":[1280,800]})));
-        }
-        assert_eq!(app.feedback.projection()["samples"], 4);
-        app.apply(Request::Move {
-            horizontal: 8,
-            vertical: 0,
-        })
-        .unwrap();
-        app.queue(json!({"kind":"confirm"}));
-        for request in std::mem::take(&mut app.requests) {
-            app.apply(request).unwrap();
-        }
-        assert_eq!(
-            app.feedback.projection()["failures"],
-            1,
-            "insertion cannot satisfy a selection-only gate"
-        );
-    }
-
-    #[test]
-    fn piano_feedback_fence_waits_for_cursor_reducer_and_does_not_dirty_song() {
-        let mut app = phrase_app(PhraseForm::PianoRoll);
-        app.feedback.enable(crate::feedback::Surface::Piano);
-        let baseline = app.editor.song().clone();
-        let revision = app.editor.revision();
-        app.queue(json!({"kind":"piano_control","control":{"kind":"navigate","horizontal":1,"vertical":-1}}));
-        assert!(app.feedback.projection()["pending"].is_null());
-        assert_eq!(app.requests.len(), 2);
-        for request in std::mem::take(&mut app.requests) {
-            app.apply(request).unwrap();
-        }
-        let state = &app.feedback.projection()["pending"]["state"];
-        assert_eq!(state["focus"]["kind"], "piano");
-        assert_eq!(state["focus"]["pitch"], 61);
-        assert_eq!(state["focus"]["at"], json!(app.roll_grid));
-        assert_eq!(app.editor.song(), &baseline);
-        assert_eq!(app.editor.revision(), revision);
-    }
-
-    #[test]
-    fn webview_phrase_rename_preserves_large_event_identity_and_exact_timing() {
-        let mut app = phrase_app(PhraseForm::PianoRoll);
-        let (id, source) = app.selected_phrase().unwrap();
-        let mut phrase = source.clone();
-        let event = Event {
-            id: EventId::new(9_007_199_254_740_993).unwrap(),
-            at: Beat::new(9_007_199_254_740_993, 36_028_797_018_963_968).unwrap(),
-            target: target(),
-            note: Some(Note::new(60, 88, Beat::new(1, 4).unwrap()).unwrap()),
-            controls: vec![],
-            fx: [None, None, None],
-        };
-        phrase.events.push(event.clone());
-        app.command(Command::PutPhrase { id, phrase }).unwrap();
-        let mut wire = crate::webview_wire::encode(app.projection());
-        wire["phrase"]["value"]["name"] = json!("Renamed only");
-        app.queue(json!({"kind":"edit","revision":wire["revision"],
-            "command":{"kind":"put_phrase","id":wire["phrase"]["id"],"phrase":wire["phrase"]["value"]}}));
-        let request = app.requests.pop().expect("exact request queued");
-        app.apply(request).unwrap();
-        let (_, renamed) = app.selected_phrase().unwrap();
-        assert_eq!(renamed.name, "Renamed only");
-        assert_eq!(renamed.events, vec![event]);
-        app.queue(json!({"kind":"start_at","scope":"phrase",
-            "at":{"numerator":9_007_199_254_740_992_u64,"denominator":36_028_797_018_963_968_u64}}));
-        assert!(app.requests.is_empty());
-        assert!(app.status.contains("Unsafe numeric input"));
-    }
 
     fn phrase_app(form: PhraseForm) -> App {
         let mut app = App::new();
@@ -4670,66 +4225,6 @@ mod selection_tests {
 #[cfg(test)]
 mod ui_input_tests {
     use super::*;
-
-    #[test]
-    fn presentation_input_is_ordered_bounded_and_acknowledged_without_document_edits() {
-        let mut app = App::new();
-        let song = app.editor.song().clone();
-        assert!(!app.ui_input("delete_document"));
-        for action in [
-            "menu", "previous", "next", "decrease", "increase", "confirm", "back",
-        ] {
-            assert!(app.ui_input(action));
-        }
-        let first = app.projection()["uiInputs"].clone();
-        assert_eq!(first.as_array().unwrap().len(), 7);
-        assert_eq!(first[0], json!({"sequence":1,"action":"menu"}));
-        assert_eq!(first[6], json!({"sequence":7,"action":"back"}));
-        assert_eq!(app.projection()["uiInputs"], first);
-        assert!(app.apply(Request::UiAck { sequence: 8 }).is_err());
-        assert_eq!(app.projection()["uiInputs"], first);
-        app.apply(Request::UiAck { sequence: 3 }).unwrap();
-        assert_eq!(app.projection()["uiInputs"][0]["sequence"], 4);
-        app.apply(Request::UiAck { sequence: 1 }).unwrap();
-        assert_eq!(app.ui_inputs.len(), 4);
-        while app.ui_inputs.len() < UI_INPUT_LIMIT {
-            assert!(app.ui_input("next"));
-        }
-        let last = app.ui_sequence;
-        assert!(!app.ui_input("confirm"));
-        assert_eq!(app.ui_sequence, last);
-        assert_eq!(app.ui_inputs.front().unwrap().sequence, 4);
-        app.apply(Request::UiAck { sequence: last }).unwrap();
-        assert!(app.ui_inputs.is_empty());
-        assert!(app.ui_input("confirm"));
-        assert_eq!(app.ui_sequence, last + 1);
-        assert_eq!(app.editor.song(), &song);
-        assert_eq!(app.editor.revision(), 0);
-        assert!(!app.editor.can_undo());
-    }
-
-    #[test]
-    fn presentation_sequence_cannot_wrap_or_exceed_javascript_integer_precision() {
-        let mut app = App::new();
-        app.ui_sequence = UI_SEQUENCE_LIMIT - 1;
-        assert!(app.ui_input("back"));
-        assert_eq!(app.ui_inputs[0].sequence, UI_SEQUENCE_LIMIT);
-        app.apply(Request::UiAck {
-            sequence: UI_SEQUENCE_LIMIT,
-        })
-        .unwrap();
-        assert!(!app.ui_input("menu"));
-        assert!(app.ui_inputs.is_empty());
-        app.queue(json!({"kind":"ui_ack","sequence":UI_SEQUENCE_LIMIT}));
-        assert!(matches!(
-            app.requests.pop(),
-            Some(Request::UiAck {
-                sequence: UI_SEQUENCE_LIMIT
-            })
-        ));
-        app.queue(json!({"kind":"ui_ack","sequence":-1}));
-        assert!(app.requests.is_empty());
-    }
 
     #[test]
     fn modal_entry_retires_held_composition_modifiers() {

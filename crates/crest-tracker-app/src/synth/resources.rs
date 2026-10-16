@@ -510,7 +510,9 @@ mod tests {
             crate::persistence::Loaded::Resources { error, .. } => {
                 panic!("Song resources could not load: {error}")
             }
-            crate::persistence::Loaded::Synth(_) => panic!("Song worker returned a Synth document"),
+            crate::persistence::Loaded::Synth(_) | crate::persistence::Loaded::Imported(_) => {
+                panic!("Song worker returned a Synth document")
+            }
         }
     }
 

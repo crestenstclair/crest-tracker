@@ -1,0 +1,329 @@
+{
+  "schema_version": 1,
+  "profiler": {
+    "name": "samply",
+    "version": "0.13.1",
+    "rate_hz": 1000
+  },
+  "cases": [
+    {
+      "id": "stress.braids",
+      "group": "headless",
+      "kind": "test",
+      "target": "performance_suite",
+      "args": [
+        "production_performance_matrix",
+        "--exact",
+        "--ignored",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "env": {
+        "CREST_PERFORMANCE_GROUP": "braids"
+      },
+      "matrix": true,
+      "timeout_seconds": 180,
+      "profile_iterations": 1,
+      "required_markers": [
+        "CREST_PERFORMANCE_REPORT"
+      ]
+    },
+    {
+      "id": "stress.scale",
+      "group": "headless",
+      "kind": "test",
+      "target": "performance_suite",
+      "args": [
+        "production_performance_matrix",
+        "--exact",
+        "--ignored",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "env": {
+        "CREST_PERFORMANCE_GROUP": "scale"
+      },
+      "matrix": true,
+      "timeout_seconds": 180,
+      "profile_iterations": 1,
+      "required_markers": [
+        "CREST_PERFORMANCE_REPORT"
+      ]
+    },
+    {
+      "id": "stress.mixed",
+      "group": "headless",
+      "kind": "test",
+      "target": "performance_suite",
+      "args": [
+        "production_performance_matrix",
+        "--exact",
+        "--ignored",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "env": {
+        "CREST_PERFORMANCE_GROUP": "mixed"
+      },
+      "matrix": true,
+      "timeout_seconds": 180,
+      "profile_iterations": 1,
+      "required_markers": [
+        "CREST_PERFORMANCE_REPORT"
+      ]
+    },
+    {
+      "id": "stress.control",
+      "group": "headless",
+      "kind": "test",
+      "target": "performance_suite",
+      "args": [
+        "production_performance_matrix",
+        "--exact",
+        "--ignored",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "env": {
+        "CREST_PERFORMANCE_GROUP": "control"
+      },
+      "matrix": true,
+      "timeout_seconds": 180,
+      "profile_iterations": 2,
+      "required_markers": [
+        "CREST_PERFORMANCE_REPORT"
+      ]
+    },
+    {
+      "id": "stress.graph",
+      "group": "headless",
+      "kind": "test",
+      "target": "performance_suite",
+      "args": [
+        "production_performance_matrix",
+        "--exact",
+        "--ignored",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "env": {
+        "CREST_PERFORMANCE_GROUP": "graph"
+      },
+      "matrix": true,
+      "timeout_seconds": 180,
+      "profile_iterations": 8,
+      "required_markers": [
+        "CREST_PERFORMANCE_REPORT"
+      ]
+    },
+    {
+      "id": "stress.concurrent",
+      "group": "headless",
+      "kind": "test",
+      "target": "performance_suite",
+      "args": [
+        "production_performance_matrix",
+        "--exact",
+        "--ignored",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "env": {
+        "CREST_PERFORMANCE_GROUP": "concurrent"
+      },
+      "matrix": true,
+      "timeout_seconds": 180,
+      "profile_iterations": 1,
+      "required_markers": [
+        "CREST_PERFORMANCE_REPORT"
+      ]
+    },
+    {
+      "id": "scene.exhaustive",
+      "group": "headless",
+      "kind": "bin",
+      "target": "crest-synth",
+      "args": [
+        "--smoke",
+        "--observe",
+        "--demo-scene"
+      ],
+      "timeout_seconds": 180,
+      "profile_iterations": 1,
+      "required_markers": [
+        "CREST_EVENT_LOG",
+        "CREST_STATE_TREE",
+        "CREST_OBSERVATION"
+      ]
+    },
+    {
+      "id": "scene.effects",
+      "group": "headless",
+      "kind": "test",
+      "target": "effects_and_buses",
+      "args": [
+        "effects_and_buses_scene_completes_with_measured_topology_and_responsiveness",
+        "--exact",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "timeout_seconds": 180,
+      "profile_iterations": 3,
+      "required_artifacts": [
+        "live-demo.json"
+      ]
+    },
+    {
+      "id": "scene.assets",
+      "group": "headless",
+      "kind": "test",
+      "target": "phase7_live_scene",
+      "args": [
+        "phase7_headless_scene_correlates_worker_renderer_projection_and_lossless_report",
+        "--exact",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "timeout_seconds": 180,
+      "profile_iterations": 3,
+      "required_artifacts": [
+        "live-demo.json"
+      ]
+    },
+    {
+      "id": "scene.patch-editor",
+      "group": "headless",
+      "kind": "test",
+      "target": "functional_patch_editor",
+      "args": [
+        "functional_patch_editor_acceptance",
+        "--exact",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "timeout_seconds": 180,
+      "profile_iterations": 2,
+      "required_markers": [
+        "CREST_FUNCTIONAL_PATCH_EDITOR_OBSERVATION"
+      ]
+    },
+    {
+      "id": "assets.soundfont",
+      "group": "headless",
+      "kind": "test",
+      "target": "soundfont_file_loading",
+      "args": [
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "timeout_seconds": 180,
+      "profile_iterations": 3
+    },
+    {
+      "id": "controls.navigation",
+      "group": "headless",
+      "kind": "test",
+      "target": "page_navigation",
+      "args": [
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "timeout_seconds": 180,
+      "profile_iterations": 3
+    },
+    {
+      "id": "runtime.contracts",
+      "group": "headless",
+      "kind": "test",
+      "target": "production_runtime_contracts",
+      "args": [
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "timeout_seconds": 180,
+      "profile_iterations": 3
+    },
+    {
+      "id": "native.webview",
+      "group": "native",
+      "kind": "test",
+      "target": "webview_projection_shell",
+      "args": [
+        "--nocapture"
+      ],
+      "env": {
+        "CREST_WEBVIEW_TESTS": "1",
+        "CREST_WEBVIEW_PERFORMANCE_WITNESS": "1"
+      },
+      "repetitions": 1,
+      "timeout_seconds": 300,
+      "profile_iterations": 1,
+      "required_markers": [
+        "CREST_WEBVIEW_NFR001",
+        "CREST_WEBVIEW_NFR002",
+        "CREST_WEBVIEW_PERFORMANCE_WITNESS"
+      ],
+      "custom_harness": true
+    },
+    {
+      "id": "physical.effects",
+      "group": "physical",
+      "kind": "bin",
+      "target": "crest-synth",
+      "args": [
+        "--demo-live-effects-and-buses"
+      ],
+      "repetitions": 1,
+      "timeout_seconds": 300,
+      "profile_iterations": 1,
+      "required_markers": [
+        "CREST_EFFECTS_AND_BUSES_LIVE_OBSERVATION"
+      ]
+    },
+    {
+      "id": "physical.assets",
+      "group": "physical",
+      "kind": "bin",
+      "target": "crest-synth",
+      "args": [
+        "--demo-live-detail-and-assets"
+      ],
+      "repetitions": 1,
+      "timeout_seconds": 300,
+      "profile_iterations": 1,
+      "required_markers": [
+        "CREST_DETAIL_AND_ASSETS_LIVE_OBSERVATION"
+      ]
+    },
+    {
+      "id": "physical.patch-editor",
+      "group": "physical",
+      "kind": "bin",
+      "target": "crest-synth",
+      "args": [
+        "--demo-live-patch-editor"
+      ],
+      "repetitions": 1,
+      "timeout_seconds": 300,
+      "profile_iterations": 1,
+      "required_markers": [
+        "CREST_FUNCTIONAL_PATCH_EDITOR_LIVE_OBSERVATION"
+      ]
+    },
+    {
+      "id": "physical.mixer",
+      "group": "physical",
+      "kind": "bin",
+      "target": "crest-synth",
+      "args": [
+        "--demo-live-sixteen-track-mixer-routing"
+      ],
+      "repetitions": 1,
+      "timeout_seconds": 300,
+      "profile_iterations": 1,
+      "required_markers": [
+        "CREST_SIXTEEN_TRACK_MIXER_ROUTING_LIVE_OBSERVATION"
+      ]
+    }
+  ]
+}

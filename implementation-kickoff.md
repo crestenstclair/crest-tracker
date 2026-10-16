@@ -1,3 +1,5 @@
+> Historical kickoff. The current repository layout and recovery workflow are in [README.md](README.md) and [implementation-plan.md](implementation-plan.md). The pinned sibling dependency was superseded by the user-authorized in-repository fork. Product requirements below remain applicable.
+
 # Implementation kickoff brief
 
 Implementation is already underway under the user’s autonomous execution authorization. Start with README.md, current source/tests and both repository diffs; do not recreate the workspace or re-ask permission to implement. The original brief below remains the target, not a claim that work has not started.

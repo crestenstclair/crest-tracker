@@ -1,6 +1,6 @@
 mod chord_library;
 mod clock_runtime;
-pub(crate) mod controller;
+pub(crate) mod corridors;
 mod demo;
 mod expression;
 mod external_expression;
@@ -13,6 +13,7 @@ mod midi_controls;
 #[cfg(test)]
 mod mpe_tests;
 pub(crate) mod resources;
+mod scene;
 mod transport;
 #[cfg(test)]
 mod witness;
@@ -23,17 +24,15 @@ use crate::recovery::{RecoverySnapshot, RecoveryWorker};
 use crate::app::{App, CaptureAction, FileAction, Request, SynthPage, TransportScope, View};
 use crate::persistence::{atomic_write, Document, LoadWorker, Loaded, SaveMode, SaveWorker};
 use crest_synth::adapter::lock_free_audio_boundary::LockFreeControlHandle;
-use crest_synth::control::{ControllerBindings, SemanticAction, SessionCommand};
+use crest_synth::control::{SemanticAction, SessionCommand};
 use crest_synth::kernel::midi_message::{MidiMessage, MidiMessageKind};
 use crest_synth::kernel::{MidiChannel, PatchId};
-use crest_synth::shell::hosted_application::{ApplicationHost, HostClock, HostControllerInput};
+use crest_synth::shell::hosted_application::{ApplicationHost, HostClock};
 use crest_synth::shell::hosted_synth::HostedSynthControl;
 use crest_synth::shell::standalone_application::{production_application, ApplicationConfig};
-use crest_synth::shell::webview::host_presentation::{HostPage, HostPresentation, HostView};
+use crest_synth::shell::webview::host_presentation::HostPresentation;
 use crest_synth::shell::webview::TauriWebviewWindow;
-use crest_synth::shell::{
-    SessionDocumentMarker, SessionDocumentProjection, WindowInput, WindowInputKind, WindowKey,
-};
+use crest_synth::shell::{SessionDocumentMarker, SessionDocumentProjection};
 use crest_synth::synth::MidiVoiceId;
 use crest_tracker::composition::*;
 #[cfg(test)]
@@ -152,86 +151,25 @@ pub(crate) fn write_inventory() -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
-pub fn run(mut app: App) -> Result<(), Box<dyn std::error::Error>> {
-    let report = std::env::var_os("CREST_TRACKER_FEEDBACK_REPORT")
-        .map(|path| {
-            std::fs::OpenOptions::new()
-                .write(true)
-                .create_new(true)
-                .open(path)
-        })
-        .transpose()?;
-    if report.is_some() {
-        let surface = match std::env::var("CREST_TRACKER_FEEDBACK_SURFACE").as_deref() {
-            Ok("piano") => crate::feedback::Surface::Piano,
-            Ok("piano_selection") => crate::feedback::Surface::PianoSelection,
-            Ok("piano_edit") => crate::feedback::Surface::PianoEdit,
-            Ok("drum") => crate::feedback::Surface::Drum,
-            Ok("drum_edit") => crate::feedback::Surface::DrumEdit,
-            Ok("timeline") => crate::feedback::Surface::Timeline,
-            Ok("grid") | Err(_) => crate::feedback::Surface::Grid,
-            Ok(_) => {
-                return Err(
-                    "Feedback surface must be grid, piano, piano_selection, piano_edit, drum, drum_edit or timeline"
-                        .into(),
-                )
-            }
-        };
-        app.feedback.enable(surface);
-    }
+pub fn run(app: App) -> Result<(), Box<dyn std::error::Error>> {
     let app = Rc::new(RefCell::new(app));
     let runtime = Runtime::new(Rc::clone(&app))?;
-    let controller = Rc::clone(&runtime.controller);
     let projection = Rc::clone(&app);
-    let input = Rc::clone(&app);
     let events = Rc::clone(&app);
     let presentation = HostPresentation {
-        page: HostPage {
-            markup: include_str!("../../../webview-page/host.html"),
-            stylesheet: include_str!("../../../webview-page/host.css"),
-            script: concat!(
-                include_str!("../../../webview-page/wire-values.js"),
-                "\n",
-                include_str!("../../../webview-page/time-values.js"),
-                "\n",
-                include_str!("../../../webview-page/edit-values.js"),
-                "\n",
-                include_str!("../../../webview-page/phrase-view.js"),
-                "\n",
-                include_str!("../../../webview-page/projection.js"),
-                "\n",
-                include_str!("../../../webview-page/host.js"),
-            ),
-        },
-        projection: Rc::new(move || {
-            let mut app = projection.borrow_mut();
-            HostView {
-                document: crate::webview_wire::encode(app.browser_projection()),
-                synth_visible: app.view == View::Instruments,
-                text_entry: app.text_entry || app.controls_focused,
-            }
-        }),
-        input: Rc::new(move |event| {
-            let received = std::time::Instant::now();
-            let mut app = input.borrow_mut();
-            if event.kind() == WindowInputKind::FocusLost {
-                controller.borrow_mut().cancel(&mut app);
-            }
-            let queued = app.requests.len();
-            let handled = keyboard(&mut app, event);
-            app.measure_feedback_input(queued, crate::feedback::Origin::NativeKeyboard, received);
-            handled
-        }),
-        event: Rc::new(move |value| events.borrow_mut().queue(value)),
+        projection: Rc::new(move || crate::workspace::project(&projection.borrow())),
+        event: Rc::new(move |event| crate::workspace::event(&mut events.borrow_mut(), event)),
     };
     let window = TauriWebviewWindow::new("Crest Tracker").with_host(presentation);
-    let result = production_application(window, ApplicationConfig::default())
-        .and_then(|application| application.run_with_host(runtime));
-    if let Some(report) = report {
-        serde_json::to_writer_pretty(report, &app.borrow_mut().feedback.report(result.is_ok()))?;
-    }
-    result.map_err(Into::into)
+    production_application(window, ApplicationConfig::default())?
+        .run_with_host(runtime)
+        .map_err(Into::into)
 }
+
+pub fn run_demo() -> Result<(), Box<dyn std::error::Error>> {
+    scene::run()
+}
+
 struct Runtime {
     app: Rc<RefCell<App>>,
     playback: Option<Playback>,
@@ -253,7 +191,7 @@ struct Runtime {
     loading: Option<(LoadWorker, PathBuf)>,
     resource_candidate: Option<resources::repair::Candidate>,
     repairing_resource: Option<std::sync::mpsc::Receiver<Result<Document, String>>>,
-    repair_open_dirty: bool,
+    replacement_dirty: bool,
     importing: bool,
     saver: SaveWorker,
     saving: bool,
@@ -262,7 +200,6 @@ struct Runtime {
     dialog: Option<file_runtime::ActiveDialog>,
     dialog_token: u64,
     close_requested: bool,
-    controller: Rc<RefCell<controller::ControllerInput>>,
     midi_controls: midi_controls::MidiControls,
     elapsed_since_capture: std::time::Duration,
     recorder: Recorder,
@@ -337,7 +274,7 @@ impl Runtime {
             loading: None,
             resource_candidate: None,
             repairing_resource: None,
-            repair_open_dirty: false,
+            replacement_dirty: false,
             importing: false,
             saver: SaveWorker::new(),
             saving: false,
@@ -346,7 +283,6 @@ impl Runtime {
             dialog: None,
             dialog_token: 0,
             close_requested: false,
-            controller: Rc::new(RefCell::new(controller::ControllerInput::default())),
             midi_controls: midi_controls::MidiControls::default(),
             elapsed_since_capture: std::time::Duration::ZERO,
             recorder: Recorder::default(),
@@ -784,13 +720,6 @@ impl Runtime {
         clock: HostClock,
         request: Request,
     ) -> Result<(), String> {
-        if matches!(request, Request::FeedbackReady { .. }) {
-            return self
-                .app
-                .borrow_mut()
-                .apply(request)
-                .map_err(|error| error.to_string());
-        }
         if self.close_requested {
             return Err("MIDI cleanup for close is still pending".into());
         }
@@ -801,7 +730,6 @@ impl Runtime {
                     | Request::FileChoose { .. }
                     | Request::FileDecision { .. }
                     | Request::FileCancel { .. }
-                    | Request::UiAck { .. }
                     | Request::TextEntry { .. }
                     | Request::EndGesture
                     | Request::Stop
@@ -818,7 +746,6 @@ impl Runtime {
                     | Request::FileDecision { .. }
                     | Request::FileCancel { .. }
                     | Request::EndGesture
-                    | Request::UiAck { .. }
                     | Request::TextEntry { .. }
                     | Request::Stop
             )
@@ -836,12 +763,11 @@ impl Runtime {
                 self.file_decision(sound, token, &decision)
             }
             Request::FileCancel { token } => self.file_cancel(token),
-            request @ (Request::UiAck { .. } | Request::TextEntry { .. } | Request::EndGesture) => {
-                self.app
-                    .borrow_mut()
-                    .apply(request)
-                    .map_err(|v| v.to_string())
-            }
+            request @ (Request::TextEntry { .. } | Request::EndGesture) => self
+                .app
+                .borrow_mut()
+                .apply(request)
+                .map_err(|v| v.to_string()),
             Request::Play => {
                 if self.playback.is_some() {
                     self.stop(sound)
@@ -966,7 +892,6 @@ impl Runtime {
                                     | crate::app::PianoControl::Cursor { .. }
                                     | crate::app::PianoControl::Navigate { .. },
                             }
-                            | Request::UiAck { .. }
                     )
                 {
                     return Err(
@@ -1191,7 +1116,11 @@ impl Runtime {
                 self.saving = true;
                 self.app.borrow_mut().status = "SAVING".into();
             }
-            FileAction::New | FileAction::Open | FileAction::Close | FileAction::Example => {
+            FileAction::New
+            | FileAction::Open
+            | FileAction::Close
+            | FileAction::Example
+            | FileAction::Corridors => {
                 if self.saving {
                     return Err(
                         "Wait for the current save to finish before replacing this document".into(),
@@ -1215,6 +1144,11 @@ impl Runtime {
                     return Ok(false);
                 }
                 self.discard_capture_for_replacement(sound)?;
+                if matches!(action, FileAction::Corridors) {
+                    self.loading = Some((LoadWorker::corridors(), PathBuf::new()));
+                    self.app.borrow_mut().status = "IMPORTING CORRIDORS OF TIME".into();
+                    return Ok(false);
+                }
                 if matches!(action, FileAction::Close) {
                     self.flush_monitor(sound)?;
                     self.close_requested = true;
@@ -1624,7 +1558,9 @@ impl Runtime {
 
         if let Some(result) = self.loading.as_ref().and_then(|(worker, _)| worker.poll()) {
             let (_, path) = self.loading.take().expect("load was pending");
+            let fresh_import = matches!(&result, Ok(Loaded::Imported(_)));
             let (document, path, importing) = match result? {
+                Loaded::Imported(document) => (document, None, false),
                 Loaded::Song(document) => (document, Some(path), false),
                 Loaded::Resources { document, error } => {
                     let replaced = self.resource_candidate.as_ref().is_some_and(|c| c.replaced);
@@ -1647,7 +1583,7 @@ impl Runtime {
             };
             let path = if let Some(candidate) = self.resource_candidate.take() {
                 self.app.borrow_mut().resource_repair = Value::Null;
-                self.repair_open_dirty = candidate.replaced;
+                self.replacement_dirty = candidate.replaced;
                 if candidate.replaced {
                     None
                 } else {
@@ -1668,6 +1604,7 @@ impl Runtime {
                 )
                 .map_err(|v| v.to_string())?;
             self.importing = importing;
+            self.replacement_dirty |= fresh_import;
             self.pending_open = Some((document, path));
         }
 
@@ -1712,11 +1649,11 @@ impl Runtime {
                     app.column = 0;
                     app.chain_row = 0;
                     app.status = "OPENED".into();
-                    app.sound_dirty = self.repair_open_dirty;
-                    if self.repair_open_dirty {
+                    app.sound_dirty = self.replacement_dirty;
+                    if self.replacement_dirty {
                         self.saved_sound = None;
                     }
-                    self.repair_open_dirty = false;
+                    self.replacement_dirty = false;
                     drop(app);
                     if let Some(snapshot) = self.recovering.take() {
                         let mut baseline = Document::new(
@@ -1759,6 +1696,7 @@ impl Runtime {
                 Err(error) => {
                     self.pending_open = None;
                     self.importing = false;
+                    self.replacement_dirty = false;
                     self.recovering = None;
                     return Err(error.to_string());
                 }
@@ -2597,7 +2535,6 @@ impl Runtime {
 }
 impl ApplicationHost<LockFreeControlHandle> for Runtime {
     fn tick(&mut self, sound: &mut Sound<'_>, clock: HostClock) {
-        self.app.borrow_mut().feedback.expire();
         self.last_clock = Some(clock);
         let result = (|| -> Result<(), String> {
             self.initialize(sound)?;
@@ -2624,9 +2561,6 @@ impl ApplicationHost<LockFreeControlHandle> for Runtime {
                     return Err(format!("MIDI OUTPUT: {}", error.message));
                 }
             }
-            self.controller
-                .borrow_mut()
-                .advance(&mut self.app.borrow_mut(), clock.elapsed);
             let requests = std::mem::take(&mut self.app.borrow_mut().requests);
             for request in requests {
                 let previous_revision = self.app.borrow().editor.revision();
@@ -2637,7 +2571,6 @@ impl ApplicationHost<LockFreeControlHandle> for Runtime {
                 let requested = self.request(sound, clock, request);
                 let captured = self.adopt_capture_editor_revision(previous_revision);
                 if let Err(error) = requested.and(captured) {
-                    self.app.borrow_mut().feedback.reject_pending(&error);
                     self.app.borrow_mut().status = error;
                 }
             }
@@ -2736,8 +2669,14 @@ impl ApplicationHost<LockFreeControlHandle> for Runtime {
             }
         }
     }
-    fn action(&mut self, _action: SemanticAction) -> bool {
-        self.owns_input()
+    fn action(&mut self, action: SemanticAction) -> bool {
+        crate::workspace::action(&mut self.app.borrow_mut(), action)
+    }
+    fn action_handler(&self) -> Option<Rc<dyn Fn(SemanticAction) -> bool>> {
+        let app = Rc::clone(&self.app);
+        Some(Rc::new(move |action| {
+            crate::workspace::action(&mut app.borrow_mut(), action)
+        }))
     }
     fn take_close_request(&mut self) -> bool {
         if !self.close_requested {
@@ -2759,24 +2698,7 @@ impl ApplicationHost<LockFreeControlHandle> for Runtime {
     }
     fn owns_input(&self) -> bool {
         let app = self.app.borrow();
-        app.view != View::Instruments || app.text_entry || self.dialog.is_some()
-    }
-    fn controller_input(
-        &mut self,
-        input: HostControllerInput,
-        bindings: &ControllerBindings,
-    ) -> bool {
-        let mut app = self.app.borrow_mut();
-        if app.view == View::Instruments && !app.text_entry && self.dialog.is_none() {
-            return self
-                .controller
-                .borrow_mut()
-                .synth_input(&mut app, input, bindings);
-        }
-        self.controller
-            .borrow_mut()
-            .input(&mut app, input, bindings);
-        true
+        crate::workspace::owns_input(&app) || self.dialog.is_some()
     }
 }
 fn deliver(
@@ -2895,155 +2817,6 @@ fn internal_targets(sound: &Sound<'_>, app: &App, target: &Target) -> Result<Vec
     }
     Ok(patches)
 }
-fn keyboard(app: &mut App, input: WindowInput) -> bool {
-    if input.kind() == WindowInputKind::FocusLost {
-        app.edit_held = false;
-        app.shift_held = false;
-        return app.view != View::Instruments;
-    }
-    let down = input.kind() == WindowInputKind::KeyDown;
-    if input.key() == WindowKey::Digit3 && down {
-        app.requests.push(Request::View { view: View::Song });
-        return true;
-    }
-    if input.key() == WindowKey::Shift {
-        app.shift_held = down;
-    }
-    if app.view == View::Instruments && !(down && app.shift_held && input.key() == WindowKey::S) {
-        return false;
-    }
-    match input.key() {
-        WindowKey::K => app.edit_held = down,
-        WindowKey::Shift => app.shift_held = down,
-        _ if !down => {}
-        WindowKey::W => direction(app, 0, -1),
-        WindowKey::S => direction(app, 0, 1),
-        WindowKey::A => direction(app, -1, 0),
-        WindowKey::D => direction(app, 1, 0),
-        WindowKey::Return if app.view == View::Settings => {
-            app.ui_input("confirm");
-        }
-        WindowKey::Return => app.requests.push(Request::Confirm),
-        WindowKey::T => {
-            app.ui_input("menu");
-        }
-        WindowKey::Space => app.requests.push(Request::Play),
-        WindowKey::Q => back(app),
-        WindowKey::E => app.requests.push(Request::Clear),
-        WindowKey::Digit1 => app.requests.push(Request::View { view: View::Song }),
-        WindowKey::Digit2 => app.requests.push(Request::View {
-            view: View::Instruments,
-        }),
-        WindowKey::BracketLeft => app.requests.push(Request::Undo),
-        WindowKey::BracketRight => app.requests.push(Request::Redo),
-        _ => {}
-    }
-    true
-}
-fn direction(app: &mut App, horizontal: i32, vertical: i32) {
-    direction_gesture(app, horizontal, vertical, None);
-}
-fn back(app: &mut App) {
-    if app.shift_held && app.view == View::Song {
-        app.ui_input("menu");
-    } else {
-        app.requests.push(Request::Back);
-    }
-}
-fn edit_direction(app: &mut App, horizontal: i32, vertical: i32, gesture: Option<u64>) {
-    if app.is_piano_roll() && horizontal != 0 {
-        let control = crate::app::PianoControl::Nudge { delta: horizontal };
-        app.requests.push(match gesture {
-            Some(gesture) => Request::PianoGesture { control, gesture },
-            None => Request::PianoControl { control },
-        });
-    } else if vertical < 0
-        && app.view == View::Phrase
-        && (app.column != 0 || app.is_piano_roll() || app.is_drum())
-    {
-        app.ui_input("context_edit");
-    } else if app.view == View::Phrase
-        && app.column == 0
-        && !app.is_piano_roll()
-        && !app.is_drum()
-        && horizontal != 0
-    {
-        app.requests.push(Request::AdjustOctave {
-            delta: horizontal,
-            gesture,
-        });
-    } else {
-        let delta = if horizontal != 0 {
-            horizontal
-        } else {
-            -vertical
-        };
-        app.requests.push(match gesture {
-            Some(gesture) => Request::AdjustGesture { delta, gesture },
-            None => Request::Adjust { delta },
-        });
-    }
-}
-fn direction_gesture(app: &mut App, horizontal: i32, vertical: i32, gesture: Option<u64>) {
-    if app.edit_held && !app.shift_held {
-        edit_direction(app, horizontal, vertical, gesture);
-        return;
-    }
-    if app.shift_held && vertical < 0 && app.view == View::Phrase {
-        app.ui_input("phrase_settings");
-        return;
-    }
-    if app.shift_held && vertical > 0 && app.view != View::Song {
-        app.ui_input("quick_jump");
-        return;
-    }
-    if !app.shift_held && app.view == View::Settings {
-        app.ui_input(if vertical < 0 || horizontal < 0 {
-            "previous"
-        } else {
-            "next"
-        });
-        return;
-    }
-    let at_top = if app.is_drum() {
-        app.column == 0
-    } else {
-        app.row == 0
-    };
-    if !app.shift_held
-        && vertical < 0
-        && at_top
-        && !app.is_piano_roll()
-        && matches!(app.view, View::Song | View::Chain | View::Phrase)
-    {
-        if app.ui_input("focus_controls") {
-            app.controls_focused = true;
-        }
-        return;
-    }
-    let request = if app.shift_held {
-        if vertical < 0 {
-            Request::View {
-                view: View::Settings,
-            }
-        } else if horizontal < 0 {
-            Request::Back
-        } else if horizontal > 0 {
-            Request::Confirm
-        } else {
-            Request::SynthPage {
-                page: SynthPage::Mixer,
-            }
-        }
-    } else {
-        Request::Move {
-            horizontal,
-            vertical,
-        }
-    };
-    app.requests.push(request);
-}
-
 #[cfg(target_os = "macos")]
 fn host_micros() -> Result<u64, String> {
     #[repr(C)]

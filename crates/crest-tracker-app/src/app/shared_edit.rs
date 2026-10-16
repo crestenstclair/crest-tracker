@@ -50,7 +50,6 @@ impl App {
         self.shared_token = self
             .shared_token
             .checked_add(1)
-            .filter(|token| *token <= UI_SEQUENCE_LIMIT)
             .ok_or(DocumentError::Invalid("shared edit identity exhausted"))?;
         self.pending_edit = Some(PendingEdit {
             token: self.shared_token,
@@ -127,7 +126,7 @@ impl App {
         Ok(())
     }
 
-    pub(super) fn shared_edit_projection(&self) -> Value {
+    pub(crate) fn shared_edit_projection(&self) -> Value {
         self.pending_edit.as_ref().map_or(Value::Null, |pending| {
             json!({
                 "token":pending.token, "revision":pending.revision, "definition":pending.definition,
@@ -138,6 +137,7 @@ impl App {
         })
     }
 
+    #[cfg(test)]
     pub(super) fn shared_references_projection(&self) -> Value {
         let definition = if self.view == View::Chain {
             self.selected_chain().map(|(id, _)| Definition::Chain(id))

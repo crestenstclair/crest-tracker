@@ -1,8 +1,8 @@
 # Crest Tracker full implementation plan
 
-15 October 2026 · Accepted for implementation · Execution in progress; current behavior and remaining gates are in README.md
+16 October 2026 · Product scope retained; recovery now uses an in-repository Synth fork. Current behavior and remaining gates are in README.md.
 
-Build a controller-first desktop music application using Crest Synth as its working base and source dependency. All existing Synth functionality must be available in the integrated application, including its actual UI and audio rendering implementations. Deliver a complete path from an empty Song through composition, expressive recording, arrangement, sound editing, saving, reopening and performance. Tracker's composition/playback library remains strictly separate from Synth. The user confirmed full Synth reuse, the hard library boundary and dependency-based co-development after the initial plan review.
+Build a controller-first desktop music application using Crest Synth as its working base and source dependency. All existing Synth functionality must be available in the integrated application, including its actual UI and audio rendering implementations. Deliver a complete path from an empty Song through composition, expressive recording, arrangement, sound editing, saving, reopening and performance. Tracker's composition/playback library remains strictly separate from Synth. The user confirmed full Synth reuse and a hard library boundary, then authorized the in-repository fork recovery.
 
 Approval of this plan means implementing through M10, not stopping after an audible phrase or UI skeleton. M8 is the first broad usability checkpoint: the core song-making workflow should be mostly working there. M9 completes external synchronization and control-surface configuration; M10 proves and packages the result. Milestones describe dependencies and acceptance, not calendar promises.
 
@@ -34,70 +34,39 @@ At kickoff, Tracker contained product, architecture and design artifacts, with n
 
 | Responsibility | Existing evidence | Implementation decision |
 |---|---|---|
-| Canonical Synth state | [AppState](../crest-synth/src/control/app_state.rs), [AppLoop](../crest-synth/src/control/app_loop.rs) | Keep Synth edits in its reducer. Do not duplicate Patch or mixer models in Tracker. |
+| Canonical Synth state | [AppState](crates/crest-synth/src/control/app_state.rs), [AppLoop](crates/crest-synth/src/control/app_loop.rs) | Keep Synth edits in its reducer. Do not duplicate Patch or mixer models in Tracker. |
 | Direct sound targeting | AppEvent::Midi carries PatchId; AppLoop::dispatch_midi_from separately fans out channel messages | Map a Song-local installed instrument identity to a Synth PatchId. Specific-instrument targets must not accidentally use channel fanout. |
-| Audio commands | [AudioCommand](../crest-synth/src/real_time/audio_command.rs), [AudioRenderer](../crest-synth/src/real_time/audio_renderer.rs) | Add generic scheduled delivery. Current commands lack time fields and are drained before each block renders. DESIGN.md's statement about block-relative offsets is not proof that this exists. |
+| Audio commands | [AudioCommand](crates/crest-synth/src/real_time/audio_command.rs), [AudioRenderer](crates/crest-synth/src/real_time/audio_renderer.rs) | Add generic scheduled delivery. Current commands lack time fields and are drained before each block renders. DESIGN.md's statement about block-relative offsets is not proof that this exists. |
 | Graph lifecycle | Prepared graphs, graph preparation worker, structural boundary and activation acknowledgement | Reuse off-thread preparation, acknowledged activation and off-thread retirement. Never install assets from playback or a callback. |
-| Physical MIDI | [midi_device.rs](../crest-synth/src/control/midi_device.rs), [midir adapter](../crest-synth/src/adapter/midir_input_device.rs) | Reuse connection and bounded-ingress patterns. Capture needs a lossless performance path before lossy normalization and fanout. |
+| Physical MIDI | [midi_device.rs](crates/crest-synth/src/control/midi_device.rs), [midir adapter](crates/crest-synth/src/adapter/midir_input_device.rs) | Reuse connection and bounded-ingress patterns. Capture needs a lossless performance path before lossy normalization and fanout. |
 | External MIDI output | The inspected Synth adapters provide input and fixture playback, not a reusable physical output endpoint | Implement host-owned discovery, output connection, scheduling and disconnect recovery. Reuse midir where sufficient; use a native timestamped backend only where measurement requires it. |
 | MIDI normalization | MidiMessageKind lacks polyphonic key pressure; normalize_channel_message rejects it and collapses CC120/123 | Add/retain required capture messages and original values. Existing normalized playback input is not the complete recording source. |
 | MPE | Bend, channel pressure and CC message kinds exist | Per-member behavior, master controls, bend ranges, sustain and allocation require engine-specific proof. A message enum is not an MPE implementation. |
 | Temporary sends | Normal Synth control edits affect saved sound/mixer fields | Add a Synth-owned effective-control layer over saved baselines. Temporary FX must never change the saved mixer value. |
-| Saved sound state | [SavedSession](../crest-synth/src/control/saved_session.rs), schema version 4 | Keep serialization owned by Synth. Add reusable sound-definition capture/install; session capture alone is not a revisioned sound library. |
-| Save/replacement safety | [session lifecycle](../crest-synth/src/shell/session_lifecycle.rs), save and candidate workers | Reuse atomic-write and correlated-replacement patterns for one composite Song document. No competing File menus. |
+| Saved sound state | [SavedSession](crates/crest-synth/src/control/saved_session.rs), schema version 4 | Keep serialization owned by Synth. Add reusable sound-definition capture/install; session capture alone is not a revisioned sound library. |
+| Save/replacement safety | [session lifecycle](crates/crest-synth/src/shell/session_lifecycle.rs), save and candidate workers | Reuse atomic-write and correlated-replacement patterns for one composite Song document. No competing File menus. |
 | Controller and focus | SDL3 discovery, translators, controller preferences, semantic focus and native key capture | Reuse physical mapping and focus behavior. Tracker introduces semantic editing actions, not raw device branches in domain code. |
-| Presentation | [AppWindow](../crest-synth/src/shell/app_window.rs), [webview-page](../crest-synth/webview-page), semantic projections | Reuse the actual renderer, components, layout, tokens, meters, waveform/playhead display, focus and native input paths. Expose a narrow hosting seam in Synth; do not replace existing pages with Tracker approximations. |
+| Presentation | [AppWindow](crates/crest-synth/src/shell/app_window.rs), [webview-page](crates/crest-synth/webview-page), semantic projections | Reuse the actual renderer, components, layout, tokens, meters, waveform/playhead display, focus and native input paths. Expose a narrow hosting seam in Synth; do not replace existing pages with Tracker approximations. |
 | Assets and DSP | Installed registries, Sample/SoundFont browsers, preparation and bundled resources | Reuse these capabilities. Do not rebuild DSP, sample importers or SoundFont parsing. |
-| Proof tooling | [Makefile](../crest-synth/Makefile), native witnesses, performance runner and callback guards | Extend production-path witnesses. Reducer tests alone do not establish playable audio or usable screens. |
+| Proof tooling | [Makefile](crates/crest-synth/Makefile), native witnesses, performance runner and callback guards | Extend production-path witnesses. Reducer tests alone do not establish playable audio or usable screens. |
 
 Synth's DESIGN.md reports remaining visual/controller/package gaps and stress cases over callback budgets. Preserve working behavior, but measure the actual Tracker workload instead of assuming every existing path is fast enough.
 
 ## 3. Architecture and repository layout
 
-Use two packages here: a pure crest-tracker library and a crest-tracker-app desktop host. Start with modules inside these packages; create another package only when a real reuse or dependency boundary requires it.
+The recovery replaces the dependency-only shell with the complete working Synth application in this repository:
 
-    crest-tracker/
-      Cargo.toml                     workspace and reproducible dependency versions
-      crates/crest-tracker/src/
-        composition/                 Song, Chain, Phrase, references, transactions
-        time/                        exact beats, divisions, meter and tempo segments
-        harmony/                     scales, literal chords and voicing
-        playback/                    compiler, occurrence cursors, FX and ownership
-        recording/                   capture transitions, drafts and expression edits
-        application/                 commands, undo, editor state and projections
-      crates/crest-tracker-app/src/
-        host/                        composition root, lifecycle and worker coordination
-        synth/                       the only integration area importing crest-synth
-        midi/                        physical input/output, timestamps and clock
-        persistence/                 Song files, resource storage and recovery
-        shell/                       Tauri, controller input and projection transport
-      webview-page/                  new Tracker views composed with Synth-owned UI
-      tests/fixtures/                Songs, MIDI streams, traces and failure fixtures
-      scripts/                       focused validation and macOS packaging
+- `crates/crest-synth`: the Synth fork, including its original executable, renderer, controllers, native DSP, assets, licenses and tests. It has no Tracker dependency.
+- `crates/crest-tracker`: the existing pure composition, editing, playback, recording and harmony library. It has no Synth or platform dependency.
+- `crates/crest-tracker-app`: composition root, Song lifecycle, scheduling bridge and Tracker workspace reducer/projection. It depends on both libraries.
 
-The pure library must build/test without Synth, Tauri, SDL, CPAL, midir or a device. Ordinary data/serialization/math dependencies are acceptable where justified. MIDI transport encoding belongs in the host; common timed musical values remain in Tracker. Synth must build and run without Tracker.
+`make dev` runs Tracker. `make synth` runs standalone Synth. Changes to both live in one Git diff and can be committed atomically. The sibling checkout is no longer a runtime or build dependency. `crates/crest-synth/FORK.json` records the source commit and hashes of the imported working tree, including its uncommitted integration fixes.
 
-Use crest-synth as a pinned Git source dependency, with a local Cargo path override for everyday work on the sibling checkout. Both codebases stay directly editable; no package publication or release cycle is required to test a Synth change in Tracker. Preserve one maintained Synth implementation and separate repository histories. The dependency includes its native sources, UI assets and resource pipeline, not only its DSP library.
+Synth owns SDL discovery, saved physical mappings, chord/hold interpretation, native keyboard capture, the Tauri window and rendering components. Both physical input paths route semantic actions to the active owner. Tracker contributes typed workspace projections and receives validated semantic events; it supplies no second HTML page, stylesheet, JavaScript application or controller mapper. Hosted Shift+Back opens the application menu; standalone Synth keeps its original bindings.
 
-### Fast co-development across both repositories
+The host owns one Song lifecycle and musical transport. Tracker edits go through its application commands and pure Editor. Synth changes go through `AppState::apply` and `HostedSynthControl`. Neither library imports the other. Open validates the composite candidate and required Patch identities before replacing the active sound and composition.
 
-M0 establishes a small Makefile/script workflow over the existing sibling repositories. Do not introduce a dependency-management service, automatic code copying or a general multi-repository framework.
-
-| Planned command | Behavior |
-|---|---|
-| make dev | Run Tracker against the working ../crest-synth checkout through an explicit local Cargo source override. Edits to Rust, native DSP wrappers and embedded UI assets rebuild through the existing toolchain. No commit is required to try a change. |
-| make check-pair | Run the affected Synth checks and Tracker integration checks against that same local source. Report each repository's revision and dirty state. |
-| make status-pair / make diff-pair | Show branch, changes and integration revision for both repositories from the Tracker directory. Never hide unrelated user edits. |
-| make pin-synth | After a Synth commit is available, update Tracker's exact Synth revision and resolve its lockfile without the local override. Validate that the pinned source is fetchable; never publish, stage or commit automatically. |
-| make check-pinned | Build/test the committed dependency and lockfile without local overrides. CI and release use this mode so a hidden sibling edit cannot make an otherwise broken revision pass. |
-
-These commands are implemented in Makefile and scripts/develop.py. The clean pinned build remains blocked until the new Synth APIs are committed and the dependency revision is updated. Commit the Git URL and exact revision; keep machine-specific override paths out of committed configuration. Cargo's local override can change lockfile resolution: show that change, regenerate against the pinned source before committing, and never blindly restore or overwrite unrelated lockfile edits. Surface missing Git LFS resources explicitly; bootstrap and clean-build checks must materialize required assets through the existing Synth resource workflow.
-
-A cross-repository feature is one logical change with two commits: implement and test locally in both repositories; commit the Synth-owned capability; make that revision available when remote publication is authorized; update Tracker's pin/lockfile; then commit Tracker's adapter and feature. Link the commits in their descriptions. Git cannot atomically commit two repositories; standalone Synth must remain valid at the first commit and Tracker stays on its previous compatible pin until the second. A revert restores Tracker's feature and dependency pin together. Routine edits and tests never wait on this commit/publication sequence.
-
-The agent handles both repositories as part of one task, including focused tests, diffs and scoped commits when requested. The user does not need to relay changes between separate sessions. Use paired worktrees only when isolation is actually needed; never switch a user's dirty branch or sweep their work into a paired commit.
-
-The host owns one audio device, one device-routing authority, one transport clock, one File lifecycle and one active Song. It composes Tracker state with Synth state; it does not flatten them into one giant reducer. Tracker commands mutate Tracker state. Synth commands mutate Synth state through AppState::apply. Cross-owner operations use correlated preparation and commit, especially Open Song and sound revision adoption.
+The pre-recovery implementation remains at commit `0d85318cc63f63c8bce830dc2b0e5af43c0784fa`. Song format version 1 and machine preferences remain readable; no saved music or preferences are deleted. A rollback uses that commit's application without converting user files. Keep Synth assets under their inherited LFS rules and run `git lfs pull` in a new checkout before native audio/package checks.
 
 ### Hard boundary and behavior ownership
 
@@ -236,7 +205,7 @@ Each milestone ends with a runnable application or focused executable witness, e
 Dependencies: none. Maps to former Phase 0.
 
 1. Record both repository baselines. Run relevant existing Synth build, MIDI, controller, lifecycle and callback-safety checks. Distinguish pre-existing failures from regressions.
-2. Create the two-package workspace, co-development commands above and host composition root based on the working Synth application. Establish inward-dependency checks and local-versus-pinned build proof.
+2. Create the three-package workspace and host composition root based on the complete in-repository Synth fork. Establish inward-dependency checks and reproducible clean-checkout builds.
 3. Prove direct Patch targeting and channel fanout separately through AppState/AppLoop and the actual renderer. Produce rendered note-on, release and one supported control, not just queued messages.
 4. Add generic timed MIDI delivery, clock observation, bounded pending storage and sample-offset rendering in Synth. Preserve immediate callers and graph safety. Prove future retention, ordering, late-event diagnostics and epoch cancellation.
 5. Expose the native presentation seam and host the complete existing Synth workspace without duplicated product state or renderer code. Record its feature inventory and native rendering/input witnesses. Confirm host resource lookup.
@@ -244,7 +213,7 @@ Dependencies: none. Maps to former Phase 0.
 
 Establish the physical output adapter contract here, including backend timestamp support, monotonic-clock conversion, endpoint identity and disconnect behavior. Internal audio and external MIDI must consume the same musical output, with destination-specific delivery resolution.
 
-Gate: pure Tracker builds without platform/Synth dependencies; standalone Synth remains independent; the integrated base preserves its existing feature inventory and rendering; local Synth edits are exercised by Tracker without publication; a pinned build works without the override; note/release/control render through the real boundary; scheduled attacks land within one sample of intended offsets; RT guards remain clean. New Tracker capability gaps receive owned M2/M3/M6 tasks, not invisible TODOs or permission to drop existing Synth features.
+Gate: pure Tracker builds without platform/Synth dependencies; standalone Synth remains independent; the integrated base preserves its existing feature inventory and rendering; local Synth edits are exercised by Tracker without publication; a clean checkout builds from its own Synth source and materialized assets; note/release/control render through the real boundary; scheduled attacks land within one sample of intended offsets; RT guards remain clean. New Tracker capability gaps receive owned M2/M3/M6 tasks, not invisible TODOs or permission to drop existing Synth features.
 
 Artifact: verified capability matrix, baseline commands/results and one integrated executable. No full shell rewrite.
 
@@ -386,7 +355,7 @@ Artifact: working MIDI/clock Settings and synchronization fixtures.
 Dependencies: all earlier gates. Former Phase 8.
 
 1. Run bounded workload/failure proof below through production paths. Fix demonstrated regressions at their owning layer; no unrelated Synth redesign or open-ended benchmarking.
-2. Build relocatable macOS app with Synth's resource conventions. Include licensed fixtures/assets and required notices. Test outside both repositories with fresh preferences.
+2. Build relocatable macOS app with Synth's resource conventions. Include licensed fixtures/assets and required notices. Test outside the workspace with fresh preferences.
 3. Add CI for pure core, host contracts and build/package checks. Run native/hardware gates on suitable machines; unavailable evidence is not a passing skipped witness.
 4. Provide build/run/test/package commands, installation, demo Song, controller guide, recovery instructions and supported MIDI/MPE/clock profiles.
 5. Update README, architecture as-built sections and decision log. Keep one current plan and concise evidence, not competing planning systems.
@@ -414,15 +383,14 @@ Initial lookahead/buffer values are tuning starting points, not fixed product li
 
 The existing Synth baseline commands are make check, make test-midi-devices, make test-controller and make test-session-lifecycle. Audio changes also run cargo test --test phase7_callback_safety and the affected renderer/production-runtime tests. Presentation changes run the relevant existing native witness, such as make test-webview-detail-native. Use make fmt-check and make lint for touched Rust code; broaden to the full suite before release, not after every small edit.
 
-The working tree now provides paired development, test, lint, format, workload, interactive native-feedback and bundle commands through the Makefile. Native acceptance includes independent correlated grid, Piano and Drum cursor feedback witnesses (102, 104 and 100 native keyboard actions during playback, p95 31.962 ms, 31.535 ms and 27.693 ms; the latest Piano viewport run predates the revision-key cache change), observed QA procedures and the retained Synth witnesses; a separate 104-action Drum insertion/removal/Undo/Redo gate passes at p95 31.143 ms. The independent 104-action overlapping Piano selection gate passes at p95 45.906 ms with unchanged source revision, including exact full-width event IDs. A complete Tracker native automation command and the pinned clean-checkout release gate remain open. Packaging now stages a fresh signed app and verifies exact resources and system-only dynamic dependencies; `make verify-bundle` repeats this static gate on a relocated package. Native unplug, rapid Synth/Tracker handoff, chain placement editing, whole-chain Make Unique, Song-slot reordering and source-opening regressions have been exercised separately. The original command requirements are:
+The Makefile now provides development, standalone Synth, test, lint, format, workload and bundle commands for one workspace. The discarded shell's cursor, selection and edit latency evidence is historical and does not certify the rebuilt renderer. Its separate feedback scripts were removed. New native acceptance must exercise the current shared shell. Packaging stages a fresh signed app and verifies exact resources and system-only dynamic dependencies; `make verify-bundle` repeats this static gate on a relocated package.
 
-- cargo run -p crest-tracker-app for development startup.
-- cargo test -p crest-tracker for pure musical/application behavior.
-- cargo test -p crest-tracker-app for bridge, persistence and host contracts.
-- cargo fmt --all -- --check and cargo clippy --workspace --all-targets -- -D warnings for formatting/static checks.
-- A native witness command with explicit failure when a required window/controller path is unavailable.
-- A bounded performance command recording host, revision, device, sample rate, block size, workload, raw timing and queue metrics.
-- A package command that builds the macOS app and checks resources outside the checkout.
+- `make dev` and `make synth` run the composed application and standalone Synth.
+- `make test`, `make test-synth` and `make test-host` cover pure behavior, inherited Synth and integrated production witnesses.
+- `make fmt-check` and `make lint` check formatting and application-owned Rust code.
+- Native witnesses must fail explicitly when a required window/controller path is unavailable.
+- Performance evidence must record host, revision, device, sample rate, block size, workload, raw timing and queue metrics.
+- `make bundle ARGS=--release` builds the macOS app; native acceptance must also run it outside the checkout.
 
 Keep fixtures for phrase timing/FX, two shared occurrences, ordinary MIDI, two-member MPE, loop/tempo crossings, save revision races, pinned sound adoption and interrupted takes. Tests must observe emitted music, saved content, real activation or painted behavior; do not substitute tests that only mirror private helper logic. Retain concise evidence with exact commands and source revisions, not ever-growing test-count reports.
 
@@ -435,7 +403,7 @@ Keep fixtures for phrase timing/FX, two shared occurrences, ordinary MIDI, two-m
 | Scenario 10: atomic Make Unique | M1 primitive, M3 recording, M5 UI |
 | Scenario 11: missing resources | M6 |
 | Scenario 12: independent libraries and real bridge | M0 and every Synth integration change |
-| Full Synth functionality, actual renderer reuse and paired-source/pinned builds | M0 inventory/base, M7 complete parity, M10 release proof |
+| Full Synth functionality, actual renderer reuse and workspace builds | M0 inventory/base, M7 complete parity, M10 release proof |
 | Scenarios 13–18: scale, display, chromatic intent, banks, voicing, recall | M2/M4 |
 | Scenarios 20–22: one Song, save consistency, pinned adoption | M1/M2 initial safety, M6 final proof |
 | Scenario 23 and all eight Piano Roll scenarios | M3, full accompaniment in M5, release evidence in M10 |
@@ -446,7 +414,7 @@ Keep fixtures for phrase timing/FX, two shared occurrences, ordinary MIDI, two-m
 
 ## 8. Execution discipline after approval
 
-Proceed milestone by milestone through M10. Keep accepted slices runnable and preserve existing user changes. Use coherent changes with focused proof; do not accumulate an unreviewable rewrite before audible output. Cross-repository Synth changes require paired compatibility checks and matching revision references.
+Proceed milestone by milestone through M10. Keep accepted slices runnable and preserve existing user changes. Use coherent changes with focused proof; do not accumulate an unreviewable rewrite before audible output. Cross-boundary changes require both packages’ compatibility checks and can be committed atomically in this workspace.
 
 Report completed behavior, proof, current blocker and next milestone. Update docs for durable decisions or verified boundaries. Do not re-ask routine choices covered here. An implementation problem calls for investigation and a fix, not a request for the user to design the missing method.
 

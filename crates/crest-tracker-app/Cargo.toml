@@ -11,5 +11,9 @@ serde.workspace = true
 serde_json.workspace = true
 thiserror.workspace = true
 midir = "0.11.0"
+midly = "0.5.3"
 sha2 = "0.10"
 uuid = { version = "1", features = ["v4"] }
+
+[dev-dependencies]
+sdl3 = { version = "0.20", features = ["build-from-source-static"] }

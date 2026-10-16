@@ -1,0 +1,6 @@
+CREST_FACTORY(msfa_DX7, true, "MSFA DX7 SysEx")
+CREST_FACTORY(signalsmith_Stretch, false, "Signalsmith Pitch / Formant")
+CREST_FACTORY(nam_Model, false, "Neural Amp Modeler")
+CREST_FACTORY(fft_Convolver, false, "FFTConvolver IR")
+CREST_FACTORY(sfizz_Sampler, true, "sfizz SFZ Sampler")
+CREST_FACTORY(sfizz_Sample, true, "Sample (sfizz)")

@@ -1,5 +1,5 @@
 mod app;
-mod feedback;
+mod corridors;
 mod library;
 mod midi_clock;
 mod midi_output;
@@ -7,7 +7,7 @@ mod persistence;
 mod preferences;
 mod recovery;
 mod synth;
-mod webview_wire;
+mod workspace;
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let arguments: Vec<_> = std::env::args_os().skip(1).collect();
     if arguments.is_empty() {
@@ -16,12 +16,15 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     if arguments.len() == 1 {
         match arguments[0].to_str() {
             Some("--synth-inventory") => return synth::write_inventory(),
+            Some("--demo-corridors") => return synth::run_demo(),
             Some("--help") => {
-                println!("Usage: crest-tracker-app [--synth-inventory | --help]");
+                println!(
+                    "Usage: crest-tracker-app [--demo-corridors | --synth-inventory | --help]"
+                );
                 return Ok(());
             }
             _ => {}
         }
     }
-    Err("Unknown arguments. Usage: crest-tracker-app [--synth-inventory | --help]".into())
+    Err("Unknown arguments. Usage: crest-tracker-app [--demo-corridors | --synth-inventory | --help]".into())
 }

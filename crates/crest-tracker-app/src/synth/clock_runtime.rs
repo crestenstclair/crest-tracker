@@ -211,10 +211,6 @@ impl Runtime {
             // Capture cutoff still belongs to the old authority and latency.
             self.stop(sound)?;
             self.sync.preferences = preferences;
-            self.controller.borrow_mut().configure(
-                &mut self.app.borrow_mut(),
-                self.sync.preferences.roll_bindings.clone(),
-            );
             self.app.borrow_mut().status = "MACHINE PREFERENCES LOADED".into();
         }
         let active = sound.active_midi_input_identity();
@@ -286,7 +282,7 @@ impl Runtime {
             "mpe_outputs":self.sync.preferences.mpe_outputs,
             "midi_controls":self.sync.preferences.midi_controls,
             "roll_bindings":self.sync.preferences.roll_bindings,
-            "roll_buttons":controller::RollBindings::button_options(),
+            "roll_buttons":crate::preferences::RollBindings::button_options(),
             "active_input":active.map(|identity|serde_json::json!({
                 "id":identity.identity().to_string(),
                 "name":sound.active_midi_input_descriptor().map(|device|device.display_name())

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Build and verify a relocatable local macOS app from the paired checkouts."""
+"""Build and verify a relocatable local macOS app from the workspace."""
 import argparse
 import hashlib
 import json
@@ -110,7 +110,7 @@ def assemble_bundle(bundle, executable, files):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--synth-path', type=Path, default=ROOT.parent / 'crest-synth')
+    parser.add_argument('--synth-path', type=Path, default=ROOT / 'crates' / 'crest-synth')
     parser.add_argument('--release', action='store_true')
     parser.add_argument('--verify-only', type=Path, help='Verify an existing or relocated bundle without rebuilding')
     args = parser.parse_args()

@@ -112,66 +112,42 @@ impl Runtime {
     }
 }
 fn dispatch(app: &mut App, action: Action) {
-    if app.text_entry {
-        let ui = match action {
-            Action::Up => "previous",
-            Action::Down => "next",
-            Action::Left | Action::Decrease => "decrease",
-            Action::Right | Action::Increase => "increase",
-            Action::Confirm => "confirm",
-            Action::Back => "back",
-            Action::Stop => {
-                app.requests.push(Request::Stop);
-                return;
-            }
-            _ => return,
-        };
-        app.ui_input(ui);
+    if (app.text_entry || crate::workspace::text_entry_active(app)) && action != Action::Stop {
+        return;
+    }
+    use crest_synth::control::{Direction, SemanticAction};
+    let semantic = match action {
+        Action::Up => Some(SemanticAction::Navigate(Direction::Up)),
+        Action::Down => Some(SemanticAction::Navigate(Direction::Down)),
+        Action::Left => Some(SemanticAction::Navigate(Direction::Left)),
+        Action::Right => Some(SemanticAction::Navigate(Direction::Right)),
+        Action::Increase => Some(SemanticAction::Adjust(Direction::Right)),
+        Action::Decrease => Some(SemanticAction::Adjust(Direction::Left)),
+        Action::Confirm => Some(SemanticAction::Activate),
+        Action::Back => Some(SemanticAction::SelectPatch(Direction::Left)),
+        Action::Menu => Some(SemanticAction::Return),
+        _ => None,
+    };
+    if let Some(action) = semantic {
+        crate::workspace::action(app, action);
         return;
     }
     let request = match action {
-        Action::Menu => {
-            app.ui_input("menu");
-            return;
-        }
         Action::Song => Request::View { view: View::Song },
-        Action::Instruments => Request::View {
-            view: View::Instruments,
+        Action::Instruments => Request::SynthPage {
+            page: crate::app::SynthPage::Instruments,
         },
         Action::Play => Request::Play,
         Action::Stop => Request::Stop,
         Action::Undo => Request::Undo,
         Action::Redo => Request::Redo,
-        _ if app.view == View::Instruments => {
-            app.status = "MIDI navigation controls target Tracker; switch to Song first".into();
-            return;
-        }
-        Action::Up => Request::Move {
-            horizontal: 0,
-            vertical: -1,
-        },
-        Action::Down => Request::Move {
-            horizontal: 0,
-            vertical: 1,
-        },
-        Action::Left => Request::Move {
-            horizontal: -1,
-            vertical: 0,
-        },
-        Action::Right => Request::Move {
-            horizontal: 1,
-            vertical: 0,
-        },
-        Action::Confirm => Request::Confirm,
-        Action::Back => Request::Back,
-        Action::Increase => Request::Adjust { delta: 1 },
-        Action::Decrease => Request::Adjust { delta: -1 },
         Action::Record => Request::Capture {
             action: CaptureAction::Record,
         },
         Action::EndTake => Request::Capture {
             action: CaptureAction::End,
         },
+        _ => return,
     };
     app.requests.push(request);
 }

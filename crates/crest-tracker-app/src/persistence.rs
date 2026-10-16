@@ -214,6 +214,7 @@ pub fn atomic_write(path: &Path, bytes: &[u8]) -> Result<(), String> {
 /// Candidate I/O stays off the window/control thread. A worker result never publishes itself.
 pub enum Loaded {
     Song(Document),
+    Imported(Document),
     Resources { document: Document, error: String },
     Synth(Value),
 }
@@ -222,6 +223,16 @@ pub struct LoadWorker {
     completed: Cell<bool>,
 }
 impl LoadWorker {
+    pub fn corridors() -> Self {
+        let (send, result) = mpsc::sync_channel(1);
+        std::thread::spawn(move || {
+            let _ = send.send(crate::synth::corridors::document().map(Loaded::Imported));
+        });
+        Self {
+            result,
+            completed: Cell::new(false),
+        }
+    }
     pub fn prepared(document: Document, path: PathBuf) -> Self {
         let (send, result) = mpsc::sync_channel(1);
         std::thread::spawn(move || {

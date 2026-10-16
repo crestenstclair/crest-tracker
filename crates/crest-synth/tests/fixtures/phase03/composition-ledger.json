@@ -1,0 +1,94 @@
+{
+  "schemaVersion": 1,
+  "fileKey": "kdQMw8dYUZtv2UxJPo0sXU",
+  "retrievedAt": "2026-08-29T15:13:45Z",
+  "authority": "Live Figma composition and interaction reference; frame coordinates and example content are fixtures.",
+  "sharedContract": {
+    "references": ["98:2", "49:3", "95:202"],
+    "hierarchy": ["contextLine", "identityHeader", "mainWorkspace", "persistentSideRegion", "footer"],
+    "relativeEmphasis": ["main identity and focused control dominate", "persistent side region correlates without competing", "footer is the only action-guide owner"],
+    "typeRoles": ["Display/Screen", "Heading/Section", "Heading/Panel", "Body/Default", "Body/Compact", "Label/Control", "Code/Value", "Instruction/Hint"],
+    "spacingRhythm": ["4", "8", "12", "16", "24", "32"],
+    "flexibleRegionRelationships": ["wide: flexible main plus bounded side", "standard: compressed bounded tracks and gaps", "compact: regions stack in semantic order", "intrinsic size, wrap, minmax, clamp, and bounded scrolling precede clipping"],
+    "stateMarkers": ["focus cursor or keyline", "adjustment keyline", "explicit lifecycle word", "mute/solo/gated text", "unavailable/error text and structural mark"],
+    "focusTreatment": "Exactly one semantic focus; cyan structural emphasis for focus and amber structural emphasis for adjustment; reflow preserves identity.",
+    "fixtureVsProduction": ["named frames calibrate hierarchy, rhythm, and density", "frame dimensions and coordinates do not select renderer behavior", "example labels, values, capabilities, paths, and counts do not bound installed registries or libraries"]
+  },
+  "references": [
+    {"nodeId":"98:2","name":"Responsive Contract","imagePath":"figma/responsive-contract-98-2.png","imageSha256":"07183dea5bbed1016c50fb0c7d3d6181467aa2744031e7d0c6174d2171ece2fe","fixtureWidthPx":1440,"fixtureHeightPx":1748},
+    {"nodeId":"39:92","name":"Sample Detail","imagePath":"figma/sample-detail-39-92.png","imageSha256":"ca44440278c97862b1b2614bd26623d97dd54b7de2fea1679e732740e84411a8","fixtureWidthPx":1920,"fixtureHeightPx":1080},
+    {"nodeId":"41:138","name":"Sample Browser","imagePath":"figma/sample-browser-41-138.png","imageSha256":"68cfac292ae5316696f82c5d209f762bad127efe2df0bf532d496fc37862b1fc","fixtureWidthPx":1920,"fixtureHeightPx":1080},
+    {"nodeId":"42:3","name":"Mixer","imagePath":"figma/mixer-42-3.png","imageSha256":"41221b9b0465808954003a25dcd911a665886bf95e204329c05e828a41f5f5f1","fixtureWidthPx":1920,"fixtureHeightPx":1080},
+    {"nodeId":"48:173","name":"Engine Options","imagePath":"figma/engine-options-48-173.png","imageSha256":"3024cfc579d370668f4728b3deb1af1e36d76d32fcb62ecf82aaa38b64cff8bf","fixtureWidthPx":920,"fixtureHeightPx":680},
+    {"nodeId":"48:207","name":"Post FX Options","imagePath":"figma/post-fx-options-48-207.png","imageSha256":"3280ba0901f19a370491b8d1d8254c659eccaacb54e88c9681e51ec7db69e3ca","fixtureWidthPx":920,"fixtureHeightPx":680},
+    {"nodeId":"49:3","name":"Interaction Map","imagePath":"figma/interaction-map-49-3.png","imageSha256":"cff3d6d73edbb8890d04aed2e0fd32f58e7133ad1dd74f0270902aabd8679aa3","fixtureWidthPx":3000,"fixtureHeightPx":2600},
+    {"nodeId":"95:202","name":"Patch Overview","imagePath":"figma/patch-overview-95-202.png","imageSha256":"2d291452d01641ffba3e41e192bf474297c719bce820466b316326bcbc65d7b1","fixtureWidthPx":1920,"fixtureHeightPx":1080}
+  ],
+  "surfaces": [
+    {
+      "id": "sampleDetail",
+      "nodeId": "39:92",
+      "hierarchy": ["Patch identity", "Sample asset and browse affordance", "waveform and landmarks", "ordered Sample controls", "shared envelope", "persistent Utility", "single footer guide"],
+      "relativeEmphasis": ["asset and waveform precede parameters", "focused control is singular", "Utility is subordinate but persistent"],
+      "typeRoles": ["Heading/Section", "Heading/Panel", "Label/Control", "Code/Value", "Instruction/Hint"],
+      "spacingRhythm": ["8 between content groups", "12 within rows and side panel", "20-24 region inset", "44-52 authored control rhythm with canonical production target floor"],
+      "flexibleRegionRelationships": ["main expands while Utility is bounded", "waveform spans available main width", "main and Utility stack in semantic order when intrinsic minima require"],
+      "stateMarkers": ["waveform landmark labels and distinct rules", "focus cursor plus keyline", "requested and active lifecycle text", "explicit unavailable or failed visualization mark"],
+      "focusTreatment": "One control owns focus; waveform remains non-focusable; Utility entry preserves exact Detail return identity.",
+      "fixtureFacts": ["example Patch 00 / LEAD PAD", "example pad-cloud-C3.wav", "example visible parameter count and landmark positions", "1920x1080 export"],
+      "productionDistinctions": ["projected Patch and asset identities replace example labels", "descriptor order and installed Sample schema determine controls", "prepared compatible waveform data determines pairs and landmarks", "responsive constraints replace 1500/420 coordinate tracks"]
+    },
+    {
+      "id": "fileBrowser",
+      "nodeId": "41:138",
+      "hierarchy": ["Patch identity", "library/folder path", "list identity and position", "canonical browser rows", "correlated preview metadata and waveform", "preview status/playhead", "single footer guide"],
+      "relativeEmphasis": ["focused row dominates list", "preview is correlated to the focused or active asset", "cancel is explicit but secondary"],
+      "typeRoles": ["Heading/Panel", "Body/Compact", "Label/Control", "Code/Value", "Instruction/Hint"],
+      "spacingRhythm": ["8 main grouping", "12 row anatomy", "20-24 inset", "40 example rows mapped to canonical production target floor"],
+      "flexibleRegionRelationships": ["row list expands and scrolls independently", "preview remains bounded at the side", "list then preview stack when intrinsic minima require"],
+      "stateMarkers": ["parent/folder/file/cancel kind markers", "focus cursor plus keyline", "selected versus focused identity", "preview lifecycle and playhead text", "unavailable/failed shape and cause"],
+      "focusTreatment": "Stable library-relative identity owns one focus; selection and preview correlation do not derive from label or row index.",
+      "fixtureFacts": ["example folder depth and eight entries", "example WAV metadata and paths", "example focused fourth row", "1920x1080 export"],
+      "productionDistinctions": ["catalog listing determines exact rows and metadata", "row kinds and stable IDs come from projection", "hold-to-preview state comes from canonical events and compatible observation", "content-driven scrolling replaces fixed row count"]
+    },
+    {
+      "id": "mixer",
+      "nodeId": "42:3",
+      "hierarchy": ["Mixer identity and correlated focus", "sixteen-track bank", "Track Header", "Level Fader plus passive meter", "Level Readout", "Pan Readout", "State Line", "correlated Inspector", "single footer guide"],
+      "relativeEmphasis": ["fader is dominant within each column", "focused parameter receives structural emphasis", "Inspector big readout follows exact track/control correlation"],
+      "typeRoles": ["Display/Screen", "Heading/Section", "Heading/Panel", "Label/Control", "Code/Value", "Instruction/Hint"],
+      "spacingRhythm": ["4 between track columns", "8-10 within columns", "14-16 primary grouping", "20-24 region inset"],
+      "flexibleRegionRelationships": ["all sixteen minimum-width columns live in bounded horizontal bank", "Inspector is bounded beside bank then stacks after it", "track and Inspector scroll owners remain independent"],
+      "stateMarkers": ["focused/correlated keyline", "level cap and fill", "passive meter rail plus stale/active text", "MUTE/SOLO/GATED words and shapes", "empty/unavailable/failure Inspector regions"],
+      "focusTreatment": "Exactly one projected Mixer control owns focus; Inspector focus retains originating-track correlation without multi-select.",
+      "fixtureFacts": ["example fader values and pan readings", "example muted T05 and solo T08", "example Inspector routes/sends", "1920x1080 export"],
+      "productionDistinctions": ["T00 through T0F are the canonical production bank, not inferred from the image", "projected routes, sends, returns, globals, and registries determine Inspector content", "compatible graph/generation observations determine meters", "bounded bank scrolling replaces forced fit"]
+    },
+    {
+      "id": "engineOptions",
+      "nodeId": "48:173",
+      "hierarchy": ["option identity header", "exact origin annotation", "ordered option list", "focus and current markers", "persistent Utility in production shell", "single footer guide"],
+      "relativeEmphasis": ["identity header leads", "focused row has structural emphasis", "CURRENT remains secondary and independent"],
+      "typeRoles": ["Heading/Section", "Body/Compact", "Label/Control", "Instruction/Hint"],
+      "spacingRhythm": ["8 group rhythm", "24 fixture inset", "48 row target"],
+      "flexibleRegionRelationships": ["list consumes available main height with bounded scrolling", "Utility stays bounded then stacks", "long labels wrap without changing order"],
+      "stateMarkers": ["focus cursor plus keyline", "CURRENT text", "disabled/unavailable text and shape", "loading/validating/preparing/activating/ready/failed word and cause"],
+      "focusTreatment": "One enabled stable option identity owns focus; current and requested/active facts remain distinct.",
+      "fixtureFacts": ["example six engine labels", "example first option current and focused", "920x680 export"],
+      "productionDistinctions": ["installed instrument registry determines rows, labels, order, and availability", "generic Choice origin and lifecycle determine annotations", "fixture option names and count never branch renderer", "production shell supplies persistent Utility and footer"]
+    },
+    {
+      "id": "postFxOptions",
+      "nodeId": "48:207",
+      "hierarchy": ["option identity header", "exact slot origin annotation", "ordered option and Empty rows", "focus and current markers", "persistent Utility in production shell", "single footer guide"],
+      "relativeEmphasis": ["identity header leads", "focused row has structural emphasis", "CURRENT remains secondary and independent"],
+      "typeRoles": ["Heading/Section", "Body/Compact", "Label/Control", "Instruction/Hint"],
+      "spacingRhythm": ["8 group rhythm", "24 fixture inset", "48 row target"],
+      "flexibleRegionRelationships": ["list consumes available main height with bounded scrolling", "Utility stays bounded then stacks", "long and duplicate labels wrap without losing identity"],
+      "stateMarkers": ["focus cursor plus keyline", "CURRENT text", "Empty structural row", "disabled/unavailable text and shape", "loading/validating/preparing/activating/ready/failed word and cause"],
+      "focusTreatment": "One enabled stable option identity owns focus; exact slot origin and current state remain visible across reflow.",
+      "fixtureFacts": ["example five effect labels plus Empty", "example first option current and focused", "920x680 export"],
+      "productionDistinctions": ["installed effect registry plus canonical Empty determine rows", "duplicate capabilities retain stable option/slot identity", "fixture names and count never branch renderer", "production shell supplies persistent Utility and footer"]
+    }
+  ]
+}

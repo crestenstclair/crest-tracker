@@ -1,0 +1,40 @@
+<!doctype html>
+<!-- crest-synth projection page — PATCH and MIXER.
+
+     Structure only: the five declared shell bands as semantic containers.
+     All paint comes from the generated tokens.css (authored vocabulary) and
+     page.css (composition); all content comes from page.js rendering the
+     serialized SemanticGraphicalViewModel documents the window pushes over
+     the crest://projection event. This page registers no key handler and
+     captures no input — keys are captured Rust-side (WP01/WP02 boundary).
+
+     Assets resolve over the registered crest:// custom protocol
+     (src/shell/webview/window.rs serves them embedded): tokens.css, page.css,
+     page.js, and the vendored Azeret Mono faces under fonts/ (the @font-face
+     declarations live at the top of page.css so this document carries no
+     inline styles). -->
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>crest-synth</title>
+  <link rel="stylesheet" href="tokens.css">
+  <link rel="stylesheet" href="page.css">
+</head>
+<body>
+  <!-- Band 1: context line — product · context · status. -->
+  <header id="context-line" data-band="contextLine"></header>
+  <!-- Band 2: identity header — surface identity and focus annotation. -->
+  <header id="identity-header" data-band="identityHeader"></header>
+  <main id="main-region">
+    <!-- Band 3: main workspace — the MIXER sixteen-column bank or the PATCH
+         Overview, with the shared caption and hint rows. -->
+    <section id="workspace" data-band="workspace"></section>
+    <!-- Band 4: persistent side region — Inspector on MIXER, Utility on
+         PATCH. -->
+    <aside id="inspector" data-band="inspector"></aside>
+  </main>
+  <!-- Band 5: footer — breadcrumb and the valid-action hint run. -->
+  <footer id="footer" data-band="footer"></footer>
+  <script src="page.js"></script>
+</body>
+</html>

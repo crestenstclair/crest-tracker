@@ -1,0 +1,364 @@
+/* crest-synth component gallery composition (WP04, spec C-006: rebuild).
+ *
+ * Layout for the gallery documents `gallery.js` renders: one page header,
+ * the fifteen-entry page index, and two authored-density columns of specimen
+ * sections. Loaded after the generated tokens.css and the shared page.css,
+ * whose type classes (.type-*), tone classes (.muted/.secondary/.focus/…),
+ * fader anatomy (.fader-track/.fader-fill/.fader-cap) and mixer column
+ * anatomy (.column/.structure) this file reuses rather than redeclares —
+ * one styling source, no gallery copy.
+ *
+ * Every color, type, spacing, radius, keyline, halo, and mixer geometry
+ * value resolves from the generated tokens.css custom properties; this file
+ * declares no raw value the authored vocabulary already names. Structural
+ * numbers (1fr, flex weights, percentages, calc multipliers) are layout
+ * arithmetic, not token shadows. Per-specimen values arrive as inline custom
+ * properties (--g-accent, --g-keyline, --g-level, --g-metric, --g-swatch,
+ * --g-colw, --g-weight) whose right-hand sides are var() references into the
+ * token table, so no literal rides the inline style either.
+ */
+
+#gallery {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-12);
+  padding: var(--space-16) var(--space-24);
+}
+
+/* ---- the page identity header and the index line ---------------------- */
+
+#gallery-header {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-16);
+  padding-bottom: var(--space-12);
+  border-bottom: var(--keyline-resting) solid var(--color-border-default);
+}
+
+#gallery-index {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-8) var(--space-12);
+}
+
+#gallery-index .g-index-entry {
+  white-space: nowrap;
+}
+
+/* ---- the two authored density columns --------------------------------- */
+
+#gallery-densities {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-24);
+}
+
+.g-density {
+  min-width: 0;
+  overflow-y: auto;
+  padding-right: var(--space-8);
+}
+
+.g-density + .g-density {
+  border-left: var(--keyline-resting) solid var(--color-border-default);
+  padding-left: var(--space-16);
+}
+
+.g-density-caption {
+  display: block;
+  padding-bottom: var(--space-8);
+}
+
+/* The compact column spends the compact rhythm: tighter section gaps and
+ * row padding, same authored type sizes. */
+.g-density[data-density="SteamDeck"] .g-section {
+  margin-bottom: var(--space-16);
+}
+
+.g-density[data-density="SteamDeck"] .g-state,
+.g-density[data-density="SteamDeck"] .g-row {
+  padding: 0 var(--space-8);
+}
+
+/* ---- sections and generic specimen rows ------------------------------- */
+
+.g-section {
+  margin-bottom: var(--space-24);
+}
+
+.g-section-heading {
+  display: block;
+  padding-bottom: var(--space-4);
+  margin-bottom: var(--space-8);
+  border-bottom: var(--keyline-resting) solid var(--color-border-default);
+}
+
+.g-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-12);
+  min-height: var(--space-32);
+  padding: 0 var(--space-12);
+  border-bottom: var(--keyline-resting) solid var(--color-border-default);
+  overflow: hidden;
+}
+
+.g-row .g-name,
+.g-row .g-caption {
+  white-space: nowrap;
+}
+
+/* ---- color swatches --------------------------------------------------- */
+
+.g-swatch {
+  width: var(--space-32);
+  height: var(--space-24);
+  flex: none;
+  border: var(--keyline-resting) solid var(--color-border-strong);
+  border-radius: var(--radius-small);
+  background: var(--g-swatch);
+}
+
+/* ---- authored type styles, one class per declared style --------------- */
+
+.g-type-display-screen {
+  font-size: var(--type-display-screen-size);
+  line-height: var(--type-display-screen-line);
+  font-weight: var(--type-display-screen-weight);
+  letter-spacing: var(--type-display-screen-tracking);
+}
+
+.g-type-heading-section {
+  font-size: var(--type-heading-section-size);
+  line-height: var(--type-heading-section-line);
+  font-weight: var(--type-heading-section-weight);
+  letter-spacing: var(--type-heading-section-tracking);
+}
+
+.g-type-heading-panel {
+  font-size: var(--type-heading-panel-size);
+  line-height: var(--type-heading-panel-line);
+  font-weight: var(--type-heading-panel-weight);
+  letter-spacing: var(--type-heading-panel-tracking);
+}
+
+.g-type-body-default {
+  font-size: var(--type-body-default-size);
+  line-height: var(--type-body-default-line);
+  font-weight: var(--type-body-default-weight);
+  letter-spacing: var(--type-body-default-tracking);
+}
+
+.g-type-body-compact {
+  font-size: var(--type-body-compact-size);
+  line-height: var(--type-body-compact-line);
+  font-weight: var(--type-body-compact-weight);
+  letter-spacing: var(--type-body-compact-tracking);
+}
+
+.g-type-label-control {
+  font-size: var(--type-label-control-size);
+  line-height: var(--type-label-control-line);
+  font-weight: var(--type-label-control-weight);
+  letter-spacing: var(--type-label-control-tracking);
+}
+
+.g-type-code-value {
+  font-size: var(--type-code-value-size);
+  line-height: var(--type-code-value-line);
+  font-weight: var(--type-code-value-weight);
+  letter-spacing: var(--type-code-value-tracking);
+}
+
+.g-type-instruction-hint {
+  font-size: var(--type-instruction-hint-size);
+  line-height: var(--type-instruction-hint-line);
+  font-weight: var(--type-instruction-hint-weight);
+  letter-spacing: var(--type-instruction-hint-tracking);
+}
+
+/* ---- measured metric bars --------------------------------------------- */
+
+.g-metric {
+  flex: none;
+  background: var(--color-border-strong);
+}
+
+.g-metric[data-axis="width"] {
+  width: var(--g-metric);
+  height: var(--space-8);
+}
+
+.g-metric[data-axis="height"] {
+  width: var(--space-32);
+  height: var(--g-metric);
+}
+
+.g-metric[data-axis="radius"] {
+  width: var(--space-24);
+  height: var(--space-24);
+  background: var(--color-bg-elevated);
+  border: var(--keyline-resting) solid var(--color-border-strong);
+  border-radius: var(--g-metric);
+}
+
+/* ---- state specimens ---------------------------------------------------
+ * The declared ComponentState treatment, resolved entirely from inline
+ * custom properties the document carries: --g-accent is the state's accent
+ * role, --g-keyline its declared keyline width — both var() references into
+ * the token table. The halo repeats the page.css focused treatment. */
+
+.g-state {
+  display: flex;
+  align-items: center;
+  gap: var(--space-12);
+  min-height: var(--min-interactive-target);
+  padding: 0 var(--space-12);
+  border-left: var(--g-keyline) solid var(--g-accent);
+  border-bottom: var(--keyline-resting) solid var(--color-border-default);
+  overflow: hidden;
+}
+
+.g-state[data-halo="true"] {
+  box-shadow: 0 0 var(--focus-halo-radius) var(--focus-halo-spread)
+    color-mix(
+      in srgb,
+      var(--g-accent) calc(var(--focus-halo-opacity) * 100%),
+      transparent
+    );
+}
+
+.g-state[data-fill="true"] {
+  background: var(--color-bg-selected);
+}
+
+/* The reserved cursor column: present for every state so focusing a row
+ * never shifts its text. */
+.g-state .g-cursor {
+  flex: none;
+  width: var(--space-12);
+  color: var(--g-accent);
+}
+
+.g-state .g-label {
+  color: var(--color-text-primary);
+  white-space: nowrap;
+}
+
+.g-state .g-mark {
+  color: var(--g-accent);
+  white-space: nowrap;
+}
+
+.g-state .g-value {
+  color: var(--color-text-secondary);
+  white-space: nowrap;
+}
+
+/* The selection square: the mark role filled beside the value, so selection
+ * is never color-only on its row fill. */
+.g-state .g-selection-square {
+  flex: none;
+  width: var(--space-8);
+  height: var(--space-8);
+  background: var(--color-text-primary);
+}
+
+/* ---- control presentation bodies -------------------------------------- */
+
+.g-toggle-pill {
+  flex: none;
+  padding: 0 var(--space-8);
+  border: var(--keyline-resting) solid var(--g-accent);
+  border-radius: var(--radius-large);
+  color: var(--g-accent);
+  white-space: nowrap;
+}
+
+.g-bar {
+  position: relative;
+  flex: none;
+  width: calc(2 * var(--min-interactive-target));
+  height: var(--space-8);
+  background: var(--color-bg-elevated);
+  border-radius: var(--radius-small);
+  overflow: hidden;
+}
+
+.g-bar .g-bar-fill {
+  position: absolute;
+  inset: 0;
+  width: calc(var(--g-level, 0) * 100%);
+  background: var(--g-accent);
+  border-radius: var(--radius-small);
+}
+
+/* The fader seat reuses the shipped fader anatomy from page.css
+ * (.fader-track/.fader-fill/.fader-cap, sized by the page-side authored
+ * fader constants and driven by --level). */
+.g-fader {
+  flex: none;
+  height: calc(2 * var(--min-interactive-target));
+  display: flex;
+  justify-content: center;
+}
+
+/* ---- the structural band diagram -------------------------------------- */
+
+.g-bands {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  height: calc(5 * var(--min-interactive-target));
+}
+
+.g-bands .g-band {
+  flex-grow: var(--g-weight);
+  flex-basis: var(--space-16);
+  min-height: var(--space-16);
+  display: flex;
+  align-items: center;
+  padding: 0 var(--space-8);
+  border: var(--keyline-resting) solid var(--color-border-strong);
+  background: var(--color-bg-surface);
+  overflow: hidden;
+}
+
+/* ---- composition specimens -------------------------------------------- */
+
+.g-comp {
+  border: var(--keyline-resting) solid var(--color-border-default);
+  border-radius: var(--radius-small);
+  padding: var(--space-8) var(--space-12);
+}
+
+.g-comp .g-comp-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-12);
+  min-height: var(--space-24);
+  overflow: hidden;
+}
+
+.g-comp .g-comp-row + .g-comp-row {
+  border-top: var(--keyline-resting) solid var(--color-border-default);
+}
+
+/* The bank specimen: the shipped column anatomy from page.css, seated on
+ * this density's authored column width (--g-colw is a var() reference to
+ * the policy's generated width token). */
+.g-bank {
+  display: flex;
+  gap: var(--space-4);
+  overflow-x: hidden;
+}
+
+.g-bank .column {
+  flex: none;
+  width: var(--g-colw);
+  height: calc(3 * var(--min-interactive-target));
+}

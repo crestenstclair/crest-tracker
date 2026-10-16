@@ -63,9 +63,7 @@ impl Runtime {
             browser: Some(browser),
             prompt: Value::Null,
         });
-        self.controller
-            .borrow_mut()
-            .cancel(&mut self.app.borrow_mut());
+        crate::workspace::cancel_edit(&mut self.app.borrow_mut());
         self.project_file_dialog();
         Ok(())
     }
@@ -113,9 +111,7 @@ impl Runtime {
             browser: None,
             prompt,
         });
-        self.controller
-            .borrow_mut()
-            .cancel(&mut self.app.borrow_mut());
+        crate::workspace::cancel_edit(&mut self.app.borrow_mut());
         self.project_file_dialog();
         Ok(())
     }

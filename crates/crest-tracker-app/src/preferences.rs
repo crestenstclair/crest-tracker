@@ -27,7 +27,7 @@ pub struct MachinePreferences {
     #[serde(default)]
     pub midi_controls: Vec<MidiControlBinding>,
     #[serde(default)]
-    pub roll_bindings: crate::synth::controller::RollBindings,
+    pub roll_bindings: RollBindings,
 }
 
 impl Default for MachinePreferences {
@@ -40,7 +40,7 @@ impl Default for MachinePreferences {
             mpe_outputs: Vec::new(),
             clock: ClockSettings::default(),
             midi_controls: Vec::new(),
-            roll_bindings: crate::synth::controller::RollBindings::default(),
+            roll_bindings: RollBindings::default(),
         }
     }
 }
@@ -451,5 +451,53 @@ mod tests {
         assert_eq!(fs::read(&path).unwrap(), original);
         assert_eq!(load(&directory).unwrap(), preferences);
         assert_eq!(fs::read_dir(&directory).unwrap().count(), 1);
+    }
+}
+
+// Retained for lossless reading of existing machine preferences.
+use crest_synth::control::ControllerButton;
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct RollBindings {
+    pub fine: ControllerButton,
+    pub range: ControllerButton,
+}
+impl Default for RollBindings {
+    fn default() -> Self {
+        Self {
+            fine: ControllerButton::RightShoulder,
+            range: ControllerButton::Select,
+        }
+    }
+}
+impl RollBindings {
+    pub fn validate(&self) -> Result<(), String> {
+        if self.fine == self.range {
+            return Err("Fine and Range need different buttons".into());
+        }
+        Ok(())
+    }
+    pub fn button_options() -> serde_json::Value {
+        use ControllerButton::*;
+        serde_json::json!([
+            South,
+            East,
+            North,
+            West,
+            LeftShoulder,
+            RightShoulder,
+            LeftTrigger,
+            RightTrigger,
+            Select,
+            Start,
+            Mode,
+            LeftThumb,
+            RightThumb,
+            DPadUp,
+            DPadDown,
+            DPadLeft,
+            DPadRight
+        ]
+        .map(|button| serde_json::json!({"value":button,"label":button.label()})))
     }
 }

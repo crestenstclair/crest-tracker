@@ -3,34 +3,6 @@
 use super::*;
 
 impl App {
-    pub(super) fn drum_feedback_focus(&self) -> Option<crate::feedback::Focus> {
-        let (phrase, lane, at) = self.focused_drum().ok()?;
-        if self.feedback.surface() == crate::feedback::Surface::DrumEdit {
-            let hits = self.editor.song().phrases[&phrase]
-                .events
-                .iter()
-                .filter(|event| lane.matches(event, at))
-                .map(|event| event.id)
-                .collect();
-            Some(crate::feedback::Focus::DrumEdit {
-                phrase,
-                step: self.row,
-                lane: self.column,
-                pitch: lane.pitch,
-                target: lane.target,
-                hits,
-            })
-        } else {
-            Some(crate::feedback::Focus::Drum {
-                phrase,
-                step: self.row,
-                lane: self.column,
-                pitch: lane.pitch,
-                target: lane.target,
-            })
-        }
-    }
-
     pub(crate) fn is_drum(&self) -> bool {
         self.view == View::Phrase
             && self
@@ -38,7 +10,7 @@ impl App {
                 .is_some_and(|(_, phrase)| matches!(phrase.form, PhraseForm::Drum))
     }
 
-    pub(super) fn drum_lanes(&self) -> Vec<DrumNote> {
+    pub(crate) fn drum_lanes(&self) -> Vec<DrumNote> {
         let Some((id, phrase)) = self
             .selected_phrase()
             .filter(|(_, phrase)| matches!(phrase.form, PhraseForm::Drum))
@@ -171,7 +143,7 @@ impl App {
             })
             .collect::<Vec<_>>();
         if commands.is_empty() {
-            return Ok(());
+            return self.drum_confirm(false);
         }
         self.command(Command::Batch { commands })
     }
@@ -191,12 +163,6 @@ impl DrumNote {
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    fn reduce_queued(app: &mut App) {
-        for request in std::mem::take(&mut app.requests) {
-            app.apply(request).unwrap();
-        }
-    }
 
     fn app() -> App {
         let mut app = App::new();
@@ -230,46 +196,6 @@ mod tests {
             velocity: 93,
             duration: Beat::new(1, 8).unwrap(),
         })
-    }
-
-    #[test]
-    fn drum_edit_feedback_fences_insert_clear_undo_redo_and_excludes_navigation() {
-        let mut app = app();
-        app.feedback.enable(crate::feedback::Surface::DrumEdit);
-        app.queue(json!({"kind":"move","horizontal":1,"vertical":0}));
-        assert_eq!(app.requests.len(), 1);
-        for request in std::mem::take(&mut app.requests) {
-            app.apply(request).unwrap();
-        }
-        let initial_revision = app.editor.revision();
-        for (index, (kind, count)) in [("confirm", 1), ("clear", 0), ("undo", 1), ("redo", 0)]
-            .into_iter()
-            .enumerate()
-        {
-            app.queue(json!({"kind":kind}));
-            assert_eq!(app.requests.len(), 2);
-            assert!(app.feedback.projection()["pending"].is_null());
-            reduce_queued(&mut app);
-            let pending = app.feedback.projection()["pending"].clone();
-            assert_eq!(
-                pending["state"]["revision"],
-                initial_revision + index as u64 + 1
-            );
-            assert_eq!(pending["state"]["focus"]["kind"], "drum_edit");
-            assert_eq!(pending["state"]["focus"]["step"], 1);
-            assert_eq!(
-                pending["state"]["focus"]["hits"].as_array().unwrap().len(),
-                count
-            );
-            app.queue(json!({"kind":"feedback_painted","sequence":pending["sequence"],"state":pending["state"],
-                "bounds":[100,100,36,36],"viewport":[1280,800]}));
-            assert_eq!(app.feedback.projection()["samples"], index + 1);
-        }
-        app.queue(json!({"kind":"clear"}));
-        for request in std::mem::take(&mut app.requests) {
-            app.apply(request).unwrap();
-        }
-        assert_eq!(app.feedback.report(true)["no_changes"], 1);
     }
 
     #[test]
@@ -422,25 +348,5 @@ mod tests {
         app.apply(Request::Undo).unwrap();
         assert_eq!(app.editor.song(), &baseline);
         assert_eq!(app.drum_lanes()[app.column].target.channel().get(), 10);
-    }
-
-    #[test]
-    fn drum_feedback_fences_native_lane_identity_after_navigation() {
-        let mut app = app();
-        add_lane(&mut app, 2).unwrap();
-        let baseline = app.editor.song().clone();
-        app.feedback.enable(crate::feedback::Surface::Drum);
-        app.queue(json!({"kind":"move","horizontal":64,"vertical":0}));
-        assert!(app.feedback.projection()["pending"].is_null());
-        for request in std::mem::take(&mut app.requests) {
-            app.apply(request).unwrap();
-        }
-        let state = &app.feedback.projection()["pending"]["state"];
-        assert_eq!(state["focus"]["kind"], "drum");
-        assert_eq!(state["focus"]["step"], 64);
-        assert_eq!(state["focus"]["lane"], 1);
-        assert_eq!(state["focus"]["pitch"], 36);
-        assert_eq!(state["focus"]["target"]["channel"], 2);
-        assert_eq!(app.editor.song(), &baseline);
     }
 }

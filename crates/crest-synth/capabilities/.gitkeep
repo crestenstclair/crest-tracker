@@ -1,0 +1,2 @@
+# Tauri watches this directory even when permissions are inline in tauri.conf.json.
+# Keep it present so Cargo does not rebuild native DSP on every invocation.

@@ -1,8 +1,5 @@
-name: Tracker contracts and package
-on:
-  push:
-  pull_request:
-  workflow_dispatch:
+name: Tracker and Synth workspace
+on: [push, pull_request, workflow_dispatch]
 permissions:
   contents: read
 jobs:
@@ -17,39 +14,22 @@ jobs:
       - run: cargo test --locked -p crest-tracker
       - run: cargo clippy --locked -p crest-tracker --all-targets -- -D warnings
       - run: python3 -B -m unittest discover -s scripts -p 'test_*.py'
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 22
-      - run: node --test scripts/test_*.cjs
   macos:
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v4
         with:
-          path: crest-tracker
+          lfs: true
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: clippy
-      - id: dependency
-        working-directory: crest-tracker
-        run: python3 -c 'import os,tomllib; d=tomllib.load(open("Cargo.toml","rb")); open(os.environ["GITHUB_OUTPUT"],"a").write("revision="+d["workspace"]["dependencies"]["crest-synth"]["rev"]+"\n")'
-      - uses: actions/checkout@v4
-        with:
-          repository: crestenstclair/crest-synth
-          ref: ${{ steps.dependency.outputs.revision }}
-          path: crest-synth
-          lfs: true
-      - working-directory: crest-tracker
-        run: make check-pinned
-      - working-directory: crest-tracker
-        run: cargo test --locked --workspace
-      - working-directory: crest-tracker
-        run: cargo clippy --locked --workspace --all-targets -- -D warnings
-      - working-directory: crest-tracker
-        run: cargo test --locked --release -p crest-tracker-app synth::witness:: -- --ignored --test-threads=1
-      - working-directory: crest-tracker
-        run: python3 scripts/bundle_macos.py --synth-path ../crest-synth --release
+      - run: make lint
+      - run: cargo test --locked -p crest-tracker-app
+      - run: cargo test --locked -p crest-synth --lib
+        working-directory: crates/crest-synth
+      - run: cargo test --locked --release -p crest-tracker-app synth::witness:: -- --ignored --test-threads=1
+      - run: python3 scripts/bundle_macos.py --release
       - uses: actions/upload-artifact@v4
         with:
-          name: Crest-Tracker-release-build
-          path: crest-tracker/target/release/Crest Tracker.app
+          name: Crest-Tracker
+          path: target/release/Crest Tracker.app

@@ -1,0 +1,22 @@
+/target
+__pycache__/
+*.wav
+!/assets/sample-test.wav
+*.db
+*.db-shm
+*.db-wal
+.mcp.json
+.claude/
+.superpowers/
+/.agents/
+/.codex/
+
+# The playable SoundFonts are tracked through Git LFS; see .gitattributes.
+# The 4 GB upstream file rustysynth cannot parse is not worth versioning.
+/sf2/*.rustysynth-incompatible
+
+# autopilot validation artifact (regenerated each run)
+autopilot.png
+
+# tauri-build regenerates these ACL/config schemas on every build
+/gen/schemas/

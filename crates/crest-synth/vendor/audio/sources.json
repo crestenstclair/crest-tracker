@@ -1,0 +1,120 @@
+{
+  "mutable": {
+    "repository": "pichenettes/eurorack",
+    "revision": "08460a69a7e1f7a81c5a2abcc7189c9a6b7208d4"
+  },
+  "stmlib": {
+    "repository": "pichenettes/stmlib",
+    "revision": "d18def816c51d1da0c108236928b2bbd25c17481"
+  },
+  "daisysp": {
+    "repository": "electro-smith/DaisySP",
+    "revision": "599511b740f8f3a9b8db72a0642aa45b8a23c3a3"
+  },
+  "stk": {
+    "repository": "thestk/stk",
+    "revision": "6aacd357d76250bb7da2b1ddf675651828784bbc"
+  },
+  "airwindows": {
+    "repository": "airwindows/airwindows",
+    "revision": "dff871d91edc1b843d4fc2dccf1273325801b7eb"
+  },
+  "mda": {
+    "repository": "elk-audio/mda-vst2",
+    "revision": "8ea6ef97946a617d73e48d245777e57fb984357f"
+  },
+  "nam": {
+    "repository": "sdatkinson/NeuralAmpModelerCore",
+    "revision": "2563c0fd4cb1f9ce457d89a761738ea15097e1f3"
+  },
+  "fftconvolver": {
+    "repository": "HiFi-LoFi/FFTConvolver",
+    "revision": "f2cdeb04c42141d2caec19ca4f137398b2a76b85"
+  },
+  "stretch": {
+    "repository": "Signalsmith-Audio/signalsmith-stretch",
+    "revision": "57b93f4e9206a089a45387eaa39bdc9f310d3308"
+  },
+  "linear": {
+    "repository": "Signalsmith-Audio/linear",
+    "revision": "ec38d3332c7e9ce88a2fd969003d170baa2316b6"
+  },
+  "msfa": {
+    "repository": "google/music-synthesizer-for-android",
+    "revision": "f67d41d313b7dc85f6fb99e79e515cc9d208cfff"
+  },
+  "sfizz": {
+    "repository": "sfztools/sfizz",
+    "revision": "f5c6e29f23b8057867c08e88f5f6ac6738baa30b"
+  },
+  "r8brain": {
+    "repository": "avaneev/r8brain-free-src",
+    "revision": "9e73d2dd59fd5b95108fdb4f590083e35758b45f"
+  },
+  "mda-deesser": {
+    "repository": "steinbergmedia/vst3_public_sdk",
+    "revision": "586dc5e6c8012c3e4b01c79389375cbe96bdb1da"
+  },
+  "nam-eigen": {
+    "repository": "eigen-mirror/eigen",
+    "revision": "bc3b39870ecb690a623a3f49149a358b95c5781d",
+    "destination": "nam/Dependencies/eigen",
+    "full": true
+  },
+  "nam-audiodsptools": {
+    "repository": "sdatkinson/AudioDSPTools",
+    "revision": "0827c6c2fc0deced568536142ea86f189e0b98a1",
+    "destination": "nam/Dependencies/AudioDSPTools",
+    "full": true
+  },
+  "sfizz-abseil": {
+    "repository": "abseil/abseil-cpp",
+    "revision": "4a2c63365eff8823a5221db86ef490e828306f9d",
+    "destination": "sfizz/external/abseil-cpp",
+    "full": true
+  },
+  "sfizz-filesystem": {
+    "repository": "gulrak/filesystem",
+    "revision": "8a2edd6d92ed820521d42c94d179462bf06b5ed3",
+    "destination": "sfizz/external/filesystem",
+    "full": true
+  },
+  "sfizz-invoke": {
+    "repository": "BlackMATov/invoke.hpp",
+    "revision": "2c1eabc2e20ab02961f95c704ff0c0818671ddd1",
+    "destination": "sfizz/external/invoke.hpp",
+    "full": true
+  },
+  "sfizz-simde": {
+    "repository": "simd-everywhere/simde",
+    "revision": "2bf459d4ed6d7ed6b9f31bd9e07c91bace5009e0",
+    "destination": "sfizz/external/simde",
+    "full": true
+  },
+  "sfizz-dr_libs": {
+    "repository": "mackron/dr_libs",
+    "revision": "e4a7765e598e9e54dc0f520b7e4416359bee80cc",
+    "destination": "sfizz/external/st_audiofile/thirdparty/dr_libs",
+    "full": true
+  },
+  "sfizz-libaiff": {
+    "repository": "sfztools/libaiff",
+    "revision": "78864a4a2e769e426be8cfd78ae7f5f72e236c33",
+    "destination": "sfizz/external/st_audiofile/thirdparty/libaiff",
+    "full": true
+  },
+  "sfizz-wavpack": {
+    "repository": "dbry/WavPack",
+    "revision": "07ffb331d23c16e2d2979370441f63ea722760bc",
+    "destination": "sfizz/external/st_audiofile/thirdparty/wavpack",
+    "full": true
+  },
+  "nam-json-license": {
+    "repository": "nlohmann/json",
+    "revision": "55f93686c01528224f448c19128836e7df245f72",
+    "destination": "nam/Dependencies/nlohmann",
+    "files": [
+      "LICENSE.MIT"
+    ]
+  }
+}

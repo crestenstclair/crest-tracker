@@ -6,3 +6,6 @@ __pycache__/
 .DS_Store
 
 .dev-*.log
+
+/crates/crest-synth/target/
+/crates/crest-synth/gen/

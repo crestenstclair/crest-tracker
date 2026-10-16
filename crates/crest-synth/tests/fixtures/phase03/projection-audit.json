@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "ledger": "composition-ledger.json",
+  "auditedAt": "2026-08-29T15:13:45Z",
+  "result": "No ledger-backed authored distinction requires a new product projection field. Evidence observation requires generic extensions before native acceptance.",
+  "areas": [
+    {"area":"Sample Detail projection","existingFacts":["Patch and subject identity","active/requested values and typed lifecycle","asset reference","waveform pairs and landmarks","ordered descriptor sections and controls","focus, return, valid actions"],"missingGenericFacts":[]},
+    {"area":"Sample Browser projection","existingFacts":["folder identity","stable row kind and identity","typed metadata","active/requested asset","preview request and lifecycle","waveform visualization","focus and return"],"missingGenericFacts":[]},
+    {"area":"Mixer projection","existingFacts":["sixteen stable track/control paths","level, pan, mute, solo","focused track and parameter","valid actions"],"missingGenericFacts":[]},
+    {"area":"Mixer Inspector projection","existingFacts":["exact focused correlation","routed Patch identities","ordered sends, returns, parameters, globals","typed unavailable and failure facts"],"missingGenericFacts":[]},
+    {"area":"generic option projection","existingFacts":["generic Choice subject and exact origin","stable registry order","focus/current independence","availability cause","active/requested lifecycle","return and focus repair"],"missingGenericFacts":[]},
+    {"area":"Rust-owned shell tokens","existingFacts":["shared color, type, spacing, radius, keyline, focus, fader, target, and responsive vocabulary"],"missingGenericFacts":["Confirm ledger roles map to the existing canonical vocabulary; add a token only for a measured reusable gap."]},
+    {"area":"computed-style observation","existingFacts":["layout mode","region bounds/order","focus treatment","target sizes","overlap/overflow/reachability","control state"],"missingGenericFacts":["authored type-role resolution","generic grouping relationships","state-shape acknowledgement","fader/meter/waveform anatomy","single footer action-guide ownership"]},
+    {"area":"native observation","existingFacts":["generation","state hash","context","active surface","focus","interaction mode","viewport","five region bounds","paint acknowledgement"],"missingGenericFacts":["semantic document SHA-256","subject","return identity","valid actions","device scale","minimum-target summary","region overflow and scroll endpoints","observation compatibility key","input event count","reducer application count"]}
+  ],
+  "prohibitedProposals": []
+}

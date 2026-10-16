@@ -114,28 +114,6 @@ impl App {
                     && self.timeline_focus.is_none_or(|at| span.start == at)
             })
     }
-
-    pub(super) fn timeline_feedback_focus(&self) -> Option<crate::feedback::Focus> {
-        let timeline = self.timeline().ok()?;
-        let span = self.focused_timeline_span(&timeline)?;
-        let row = if self.view == View::Expanded {
-            Some(
-                span.rows
-                    .iter()
-                    .find(|row| self.matches_timeline_row_selector(row))?,
-            )
-        } else {
-            None
-        };
-        Some(crate::feedback::Focus::Timeline {
-            occurrence: span.occurrence,
-            phrase: span.phrase,
-            start: span.start,
-            row: row.map(|row| row.source_row),
-            at: row.map(|row| row.at),
-            cells: row.map_or_else(Vec::new, |row| row.cells.clone()),
-        })
-    }
 }
 
 fn span_rows(span: &PhraseSpan) -> impl Iterator<Item = (&PhraseSpan, &TimelineRow)> {

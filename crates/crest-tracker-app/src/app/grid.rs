@@ -6,9 +6,21 @@ use crest_tracker::time::Division;
 pub(super) const PAGE_ROWS: usize = 64;
 type Grid = (String, String, Vec<String>, GridRows);
 
+/// Song-local catalog order is the display address. Persistent identities also
+/// cover notes and occurrences, and must never become user-facing numbers.
+pub(super) fn definition_label<Id: Ord, Value>(
+    definitions: &BTreeMap<Id, Value>,
+    id: &Id,
+) -> String {
+    definitions
+        .keys()
+        .position(|candidate| candidate == id)
+        .map_or_else(|| "??".into(), |index| format!("{index:02X}"))
+}
+
 /// Presentation window only. Absolute source rows and document limits stay intact.
 #[derive(Default)]
-pub(super) struct GridRows {
+pub(crate) struct GridRows {
     pub start: usize,
     pub total: usize,
     pub values: Vec<Vec<String>>,
@@ -26,7 +38,8 @@ impl GridRows {
 }
 
 impl App {
-    pub(super) fn grid(&self) -> Grid {
+    pub(crate) fn grid(&self) -> Grid {
+        let _ = self.generator_preview();
         let song = self.editor.song();
         match self.view {
             View::Expanded => (
@@ -57,7 +70,7 @@ impl App {
     }
 
     fn phrase_grid(&self) -> Grid {
-        let Some((_, phrase)) = self.selected_phrase() else {
+        let Some((id, phrase)) = self.selected_phrase() else {
             return (
                 "NO PHRASE".into(),
                 "Choose a phrase from its chain".into(),
@@ -69,7 +82,8 @@ impl App {
         (
             phrase.name.clone(),
             format!(
-                "TRACK {:02} · {} · {} · {} STEPS · {}",
+                "PHRASE {} · TRACK {:02} · {} · {} · {} STEPS · {}",
+                definition_label(&self.editor.song().phrases, &id),
                 self.track + 1,
                 track.name,
                 form_label(&phrase.form),
@@ -106,7 +120,8 @@ impl App {
         (
             chain.name.clone(),
             format!(
-                "TRACK {:02} · {} · USED {} {}",
+                "CHAIN {} · TRACK {:02} · {} · USED {} {}",
+                definition_label(&song.chains, &id),
                 self.track + 1,
                 track.name,
                 references,
@@ -219,11 +234,11 @@ impl App {
         );
         cells
     }
-    fn target_label(&self, target: &Target) -> String {
+    pub(crate) fn target_label(&self, target: &Target) -> String {
         match target {
             Target::Instrument { id, channel } => format!(
-                "{:02} / {} · CH {:02}",
-                id.get(),
+                "{} / {} · CH {:02}",
+                definition_label(&self.editor.song().instruments, id),
                 self.editor
                     .song()
                     .instruments
@@ -252,7 +267,7 @@ fn song_row(song: &Song, row: usize) -> Vec<String> {
                 .slots
                 .get(row)
                 .and_then(Option::as_ref)
-                .map(|slot| format!("{:02}", slot.chain.get()))
+                .map(|slot| definition_label(&song.chains, &slot.chain))
                 .unwrap_or("—".into())
         })
         .collect()
@@ -274,7 +289,11 @@ fn chain_row(song: &Song, usage: &PhraseUse) -> Vec<String> {
             .unwrap_or("EXCEEDS TIME RANGE".into())
     };
     vec![
-        format!("{:02} / {}", usage.phrase.get(), phrase.name),
+        format!(
+            "{} / {}",
+            definition_label(&song.phrases, &usage.phrase),
+            phrase.name
+        ),
         usage.repeats.to_string(),
         format!("{} × {}", phrase.steps, division_label(phrase.division)),
         duration,
@@ -313,6 +332,38 @@ mod tests {
     use super::*;
 
     #[test]
+    fn imported_definitions_have_independent_numbers_without_rewriting_identities() {
+        let song = crate::corridors::import().unwrap().song;
+        let mut app = App::new();
+        app.editor = Editor::new(song.clone()).unwrap();
+
+        let (_, _, _, rows) = app.grid();
+        assert_eq!(rows.values[0][0], "00");
+        assert_eq!(rows.values[1][0], "01");
+        assert_eq!(rows.values[10][0], "0A");
+        assert_eq!(rows.values[28][0], "1C");
+
+        app.apply(Request::Confirm).unwrap();
+        let (_, subtitle, _, rows) = app.grid();
+        assert!(subtitle.contains("CHAIN 00"));
+        assert!(rows.values[0][0].starts_with("00 / "));
+        app.apply(Request::Confirm).unwrap();
+        assert!(app.grid().1.contains("PHRASE 00"));
+
+        let instrument = *song.instruments.keys().next().unwrap();
+        assert!(app
+            .target_label(&Target::instrument(instrument))
+            .starts_with("00 / "));
+        assert_eq!(app.editor.song(), &song);
+
+        let decoded: Song = serde_json::from_slice(&serde_json::to_vec(&song).unwrap()).unwrap();
+        app.editor = Editor::new(decoded).unwrap();
+        app.apply(Request::View { view: View::Song }).unwrap();
+        assert_eq!(app.grid().3.values[0][0], "00");
+        assert_eq!(app.grid().3.values[1][0], "01");
+    }
+
+    #[test]
     fn targets_keep_identity_channel_and_endpoint_distinct() {
         let mut app = App::new();
         let mut song = app.editor.song().clone();
@@ -330,7 +381,7 @@ mod tests {
             id: InstrumentId::new(id).unwrap(),
             channel: Channel::new(channel).unwrap(),
         };
-        assert_eq!(app.target_label(&target(17, 1)), "17 / Bass · CH 01");
+        assert_eq!(app.target_label(&target(17, 1)), "00 / Bass · CH 01");
         assert_ne!(
             app.target_label(&target(17, 1)),
             app.target_label(&target(18, 1))
@@ -377,12 +428,7 @@ mod tests {
         );
         assert_eq!(
             projection["rows"][0],
-            json!([
-                format!("{:02} / Triplet", id.get()),
-                "3",
-                "5 × 1/16T",
-                "5/2 BEATS"
-            ])
+            json!(["00 / Triplet", "3", "5 × 1/16T", "5/2 BEATS"])
         );
         assert!(projection["subtitle"]
             .as_str()

@@ -12,7 +12,7 @@ from workload import repository, utc, write_artifact
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--synth-path", type=Path, default=ROOT.parent / "crest-synth")
+    parser.add_argument("--synth-path", type=Path, default=ROOT / "crates" / "crest-synth")
     parser.add_argument("--output", type=Path, default=ROOT / "target/workload/synth-inventory.json")
     options = parser.parse_args()
     synth = options.synth_path.expanduser().resolve()
