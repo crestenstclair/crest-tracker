@@ -223,6 +223,16 @@ pub struct LoadWorker {
     completed: Cell<bool>,
 }
 impl LoadWorker {
+    pub fn midi(path: PathBuf) -> Self {
+        let (send, result) = mpsc::sync_channel(1);
+        std::thread::spawn(move || {
+            let _ = send.send(crate::synth::corridors::midi_document(&path).map(Loaded::Imported));
+        });
+        Self {
+            result,
+            completed: Cell::new(false),
+        }
+    }
     pub fn corridors() -> Self {
         let (send, result) = mpsc::sync_channel(1);
         std::thread::spawn(move || {

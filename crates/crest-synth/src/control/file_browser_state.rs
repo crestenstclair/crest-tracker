@@ -98,6 +98,8 @@ pub struct FileBrowserState {
     patch_id: Option<PatchId>,
     asset_parameter_id: Option<ParameterId>,
     folder: FileBrowserFolderId,
+    starting_folders: BTreeMap<crate::synth::AssetKind, FileBrowserFolderId>,
+    last_folders: BTreeMap<crate::synth::AssetKind, FileBrowserFolderId>,
     rows: Vec<FileBrowserRow>,
     lifecycle: SampleAssetLifecycle,
     requested_asset: Option<AssetFileId>,
@@ -117,6 +119,8 @@ impl Default for FileBrowserState {
             patch_id: None,
             asset_parameter_id: None,
             folder: FileBrowserFolderId::default(),
+            starting_folders: BTreeMap::new(),
+            last_folders: BTreeMap::new(),
             rows: fallback_rows(&FileBrowserFolderId::default()),
             lifecycle: SampleAssetLifecycle::Unavailable,
             requested_asset: None,
@@ -264,7 +268,26 @@ impl FileBrowserState {
         self.request_id = None;
         self.preview_request_id = None;
         self.preview = SamplePreviewState::Idle;
-        self.load_folder(FileBrowserFolderId::default());
+        let folder = self
+            .last_folders
+            .get(&kind)
+            .filter(|folder| {
+                self.catalog
+                    .get(&(kind, (*folder).clone()))
+                    .is_some_and(Result::is_ok)
+            })
+            .or_else(|| self.starting_folders.get(&kind))
+            .cloned()
+            .unwrap_or_default();
+        self.load_folder(folder);
+    }
+
+    pub(crate) fn set_starting_folder(
+        &mut self,
+        kind: crate::synth::AssetKind,
+        folder: FileBrowserFolderId,
+    ) {
+        self.starting_folders.insert(kind, folder);
     }
 
     pub(crate) fn load_folder(&mut self, folder: FileBrowserFolderId) {
@@ -275,6 +298,7 @@ impl FileBrowserState {
             Some(Ok(listing)) if listing.folder() == &folder => {
                 self.rows = listing.rows().to_vec();
                 self.lifecycle = SampleAssetLifecycle::Ready;
+                self.last_folders.insert(self.asset_kind, folder.clone());
             }
             None => {
                 self.rows = fallback_rows(&folder);
@@ -516,4 +540,36 @@ fn fallback_rows(folder: &FileBrowserFolderId) -> Vec<FileBrowserRow> {
         None,
     )
     .expect("static fallback browser row is valid")]
+}
+
+#[cfg(test)]
+mod starting_folder_tests {
+    use super::*;
+    use crate::synth::{AssetKind, FileBrowserListing};
+
+    #[test]
+    fn browsers_remember_successful_folders_per_kind_and_recover_to_configured_start() {
+        let mut state = FileBrowserState::default();
+        let start = FileBrowserFolderId::new("@root/Users/example/Samples").unwrap();
+        let last = FileBrowserFolderId::new("@root/Users/example/Other").unwrap();
+        state.set_starting_folder(AssetKind::Sample, start.clone());
+        for folder in [&start, &last] {
+            state.refresh_listing(
+                AssetKind::Sample,
+                folder.clone(),
+                Ok(FileBrowserListing::new(folder.clone(), fallback_rows(folder)).unwrap()),
+            );
+        }
+        let parameter = ParameterId::new("sample.file").unwrap();
+        state.begin(None, parameter.clone(), AssetKind::Sample);
+        assert_eq!(state.folder(), &start);
+        state.load_folder(last.clone());
+        state.begin(None, parameter.clone(), AssetKind::SoundFont);
+        assert_eq!(state.folder(), &FileBrowserFolderId::default());
+        state.begin(None, parameter.clone(), AssetKind::Sample);
+        assert_eq!(state.folder(), &last);
+        state.refresh_listing(AssetKind::Sample, last, Err(SampleAssetError::Unavailable));
+        state.begin(None, parameter, AssetKind::Sample);
+        assert_eq!(state.folder(), &start);
+    }
 }

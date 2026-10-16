@@ -1399,6 +1399,10 @@ impl AppState {
                 }
                 Ok(ReducerEffects::default())
             }
+            AppEvent::SetBrowserStart { asset_kind, folder } => {
+                self.file_browser.set_starting_folder(asset_kind, folder);
+                Ok(ReducerEffects::default())
+            }
             AppEvent::FileCatalogRefreshed {
                 asset_kind,
                 folder,

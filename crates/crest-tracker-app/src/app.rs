@@ -13,7 +13,7 @@ mod timeline_focus;
 mod timeline_playback;
 mod timeline_window;
 use crest_tracker::chord_bank::{
-    default_bank, ChordBank, ChordBankError, ChordDefinition, ChordRevision, ChordRevisionId,
+    ChordBank, ChordBankError, ChordDefinition, ChordRevision, ChordRevisionId,
 };
 use crest_tracker::composition::*;
 use crest_tracker::editing::{Command, Editor, Occurrence};
@@ -62,7 +62,15 @@ pub enum Request {
     View {
         view: View,
     },
+    BrowserFolders {
+        sample: Option<String>,
+        soundfont: Option<String>,
+    },
     SynthSettings,
+    #[serde(skip)]
+    SynthAction {
+        action: crest_synth::control::SemanticAction,
+    },
     SynthPage {
         page: SynthPage,
     },
@@ -319,15 +327,15 @@ pub enum Request {
 #[derive(Clone, Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct ChordDraft {
-    name: String,
-    intervals: Vec<i8>,
-    root: u8,
-    inversion: u8,
-    open: bool,
-    spread: u8,
+    pub(crate) name: String,
+    pub(crate) intervals: Vec<i8>,
+    pub(crate) root: u8,
+    pub(crate) inversion: u8,
+    pub(crate) open: bool,
+    pub(crate) spread: u8,
 }
 impl ChordDraft {
-    fn verified(&self) -> Result<ChordRevision, ChordBankError> {
+    pub(crate) fn verified(&self) -> Result<ChordRevision, ChordBankError> {
         ChordRevision::new(
             self.name.clone(),
             ChordDefinition::new(
@@ -344,7 +352,9 @@ impl ChordDraft {
 #[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
 pub enum ChordSource {
     Saved { revision: ChordRevisionId },
+    Library { digest: String },
     Default { index: usize },
+    Draft { draft: ChordDraft },
 }
 #[derive(Clone, Debug, Deserialize)]
 #[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
@@ -411,6 +421,7 @@ pub enum CaptureAction {
 pub enum FileAction {
     Example,
     Corridors,
+    ImportMidi,
     CollectAssets,
     New,
     Open,
@@ -557,9 +568,9 @@ pub struct App {
     pub chord_library: Value,
     preview_cache: RefCell<Option<PreviewCache>>,
     expanded_selection: Vec<ChainSelection>,
-    preview_bars: u32,
-    preview_start: Beat,
-    timeline_focus: Option<Beat>,
+    pub(crate) preview_bars: u32,
+    pub(crate) preview_start: Beat,
+    pub(crate) timeline_focus: Option<Beat>,
     timeline_row: usize,
     /// None selects the first displayed time matching the source row in the focused span.
     timeline_row_at: Option<Beat>,
@@ -572,12 +583,12 @@ pub struct App {
     pending_edit: Option<PendingEdit>,
     shared_choice: Option<SharedChoice>,
     shared_token: u64,
-    pitch_intervals: bool,
-    chromatic_entry: bool,
-    roll_grid: Beat,
+    pub(crate) pitch_intervals: bool,
+    pub(crate) chromatic_entry: bool,
+    pub(crate) roll_grid: Beat,
     roll_cursor: Beat,
     roll_pitch: u8,
-    roll_value: PianoValue,
+    pub(crate) roll_value: PianoValue,
     roll_range_anchor: Option<(Beat, u8)>,
     drum_drafts: BTreeMap<PhraseId, Vec<DrumNote>>,
     pub fine_held: bool,
@@ -643,7 +654,7 @@ impl App {
             roll_grid: Beat::new(1, 4).expect("valid grid"),
             roll_cursor: Beat::ZERO,
             roll_pitch: 60,
-            roll_value: PianoValue::Pitch,
+            roll_value: PianoValue::Velocity,
             roll_range_anchor: None,
             drum_drafts: BTreeMap::new(),
             fine_held: false,
@@ -715,7 +726,12 @@ impl App {
         // between held-repeat ticks and must not split an edit gesture.
         let end_gesture = !matches!(
             request,
-            Request::AdjustGesture { .. } | Request::PianoGesture { .. }
+            Request::AdjustGesture { .. }
+                | Request::PianoGesture { .. }
+                | Request::AdjustOctave {
+                    gesture: Some(_),
+                    ..
+                }
         );
         match request {
             Request::View { view } => self.open_view(view),
@@ -727,18 +743,7 @@ impl App {
                     ));
                 }
                 self.adjustment_gesture = Some(gesture);
-                let result = if self.is_piano_roll()
-                    && self.selected_event_ids().is_empty()
-                    && matches!(
-                        control,
-                        PianoControl::Nudge { delta }
-                            | PianoControl::Resize { delta }
-                            | PianoControl::Adjust { delta } if delta != 0
-                    ) {
-                    self.piano_confirm()
-                } else {
-                    self.piano_control(control)
-                };
+                let result = self.piano_control(control);
                 self.adjustment_gesture = None;
                 result?;
             }
@@ -1037,7 +1042,9 @@ impl App {
             | Request::MpeOutputProfile { .. }
             | Request::MidiControls { .. }
             | Request::RollBindings { .. }
-            | Request::Arm { .. } => {}
+            | Request::Arm { .. }
+            | Request::SynthAction { .. }
+            | Request::BrowserFolders { .. } => {}
         }
         if end_gesture {
             self.editor.end_gesture();
@@ -1047,16 +1054,13 @@ impl App {
     }
     fn clamp_focus(&mut self) {
         self.track = self.track.min(self.editor.song().tracks.len() - 1);
-        self.slot = self
-            .slot
-            .min(self.editor.song().tracks[self.track].slots.len());
         self.chain_row = self.chain_row.min(
             self.selected_chain()
                 .map_or(0, |(_, chain)| chain.phrases.len()),
         );
         if self.arrangement_view() {
             let track = self.column.min(self.editor.song().tracks.len() - 1);
-            let slot = self.row.min(self.editor.song().tracks[track].slots.len());
+            let slot = self.row;
             if (track, slot) != (self.track, self.slot) {
                 self.chain_row = 0;
             }
@@ -1144,7 +1148,7 @@ impl App {
                     .iter()
                     .position(|slot| slot.as_ref().is_some_and(|usage| usage.id == id))
             })
-            .unwrap_or(self.slot.min(track.slots.len()));
+            .unwrap_or(self.slot);
         if let Some((_, chain)) = self.selected_chain() {
             self.chain_row = selection
                 .phrase_use
@@ -1236,7 +1240,6 @@ impl App {
             View::Song => {
                 if self.selected_chain().is_none() {
                     let track = &self.editor.song().tracks[self.track];
-                    self.slot = self.slot.min(track.slots.len());
                     self.command(Command::AddPhrase {
                         track: track.id,
                         slot: self.slot,
@@ -1401,7 +1404,7 @@ impl App {
         }
         self.command(Command::PutEvent { phrase: id, event })
     }
-    fn default_target(&self) -> Result<Target, DocumentError> {
+    pub(crate) fn default_target(&self) -> Result<Target, DocumentError> {
         self.editor
             .song()
             .instruments
@@ -1457,7 +1460,7 @@ impl App {
             commands.push(Command::PutPhrase {
                 id,
                 phrase: Phrase {
-                    name: format!("Phrase {:02X}", self.editor.song().phrases.len()),
+                    name: format!("{:02}", self.editor.song().phrases.len()),
                     ..Phrase::default()
                 },
             });
@@ -1525,11 +1528,6 @@ impl App {
                 id: track_id.get(),
             })?;
         let mut track = self.editor.song().tracks[index].clone();
-        if slot > track.slots.len() {
-            return Err(DocumentError::Invalid(
-                "chain slot must exist or append to the track",
-            ));
-        }
         let usage = match track.slots.get(slot).and_then(Option::as_ref) {
             Some(usage) if usage.chain == chain => usage.clone(),
             _ => ChainUse {
@@ -1538,11 +1536,8 @@ impl App {
                 repeats: 1,
             },
         };
-        if slot == track.slots.len() {
-            track.slots.push(Some(usage));
-        } else {
-            track.slots[slot] = Some(usage);
-        }
+        track.ensure_slot(slot)?;
+        track.slots[slot] = Some(usage);
         self.command(Command::PutTrack { track })?;
         self.track = index;
         self.slot = slot;
@@ -1846,8 +1841,16 @@ impl App {
             })
             .unwrap_or_default()
     }
-    #[cfg(test)]
-    fn timeline_projection(&self) -> Value {
+    pub(crate) fn follow_minimap_window(&mut self, at: Beat) -> Result<(), DocumentError> {
+        let current = timeline_window::bar_at(self.editor.song(), at)?;
+        let first = timeline_window::bar_at(self.editor.song(), self.preview_start)?;
+        if current.number < first.number || current.number - first.number >= self.preview_bars {
+            self.preview_start = current.at;
+        }
+        Ok(())
+    }
+
+    pub(crate) fn timeline_projection(&self) -> Value {
         if !matches!(self.view, View::Expanded | View::Minimap) {
             return Value::Null;
         }
@@ -2300,12 +2303,8 @@ impl App {
         }
         Ok(())
     }
-    fn default_chords(&self) -> Result<Vec<ChordRevision>, ChordBankError> {
-        let scale = self
-            .selected_phrase()
-            .and_then(|(_, phrase)| phrase.key.as_ref())
-            .unwrap_or(&self.editor.song().key);
-        default_bank(scale)
+    pub(crate) fn default_chords(&self) -> Result<Vec<ChordRevision>, ChordBankError> {
+        crest_tracker::chord_bank::shared_catalog()
     }
     #[cfg(test)]
     fn chord_bank_projection(&self) -> Value {
@@ -2313,7 +2312,7 @@ impl App {
             .selected_phrase()
             .and_then(|(_, phrase)| phrase.key.as_ref())
             .unwrap_or(&self.editor.song().key);
-        match default_bank(scale) {
+        match self.default_chords() {
             Ok(defaults) => {
                 json!({"scale":scale.name(),"defaults":defaults,"custom":self.editor.song().chords})
             }
@@ -2339,6 +2338,31 @@ impl App {
         source: ChordSource,
     ) -> Result<(ChordRevisionId, Option<ChordRevision>), DocumentError> {
         match source {
+            ChordSource::Library { digest } => {
+                let entry = self.chord_library["entries"]
+                    .as_array()
+                    .and_then(|entries| entries.iter().find(|entry| entry["digest"] == digest))
+                    .ok_or(DocumentError::Invalid("shared chord revision unavailable"))?;
+                let chord: ChordRevision = serde_json::from_value(entry["chord"].clone())
+                    .map_err(|_| DocumentError::Invalid("invalid shared chord revision"))?;
+                if let Some((id, _)) = self
+                    .editor
+                    .song()
+                    .chords
+                    .entries()
+                    .find(|(_, saved)| **saved == chord)
+                {
+                    return Ok((*id, None));
+                }
+                Ok((
+                    ChordRevisionId::new(self.editor.song().next_identity()?)?,
+                    Some(chord),
+                ))
+            }
+            ChordSource::Draft { draft } => Ok((
+                ChordRevisionId::new(self.editor.song().next_identity()?)?,
+                Some(draft.verified()?),
+            )),
             ChordSource::Saved { revision } => {
                 self.editor
                     .song()
@@ -2467,7 +2491,7 @@ impl App {
         }
         commands.push(Command::PutEvent { phrase, event });
         self.command(Command::Batch { commands })?;
-        self.status = format!("CHORD APPLIED · revision {id} · FX {}", slot + 1);
+        self.status = format!("CHORD APPLIED · FX {}", slot + 1);
         Ok(())
     }
     fn checked_source(
@@ -2637,7 +2661,7 @@ impl App {
         self.remember_drum_lane(Some((from_pitch, from_target)), draft);
         Ok(())
     }
-    fn selected_event_ids(&self) -> Vec<EventId> {
+    pub(crate) fn selected_event_ids(&self) -> Vec<EventId> {
         let Some((id, phrase)) = self.selected_phrase() else {
             return Vec::new();
         };
@@ -3069,8 +3093,8 @@ fn fx_label(fx: &Option<Fx>, chords: &ChordBank) -> String {
         Some(Fx::Chance { percent }) => format!("CHA {percent}%"),
         Some(Fx::ChordRevision { revision }) => chords
             .get(revision)
-            .map(|chord| format!("CRD {} · R{revision}", chord.name()))
-            .unwrap_or_else(|| format!("CRD MISSING · R{revision}")),
+            .map(crate::workspace::chords::compact_name)
+            .unwrap_or_else(|| "CRD MISSING".into()),
         Some(Fx::Chord { intervals }) => format!(
             "CRD {}",
             intervals
@@ -3490,6 +3514,7 @@ mod materialization_tests {
     }
     fn euclidean() -> PhraseForm {
         PhraseForm::Euclidean {
+            pitches: vec![],
             pulses: 7,
             rotation: 3,
             pitch: 60,
@@ -3605,6 +3630,7 @@ mod materialization_tests {
     fn random_bake_uses_selected_occurrence_seed_and_preserves_other_shared_uses() {
         let mut app = phrase_app(PhraseForm::Random {
             seed: 42,
+            vary: true,
             density: 100,
             low: 48,
             high: 84,
@@ -4461,14 +4487,12 @@ mod chord_app_tests {
     }
 
     #[test]
-    fn default_apply_uses_effective_scale_preserves_other_slots_and_undoes_atomically() {
+    fn default_apply_uses_shared_intervals_preserves_other_slots_and_undoes_atomically() {
         let mut app = fixture();
         let original = app.editor.song().clone();
         let old_event = event(&app).clone();
         let revision = app.editor.revision();
-        let expected = default_bank(app.selected_phrase().unwrap().1.key.as_ref().unwrap())
-            .unwrap()[0]
-            .clone();
+        let expected = app.default_chords().unwrap()[0].clone();
         assert_eq!(
             app.projection()["chordBank"]["defaults"][0]["name"],
             expected.name()
@@ -4486,8 +4510,7 @@ mod chord_app_tests {
         assert_eq!(event(&app).controls, old_event.controls);
         assert_eq!(event(&app).note.as_ref().unwrap().pitch, 51);
         let label = fx_label(&event(&app).fx[1], &app.editor.song().chords);
-        assert!(label.contains(expected.name()));
-        assert!(label.contains(&id.to_string()));
+        assert_eq!(label, "M");
         app.apply(Request::Undo).unwrap();
         assert_eq!(app.editor.song(), &original);
     }

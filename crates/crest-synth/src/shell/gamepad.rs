@@ -12,7 +12,7 @@ use crate::shell::{ControllerGesture, ControllerInput, ControllerInputTranslator
 use sdl3::event::Event;
 use sdl3::gamepad::{Axis, Button, Gamepad};
 use sdl3::joystick::JoystickId;
-use std::collections::HashMap;
+use std::{collections::HashMap, time::Duration};
 
 // A scheduling budget, not a product/device capacity. Remaining events stay in
 // the backend queue for the next UI tick; all connected devices are represented.
@@ -151,6 +151,7 @@ struct DeviceInput {
     held: HashMap<ControllerButton, Hold>,
     translator: ControllerInputTranslator,
     preview_request: Option<EngineSelectionRequestId>,
+    repeat: Option<(ControllerButton, Duration)>,
 }
 
 #[derive(Debug, PartialEq)]
@@ -261,13 +262,49 @@ impl DeviceInput {
                 }));
             }
         };
+        if matches!(
+            gesture,
+            ControllerGesture::Direction(_) | ControllerGesture::EditDirection(_)
+        ) {
+            self.repeat = Some((button, Duration::from_millis(280)));
+        }
         self.held.insert(button, Hold::Gesture(gesture));
         self.translator
             .translate(ControllerInput::pressed(gesture))
             .map(InputOutcome::Action)
     }
 
+    /// Repeats come from elapsed control time and recorded press/release edges.
+    /// Page chords and one-shot actions never repeat. A delayed tick emits at
+    /// most one action, avoiding a burst of edits after a stalled UI.
+    fn repeat(&mut self, elapsed: Duration) -> Option<SemanticAction> {
+        let (button, remaining) = self.repeat.as_mut()?;
+        if *remaining > elapsed {
+            *remaining -= elapsed;
+            return None;
+        }
+        *remaining = Duration::from_millis(45);
+        let direction = match self.held.get(button)? {
+            Hold::Gesture(
+                ControllerGesture::Direction(d) | ControllerGesture::EditDirection(d),
+            ) => *d,
+            _ => return None,
+        };
+        if self.shift_held() {
+            return None;
+        }
+        Some(if self.edit_held() {
+            self.consume_edit();
+            SemanticAction::Adjust(direction)
+        } else {
+            SemanticAction::Navigate(direction)
+        })
+    }
+
     fn release(&mut self, button: ControllerButton) -> Option<SemanticAction> {
+        if self.repeat.is_some_and(|(held, _)| held == button) {
+            self.repeat = None;
+        }
         match self.held.remove(&button)? {
             Hold::Edit { used: false } => self
                 .translator
@@ -284,6 +321,7 @@ impl DeviceInput {
     }
 
     fn suspend(&mut self, preserve_shift: bool) -> Option<SemanticAction> {
+        self.repeat = None;
         for hold in self.held.values_mut() {
             if !preserve_shift || !matches!(hold, Hold::Modifier(ControllerRole::Shift)) {
                 *hold = Hold::Suppressed;
@@ -293,6 +331,7 @@ impl DeviceInput {
     }
 
     fn disconnect(&mut self) -> Option<SemanticAction> {
+        self.repeat = None;
         self.held.clear();
         self.translator.translate(ControllerInput::disconnected())
     }
@@ -624,7 +663,13 @@ impl GamepadRuntime {
         app_loop: &mut AppLoop<Boundary>,
         persisted_edits_blocked: bool,
     ) -> Result<(), BoundaryFull> {
-        self.advance_hosted(app_loop, persisted_edits_blocked, false, &mut |_, _| false)
+        self.advance_hosted(
+            app_loop,
+            persisted_edits_blocked,
+            false,
+            Duration::ZERO,
+            &mut |_, _| false,
+        )
     }
 
     pub(crate) fn set_host_action_handler(
@@ -639,6 +684,7 @@ impl GamepadRuntime {
         app_loop: &mut AppLoop<Boundary>,
         persisted_edits_blocked: bool,
         host_has_input: bool,
+        elapsed: Duration,
         route: &mut dyn FnMut(HostControllerInput, &ControllerBindings) -> bool,
     ) -> Result<(), BoundaryFull> {
         if self.host_has_input != host_has_input {
@@ -818,6 +864,20 @@ impl GamepadRuntime {
             // A press can enter/exit capture or change bindings. Apply its new
             // interpretation before the next queued physical edge in this tick.
             self.synchronize_context(app_loop)?;
+        }
+        let repeats: Vec<_> = self
+            .inputs
+            .devices
+            .iter_mut()
+            .filter_map(|(id, input)| input.repeat(elapsed).map(|action| (*id, action)))
+            .collect();
+        for (id, action) in repeats {
+            self.inputs.action(
+                app_loop,
+                InputOrigin::Controller(id),
+                action,
+                persisted_edits_blocked,
+            )?;
         }
         self.observe_preferences(app_loop.state().controller());
         Ok(())
@@ -1573,6 +1633,48 @@ mod tests {
     }
 
     #[test]
+    fn held_directions_repeat_from_elapsed_events_and_stop_on_release_or_disconnect() {
+        let mut input = DeviceInput::default();
+        assert_eq!(
+            press(&mut input, ControllerButton::DPadRight),
+            Some(SemanticAction::Navigate(Direction::Right))
+        );
+        assert_eq!(input.repeat(Duration::from_millis(279)), None);
+        assert_eq!(
+            input.repeat(Duration::from_millis(1)),
+            Some(SemanticAction::Navigate(Direction::Right))
+        );
+        press(&mut input, ControllerButton::South);
+        assert_eq!(
+            input.repeat(Duration::from_millis(45)),
+            Some(SemanticAction::Adjust(Direction::Right))
+        );
+        input.release(ControllerButton::DPadRight);
+        assert_eq!(input.repeat(Duration::from_secs(1)), None);
+        assert_eq!(
+            input.release(ControllerButton::South),
+            None,
+            "repeat consumes Edit tap"
+        );
+        press(&mut input, ControllerButton::East);
+        assert_eq!(
+            press(&mut input, ControllerButton::DPadUp),
+            Some(SemanticAction::NavigatePage(Direction::Up))
+        );
+        assert_eq!(
+            input.repeat(Duration::from_secs(1)),
+            None,
+            "page transitions never repeat"
+        );
+        input.disconnect();
+        press(&mut input, ControllerButton::DPadLeft);
+        input.quarantine();
+        assert_eq!(input.repeat(Duration::from_secs(1)), None);
+        input.disconnect();
+        assert_eq!(input.repeat(Duration::from_secs(1)), None);
+    }
+
+    #[test]
     fn edit_taps_confirm_on_release_and_direction_chords_never_confirm() {
         let mut input = DeviceInput::default();
         assert_eq!(press(&mut input, ControllerButton::South), None);
@@ -1881,7 +1983,7 @@ mod tests {
             joysticks.update();
             for _ in 0..4 {
                 runtime
-                    .advance_hosted(&mut app, false, true, &mut |input, _| {
+                    .advance_hosted(&mut app, false, true, Duration::ZERO, &mut |input, _| {
                         if let HostControllerInput::Axis { axis, value, .. } = input {
                             axes.push((axis, value));
                         }
@@ -1910,7 +2012,7 @@ mod tests {
             let hosted_tick = |runtime: &mut GamepadRuntime, app: &mut AppLoop<Probe>, owns| {
                 for _ in 0..4 {
                     runtime
-                        .advance_hosted(app, false, owns, &mut |_, _| false)
+                        .advance_hosted(app, false, owns, Duration::ZERO, &mut |_, _| false)
                         .unwrap();
                 }
             };

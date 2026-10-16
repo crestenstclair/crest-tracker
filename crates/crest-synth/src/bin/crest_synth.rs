@@ -687,7 +687,7 @@ impl DemoSceneObservation {
                 EventInput::EngineSelectionLifecycleAdvanced { .. } => {}
                 EventInput::EnginePrepared { .. } => event_variants[8] = true,
                 EventInput::SampleAssetLifecycleAdvanced { .. } => {}
-                EventInput::FileCatalogRefreshed { .. } => {}
+                EventInput::FileCatalogRefreshed { .. } | EventInput::SetBrowserStart { .. } => {}
                 EventInput::EnginePreparationFailed { .. } => event_variants[9] = true,
                 EventInput::EngineActivationAcknowledged { .. } => event_variants[10] = true,
                 EventInput::SetSlotOccupancy { .. } => event_variants[11] = true,

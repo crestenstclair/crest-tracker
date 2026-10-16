@@ -217,6 +217,7 @@ fn random_generator_rejects_an_empty_scale_constrained_pitch_range() {
     let mut song = linked_song();
     first_phrase(&mut song).form = PhraseForm::Random {
         seed: 1,
+        vary: true,
         density: 100,
         low: 61,
         high: 61,

@@ -28,6 +28,10 @@ pub struct MachinePreferences {
     pub midi_controls: Vec<MidiControlBinding>,
     #[serde(default)]
     pub roll_bindings: RollBindings,
+    #[serde(default)]
+    pub sample_folder: Option<String>,
+    #[serde(default)]
+    pub soundfont_folder: Option<String>,
 }
 
 impl Default for MachinePreferences {
@@ -41,6 +45,8 @@ impl Default for MachinePreferences {
             clock: ClockSettings::default(),
             midi_controls: Vec::new(),
             roll_bindings: RollBindings::default(),
+            sample_folder: None,
+            soundfont_folder: None,
         }
     }
 }
@@ -59,6 +65,8 @@ impl MachinePreferences {
         }
         validate_midi_controls(&self.midi_controls)?;
         self.roll_bindings.validate()?;
+        validate_identity(self.sample_folder.as_deref(), "sample folder")?;
+        validate_identity(self.soundfont_folder.as_deref(), "SoundFont folder")?;
         self.clock.validate()
     }
 }

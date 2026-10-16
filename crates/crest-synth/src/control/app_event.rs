@@ -155,6 +155,10 @@ pub enum AppEventSurfaceDescriptor {
         request_id: AppEventPayloadShape,
         lifecycle: AppEventPayloadShape,
     },
+    SetBrowserStart {
+        asset_kind: AppEventPayloadShape,
+        folder: AppEventPayloadShape,
+    },
     FileCatalogRefreshed {
         asset_kind: AppEventPayloadShape,
         folder: AppEventPayloadShape,
@@ -244,7 +248,7 @@ pub enum AppEventSurfaceDescriptor {
     MidiInputShutdownRequested,
 }
 
-const APP_EVENT_SURFACE_DESCRIPTOR: [AppEventSurfaceDescriptor; 57] = [
+const APP_EVENT_SURFACE_DESCRIPTOR: [AppEventSurfaceDescriptor; 58] = [
     AppEventSurfaceDescriptor::Send {
         action: AppEventPayloadShape::SendAction,
     },
@@ -357,6 +361,10 @@ const APP_EVENT_SURFACE_DESCRIPTOR: [AppEventSurfaceDescriptor; 57] = [
     AppEventSurfaceDescriptor::SampleAssetLifecycleAdvanced {
         request_id: AppEventPayloadShape::EngineSelectionRequestId,
         lifecycle: AppEventPayloadShape::SampleAssetLifecycle,
+    },
+    AppEventSurfaceDescriptor::SetBrowserStart {
+        asset_kind: AppEventPayloadShape::AssetKind,
+        folder: AppEventPayloadShape::FileBrowserFolderId,
     },
     AppEventSurfaceDescriptor::FileCatalogRefreshed {
         asset_kind: AppEventPayloadShape::AssetKind,
@@ -532,6 +540,10 @@ pub enum AppEvent {
     /// Replaces one folder's correlated catalog result through the reducer.
     /// Stable row focus is retained when the identity remains present and is
     /// repaired deterministically when it does not.
+    SetBrowserStart {
+        asset_kind: crate::synth::AssetKind,
+        folder: FileBrowserFolderId,
+    },
     FileCatalogRefreshed {
         asset_kind: crate::synth::AssetKind,
         folder: FileBrowserFolderId,
@@ -703,6 +715,7 @@ impl AppEvent {
                 | Self::SetPatchOverviewOriginEnabled { .. }
                 | Self::EngineSelectionLifecycleAdvanced { .. }
                 | Self::SampleAssetLifecycleAdvanced { .. }
+                | Self::SetBrowserStart { .. }
                 | Self::FileCatalogRefreshed { .. }
                 | Self::EnterSurface(_)
                 | Self::Return
@@ -808,6 +821,10 @@ impl AppEvent {
                     lifecycle: AppEventPayloadShape::SampleAssetLifecycle,
                 }
             }
+            Self::SetBrowserStart { .. } => AppEventSurfaceDescriptor::SetBrowserStart {
+                asset_kind: AppEventPayloadShape::AssetKind,
+                folder: AppEventPayloadShape::FileBrowserFolderId,
+            },
             Self::FileCatalogRefreshed { .. } => AppEventSurfaceDescriptor::FileCatalogRefreshed {
                 asset_kind: AppEventPayloadShape::AssetKind,
                 folder: AppEventPayloadShape::FileBrowserFolderId,
@@ -973,7 +990,7 @@ mod tests {
     fn surface_descriptor_is_unique_and_exhaustive() {
         let descriptor = AppEvent::surface_descriptor();
 
-        assert_eq!(descriptor.len(), 57);
+        assert_eq!(descriptor.len(), 58);
         assert!(descriptor.contains(&AppEventSurfaceDescriptor::Controller {
             event: AppEventPayloadShape::ControllerEvent,
         }));

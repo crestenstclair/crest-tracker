@@ -2,11 +2,19 @@
 
 Updated 15 October 2026. This consolidates the user's decisions, including corrections made after the original screens. Architecture mechanisms and unresolved interaction choices are separated in the architecture guide and decision log.
 
+## Current review decisions — 16 October 2026
+
+These user-reviewed corrections supersede older copied Figma annotations: Song reference edits use Left/Right ±1 and Up/Down ±10; Tracker note edits use Left/Right single pitch steps and Up/Down octaves. Held directions scan. Phrase defaults are decimal names such as `00`. OFF is an explicit owned release event.
+
+The chord picker contains only shared interval shapes and Cancel. Choosing a shape applies it at the note root and returns to Phrase; creation/editing belongs in the separate Chord Bank page with an interval keyboard. FX Apply and Cancel return to Phrase. Song/Chain/Phrase grids fill the workspace; chord and FX selection are contextual popovers. Piano Roll shows continuous note bars and preserves its documented Edit+Up note menu. Native Synth navigation remains native; reverse page gestures restore the Tracker origin when entering Synth from Tracker.
+
+Recording setup is deferred. Expanded view is dropped. Euclidean and Randomizer use their Figma primary controls and preview strips; generating and converting notes are explicit operations.
+
 ## Purpose and boundary
 
 Crest Tracker is a separate sequencing library integrated with Crest Synth by the host application. Tracker emits MIDI; Synth owns sound generation, instruments, patches, samples, SoundFonts, mixer and audio FX. Synth must remain independently usable and must not acquire concepts such as phrase, chain, cursor, tracker FX or controller navigation. Existing Synth functionality remains intact.
 
-The user explicitly requires Crest Synth as the working base, with all existing Synth functionality available in this application, especially its UI and audio rendering. Use a source dependency with direct local co-development of both repositories. Preserve the hard synth/sequencer boundary: the pure Tracker library never imports Synth; the host connects public contracts; Synth's existing UI continues to use its own reducers and renderer. Do not replace working Synth features with a partial reimplementation.
+The user explicitly requires Crest Synth as the working base, with all existing Synth functionality available in this application, especially its UI and audio rendering. Its complete source is forked into this workspace for direct co-development. Preserve the hard synth/sequencer boundary: the pure Tracker library never imports Synth; the host connects public contracts; Synth's existing UI continues to use its own reducers and renderer. Do not replace working Synth features with a partial reimplementation.
 
 The frontend renders the authoritative application state through projections. Editing dispatches commands; widgets do not keep competing copies of song or phrase content. Start with video game controllers for editing and external MIDI/MPE input for Piano Roll recording. Performance input has a separate timestamped capture boundary; MIDI control-surface mappings use the semantic command boundary. Explicit state plus pure transitions and an event loop is the architectural direction; it does not imply that playback has no state.
 
@@ -22,7 +30,7 @@ Song is the complete saved document and the only active composition. There is no
 | Phrase | Reusable notes and three FX slots with length, division, optional local scale and sequencer type. |
 | Occurrence | A particular use of a shared chain or phrase. Playback position and active effect state are isolated per occurrence. |
 
-Song editing follows the LSDJ/M8 hierarchy. The desktop-style Expanded view and the Minimap do not introduce a second arrangement or an independently editable Pattern store. Different lengths and divisions align by musical time.
+Song editing follows the LSDJ/M8 hierarchy. Expanded view is dropped. The Minimap does not introduce a second arrangement or an independently editable Pattern store. Different lengths and divisions align by musical time.
 
 Chains and phrases are reused within the Song. Shared sound definitions and Custom chords live in their respective libraries; sharing a sound definition does not share its installed use, MIDI subscription or routing/mix. The Song retains each saved sound revision until an explicit update adopts another revision. An update preserves local routing/mix; a failed update leaves the prior sound reference and configuration intact.
 
@@ -46,11 +54,11 @@ Support quarter, eighth, sixteenth, thirty-second and sixty-fourth divisions, wi
 
 There are no tables. Phrase length and grid division provide the relevant rhythmic flexibility directly. Cursors must account for repeats, jumps and local phrase/chain/song progress independently from editor focus.
 
-Drum Machine has a user-intended design reference still to be confirmed against the available materials. Euclidean and Randomizer layouts remain open. Current Figma representations are scaffolding for those modes, not approval of every control.
+Drum Machine uses horizontal steps and vertical lanes. Euclidean and Randomizer follow their Figma primary controls and generated-note previews, with explicit audition and conversion into editable phrases.
 
-## Piano Roll — record first
+## Piano Roll
 
-Piano Roll is a phrase type for capturing external MIDI and expressive MPE performances while the Song plays. It shares Phrase references, NoteData, the exact musical timeline and three phrase FX slots with every other form. The primary flow is input/target setup → arm → record while accompaniment plays → end take → replay/edit/save. Full recording, routing, gamepad and acceptance contracts are in [Piano Roll](design/piano-roll.md).
+Piano Roll shares Phrase references, NoteData, the exact musical timeline and three phrase FX slots with every other form. The current scope covers note editing and playback. Recording setup is deferred by the user; the future recording, routing and capture contracts remain in [Piano Roll](design/piano-roll.md).
 
 - Preserve original timing, attack/release velocity, source channels, per-note bend/pressure/CC74, master expression and sustain. Incoming pitches bypass scale filtering. Percent labels must not reduce MIDI precision.
 - Record setup visibly maps input channels or an MPE zone to specific instruments, MIDI channels or an MPE-capable endpoint zone. Stamp explicit targets into recorded events; do not add hidden track routing or an instrument field to phrase settings.
@@ -59,7 +67,7 @@ Piano Roll is a phrase type for capturing external MIDI and expressive MPE perfo
 - Grid/zoom changes are view/entry settings. Quantize defaults to note starts, moves associated expression, preserves duration and is undoable. Capture never silently quantizes timing or pitch.
 - Make Unique/Edit Shared applies before arming. Preserve interrupted/conflicting takes; stop/seek/disconnect/overflow must clean up only owned notes and controls. Validate MPE destination capabilities instead of silently flattening expression.
 
-KORG Gadget for Nintendo Switch provides controller inspiration, not an MPE capability guarantee or a replacement for Crest's navigation. Exact shortcut/default choices are proposed in the dedicated contract. Recording is core feature work, not deferred to the later configurable-control-surface phase.
+KORG Gadget for Nintendo Switch provides controller inspiration, not an MPE capability guarantee or a replacement for Crest's navigation. Recording setup remains deferred until the user resumes that scope.
 
 ## Scale-aware music entry
 
@@ -74,13 +82,13 @@ KORG Gadget for Nintendo Switch provides controller inspiration, not an MPE capa
 
 The user chooses the intended quality: major, minor, diminished and other explicit shapes. Chord expansion is not scale-quantized, and the sequencer must not silently change chord quality to make it fit.
 
-Each song has an immutable **Default** bank derived from its key/scale, showing fitting chords for each interval. “Immutable” means read-only for that song/key context; changing the song key derives a new matching bank. Chosen chord shapes must remain stable in saved music. **Custom** chords are editable, shareable resources and can be copied from existing chords or created through chord search. The exact catalog, bank capacities and exotic-scale derivation policy remain to be specified.
+The shared library contains factory and custom interval shapes independent of the Song key and note root. Selection applies the shape relative to the selected note; changing the Song key does not alter saved chord quality. Custom shapes are created or edited on the separate Chord Bank page and published as immutable revisions. The picker offers shared shapes and Cancel only.
 
 Use the previous Crest Tracker chord-bank/editor references as the design basis. Chord selection in an FX cell is contextual:
 
 1. Focus the chord effect/value and hold **Edit + Up** to open the popover.
 2. Hold Edit and use Left/Right to cycle chords.
-3. Release Edit to navigate to bottom actions such as Save.
+3. Release Edit, then tap Edit to select the highlighted chord, or navigate to Cancel. Save belongs to the separate editor.
 
 ADD exposes the interval relative to the root. Its interval editor spans an octave either side of the root and need not look literally like a piano. It supports selecting intervals and saving the result; Save Chord computes/saves the resulting chord. The later Edit+Up popover convention supersedes an earlier suggestion to use Shift+Up for this contextual editor.
 

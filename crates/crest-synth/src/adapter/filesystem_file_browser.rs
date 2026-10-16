@@ -96,6 +96,9 @@ impl FilesystemFileBrowser {
     }
 
     pub fn with_user_locations(mut self) -> Self {
+        #[cfg(unix)]
+        self.locations
+            .push(("@root", "FILESYSTEM", PathBuf::from("/")));
         if let Some(home) =
             std::env::var_os("HOME").and_then(|home| PathBuf::from(home).canonicalize().ok())
         {

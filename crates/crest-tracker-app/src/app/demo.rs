@@ -103,6 +103,7 @@ pub(crate) fn arrangement(song: &Song, targets: [Target; 5]) -> Result<Command, 
         steps: 8,
         division: Division::new(8, 1, 1)?,
         form: PhraseForm::Euclidean {
+            pitches: vec![],
             pulses: 5,
             rotation: 0,
             pitch: 79,

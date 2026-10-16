@@ -394,6 +394,12 @@
   // projected list. Adjacent spans with no separating text made the run a
   // single unbroken word in every one of those readings.
   function hintRun(actions) {
+    var overrides = hostView ? hostView.actionOverrides || [] : [];
+    actions = actions.filter(function (action) {
+      return !overrides.some(function (override) {
+        return JSON.stringify(override.action) === JSON.stringify(action.action);
+      });
+    }).concat(overrides);
     var spans = [];
     for (var i = 0; i < actions.length; i += 1) {
       var action = actions[i];
@@ -2744,24 +2750,74 @@
   var activeWorkspace = null;
   var hostView = null;
 
-  function workspaceControl(row, workspace) {
-    return {path: {controlId: {id: row.id}}, label: row.label,
-      value: {kind: "summary", value: row.value}, focused: workspace.focus === row.id,
-      enabled: true, visible: true, editable: true};
+  function workspaceRows(rows, workspace) {
+    var keyIds = workspace.preview ? workspace.preview.keys.map(function (key) { return key.id; }) : [];
+    return rows.filter(function (row) { return keyIds.indexOf(row.id) < 0; }).map(function (row) {
+      var focused = workspace.focus === row.id;
+      return '<button class="workspace-action" data-workspace-id="' + escapeHtml(row.id) +
+        '" aria-current="' + String(focused) + '"><span class="workspace-focus-marker">' + (focused ? '›' : '') +
+        '</span><span class="workspace-action-label">' + escapeHtml(row.label) + '</span><span class="workspace-action-value">' + escapeHtml(row.value) + '</span></button>';
+    }).join("");
   }
 
-  function workspaceRows(rows, workspace) {
-    return rows.map(function (row, index) {
-      return '<button class="workspace-action" data-workspace-id="' + escapeHtml(row.id) +
-        '" aria-current="' + String(workspace.focus === row.id) + '">' +
-        patchRowHtml(workspaceControl(row, workspace), workspace.adjusting ? "adjust" : "navigate", "detail", index) + '</button>';
-    }).join("");
+  function workspaceToolbar(rows) {
+    return rows.length ? '<nav class="workspace-toolbar">' + rows.map(function (row) {
+      return '<button data-workspace-id="' + escapeHtml(row.id) + '">' + escapeHtml(row.label) + '</button>';
+    }).join('') + '</nav>' : '';
+  }
+
+  function workspacePreview(workspace) {
+    var preview = workspace.preview;
+    if (!preview) return '';
+    var keys = preview.keys.map(function (key) {
+      var interval = Number(key.value);
+      var black = [1, 3, 6, 8, 10].indexOf((interval % 12 + 12) % 12) >= 0;
+      return '<button class="workspace-piano-key" data-black="' + black + '" data-selected="' + key.selected + '" aria-pressed="' + key.selected +
+        '" aria-current="' + (workspace.focus === key.id) + '" data-workspace-id="' + escapeHtml(key.id) + '">' + escapeHtml(key.label) + '</button>';
+    }).join('');
+    return '<section class="workspace-preview"><h2>' + escapeHtml(preview.title) + '</h2><p class="type-hint secondary">' + escapeHtml(preview.caption) +
+      '</p><div class="workspace-intervals">' + preview.values.map(function (value) { return '<span>' + escapeHtml(value) + '</span>'; }).join('') +
+      '</div><p class="workspace-resolved">' + escapeHtml(preview.footer) + '</p>' +
+      (keys ? '<div class="workspace-keyboard" aria-label="Chord interval keyboard">' + keys + '</div>' : '') + '</section>';
+  }
+
+  function workspaceTimeline(workspace) {
+    var timeline = workspace.timeline;
+    var headings = workspace.columns.map(function (column) { return '<span>' + escapeHtml(column) + '</span>'; }).join('');
+    var lanes = workspace.grid.map(function (row, lane) {
+      var cells = row.cells.map(function (cell) {
+        return '<button class="workspace-time-cell" data-workspace-id="' + escapeHtml(cell.id) + '" aria-label="' + escapeHtml(row.label + ', step ' + cell.id.split(':')[1]) +
+          '" data-focused="' + (workspace.focus === cell.id) + '"></button>';
+      }).join('');
+      var spans = timeline.spans.filter(function (span) { return span.lane === lane; }).map(function (span) {
+        return '<button class="workspace-duration" data-workspace-id="' + escapeHtml(span.id) + '" data-start="' + span.start + '" data-end="' + span.end +
+          '" data-selected="' + span.selected + '" aria-pressed="' + span.selected + '">' + escapeHtml(span.label) + '</button>';
+      }).join('');
+      var focused = row.cells.some(function (cell) { return cell.id === workspace.focus; });
+      return '<div class="workspace-time-lane" data-secondary="' + (timeline.secondaryLanes.indexOf(lane) >= 0) + '" data-focused="' + focused + '"><span class="workspace-pitch-label">' + escapeHtml(row.label) + '</span><div class="workspace-time-track"><div class="workspace-time-cells">' + cells + '</div>' + spans + '</div></div>';
+    }).join('');
+    var levels = timeline.spans.map(function (span) {
+      return '<button class="workspace-level" aria-label="Velocity ' + span.level + '" data-workspace-id="' + escapeHtml(span.id) + '" data-start="' + span.start +
+        '" data-level="' + span.level + '" data-selected="' + span.selected + '"></button>';
+    }).join('');
+    return '<div class="workspace-timeline" data-columns="' + workspace.columns.length + '"><div class="workspace-time-ruler"><span>NOTE</span><div class="workspace-time-cells">' + headings + '</div></div><div class="workspace-time-body">' + lanes +
+      (timeline.playhead !== null ? '<div class="workspace-playhead-track"><i class="workspace-playhead" data-start="' + timeline.playhead + '"></i></div>' : '') +
+      '</div><div class="workspace-velocity"><span class="type-hint">VELOCITY</span><div class="workspace-levels">' + levels + '</div></div></div>';
+  }
+
+  function layoutWorkspace(doc, workspace) {
+    doc.querySelectorAll('.workspace-timeline').forEach(function (element) { element.style.setProperty('--time-columns', element.dataset.columns); });
+    doc.querySelectorAll('.workspace-duration, .workspace-level, .workspace-playhead').forEach(function (element) {
+      element.style.left = (Number(element.dataset.start) / 100) + '%';
+      if (element.dataset.end) element.style.width = Math.max(0.25, (Number(element.dataset.end) - Number(element.dataset.start)) / 100) + '%';
+      if (element.dataset.level) element.style.height = (Number(element.dataset.level) / 127 * 100) + '%';
+    });
   }
 
   function workspaceGridRow(row, workspace) {
     var cells = row.cells.map(function (cell) {
       return '<td><button class="workspace-cell type-value" data-workspace-id="' + escapeHtml(cell.id) +
-        '" data-focused="' + String(workspace.focus === cell.id) + '" aria-current="' +
+        '" data-focused="' + String(workspace.focus === cell.id) + '" data-selected="' + String(cell.selected) + '" data-playing="' + String(cell.playing) + '" aria-current="' +
         String(workspace.focus === cell.id) + '">' + escapeHtml(cell.value) + '</button></td>';
     }).join("");
     return '<tr data-playing="' + String(row.playing) + '"><th scope="row">' +
@@ -2769,6 +2825,7 @@
   }
 
   function workspaceGrid(workspace) {
+    if (workspace.timeline) return workspaceTimeline(workspace);
     if (!workspace.columns.length) return "";
     var header = '<th scope="col">ROW</th>' + workspace.columns.map(function (column) {
       return '<th scope="col">' + escapeHtml(column) + '</th>';
@@ -2776,7 +2833,7 @@
     var rows = workspace.grid.map(function (row) {
       return workspaceGridRow(row, workspace);
     }).join("");
-    return '<div class="workspace-grid-scroll"><table class="workspace-grid"><thead><tr>' + header +
+    return '<div class="workspace-grid-scroll"><table class="workspace-grid" data-compact="' + String(workspace.compactGrid) + '"><thead><tr>' + header +
       '</tr></thead><tbody>' + rows + '</tbody></table></div>';
   }
 
@@ -2790,6 +2847,7 @@
     });
     var form = window.document.getElementById("workspace-text-form");
     if (form) {
+      form.elements.value.oninput = function () { emitWorkspace({kind: "textChanged", id: form.dataset.id, value: form.elements.value.value}); };
       form.onsubmit = function (event) {
         event.preventDefault();
         emitWorkspace({kind: "submit", id: form.dataset.id, value: form.elements.value.value});
@@ -2807,26 +2865,36 @@
   function renderWorkspace(workspace) {
     var doc = window.document;
     var previous = doc.getElementById("workspace-text-form");
-    var draft = previous ? {id: previous.dataset.id, value: previous.elements.value.value, start: previous.elements.value.selectionStart} : null;
+    var draft = previous ? {id: previous.dataset.id, value: previous.elements.value.value, baseline: previous.dataset.value, start: previous.elements.value.selectionStart} : null;
     doc.body.classList.remove("settings-active", "sends-active");
     doc.body.classList.add("workspace-active");
-    doc.getElementById("context-line").innerHTML = '<span class="type-label">' + escapeHtml(hostView.name) + '</span><span class="type-label secondary">' + escapeHtml(workspace.context) + '</span><span class="spring"></span><span class="type-hint">' + escapeHtml(workspace.status) + '</span>';
-    doc.getElementById("identity-header").innerHTML = '<span class="type-display">' + escapeHtml(workspace.title) + '</span><span class="type-hint secondary">' + escapeHtml(workspace.subtitle) + '</span>';
-    var body = workspaceGrid(workspace) + '<div class="workspace-rows">' + workspaceRows(workspace.rows, workspace) + '</div>';
+    doc.body.dataset.workspaceContext = workspace.context;
+    doc.getElementById("context-line").innerHTML = '<span class="type-label">' + escapeHtml(hostView.name) + '</span><span class="spring"></span><button class="workspace-tab" data-current="true" data-workspace-id="home">SONG</button><button class="workspace-tab" data-workspace-id="instruments">INSTRUMENTS</button><button class="workspace-tab" data-workspace-id="menu">MENU</button><button class="workspace-transport" data-workspace-id="transport" aria-label="Play or stop">' + (workspace.playing ? '■ STOP' : '▶ PLAY') + '</button>';
+    doc.getElementById("identity-header").innerHTML = '<span class="workspace-context type-label">' + escapeHtml(workspace.context) + '</span><span class="type-heading">/ ' + escapeHtml(workspace.title) + '</span><span class="spring"></span><span class="type-hint secondary">' + escapeHtml(workspace.subtitle) + '</span>';
+    var list = '<div class="workspace-list-preview"><div class="workspace-rows">' + workspaceRows(workspace.rows, workspace) + '</div>' + workspacePreview(workspace) + '</div>';
+    var grid = workspaceGrid(workspace);
+    var tabs = '<nav class="workspace-tabs" aria-label="Settings pages">' + (workspace.tabs || []).map(function (tab) {
+      return '<button class="workspace-tab" data-workspace-id="' + escapeHtml(tab.id) + '" data-focused="' + (workspace.focus === tab.id) + '" data-current="' + tab.selected + '" aria-current="' + tab.selected + '">' + escapeHtml(tab.label) + '</button>';
+    }).join('') + '</nav>';
+    var body = tabs + grid + list + workspaceToolbar(workspace.inspector);
+    if (workspace.overlay) {
+      body = '<div class="workspace-backdrop" inert>' + grid + '</div><section class="workspace-popover" role="dialog" aria-modal="true" aria-label="' + escapeHtml(workspace.context) + '"><h1 class="type-heading">' + escapeHtml(workspace.context) + '</h1>' + list + '</section>';
+    }
     if (workspace.textEntry) {
       var entry = workspace.textEntry;
-      var value = draft && draft.id === entry.id ? draft.value : entry.value;
-      body = '<form id="workspace-text-form" data-id="' + escapeHtml(entry.id) + '"><label class="type-label">' + escapeHtml(entry.label) + '<input name="value" aria-label="' + escapeHtml(entry.label) + '" value="' + escapeHtml(value) + '" required /></label><button type="submit">' + escapeHtml(entry.submitLabel) + '</button></form>' + body;
+      var value = draft && draft.id === entry.id && draft.baseline === entry.value ? draft.value : entry.value;
+      body = '<form id="workspace-text-form" data-value="' + escapeHtml(entry.value) + '" data-id="' + escapeHtml(entry.id) + '"><label class="type-label">' + escapeHtml(entry.label) + '<input name="value" aria-label="' + escapeHtml(entry.label) + '" value="' + escapeHtml(value) + '" /></label><button type="submit">' + escapeHtml(entry.submitLabel) + '</button></form>' + body;
     }
-    doc.getElementById("workspace").innerHTML = workspaceScaffold(null, '<span class="type-label muted">' + escapeHtml(workspace.context) + '</span>', '', body);
-    doc.getElementById("inspector").innerHTML = '<span class="type-label muted">' + escapeHtml(workspace.inspectorTitle) + '</span>' + workspaceRows(workspace.inspector, workspace);
-    doc.getElementById("footer").innerHTML = '<span class="type-hint secondary">' + escapeHtml(workspace.hints) + '</span>';
+    doc.getElementById("workspace").innerHTML = '<div class="workspace-page">' + body + '</div>';
+    doc.getElementById("inspector").innerHTML = '';
+    doc.getElementById("footer").innerHTML = '<span class="type-hint workspace-status">' + escapeHtml(workspace.status) + '</span><span class="type-hint secondary">' + escapeHtml(workspace.hints) + '</span>';
+    layoutWorkspace(doc, workspace);
     attachWorkspaceInput();
     applyDynamicGeometry(doc);
     var focused = doc.querySelector('[data-workspace-id="' + CSS.escape(workspace.focus) + '"]');
     if (focused) focused.scrollIntoView({block: "nearest", inline: "nearest"});
     var input = doc.querySelector('#workspace-text-form input');
-    if (input) { input.focus(); if (draft && draft.start !== null) input.setSelectionRange(draft.start, draft.start); }
+    if (input) { input.focus({preventScroll: true}); if (draft && draft.start !== null) input.setSelectionRange(draft.start, draft.start); }
   }
 
   function observeWorkspace(view) {

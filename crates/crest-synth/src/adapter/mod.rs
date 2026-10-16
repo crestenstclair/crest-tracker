@@ -2,6 +2,7 @@ pub mod atomic_audio_observation;
 pub mod braids_capability;
 pub mod braids_native;
 pub mod braids_preparer;
+pub mod browser_preferences;
 mod bundled_resource;
 pub mod chorus_capability;
 pub mod chorus_native;

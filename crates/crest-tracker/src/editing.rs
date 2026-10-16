@@ -372,19 +372,13 @@ fn add_phrase(song: &mut Song, track_id: TrackId, slot: usize) -> Result<(), Doc
                 kind: "track",
                 id: track_id.get(),
             })?;
-    if slot > track.slots.len() {
-        return Err(DocumentError::Invalid(
-            "new phrase slot must already exist or append to track",
-        ));
-    }
+    track.ensure_slot(slot)?;
     let usage = Some(ChainUse {
         id: chain_use,
         chain,
         repeats: 1,
     });
-    if slot == track.slots.len() {
-        track.slots.push(usage);
-    } else if track.slots[slot].is_none() {
+    if track.slots[slot].is_none() {
         track.slots[slot] = usage;
     } else {
         return Err(DocumentError::Invalid("slot already contains a chain"));
@@ -392,14 +386,14 @@ fn add_phrase(song: &mut Song, track_id: TrackId, slot: usize) -> Result<(), Doc
     song.phrases.insert(
         phrase,
         Phrase {
-            name: format!("Phrase {:02X}", song.phrases.len()),
+            name: format!("{:02}", song.phrases.len()),
             ..Phrase::default()
         },
     );
     song.chains.insert(
         chain,
         Chain {
-            name: format!("Chain {:02X}", song.chains.len()),
+            name: format!("Chain {:02}", song.chains.len()),
             phrases: vec![PhraseUse {
                 id: phrase_use,
                 phrase,

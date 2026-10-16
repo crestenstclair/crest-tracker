@@ -458,6 +458,26 @@ pub struct Event {
     pub fx: [Option<Fx>; 3],
 }
 impl Event {
+    /// A note-less zero Cut is the tracker OFF marker. It releases earlier
+    /// voices owned by this arrangement track and target, including chords.
+    pub fn note_off(id: EventId, at: Beat, target: Target) -> Self {
+        Self {
+            id,
+            at,
+            target,
+            note: None,
+            controls: vec![],
+            fx: [Some(Fx::Cut { after: Beat::ZERO }), None, None],
+        }
+    }
+    pub fn is_note_off(&self) -> bool {
+        self.note.is_none()
+            && self
+                .fx
+                .iter()
+                .flatten()
+                .any(|fx| matches!(fx, Fx::Cut { after } if after.is_zero()))
+    }
     pub fn note(id: EventId, at: Beat, target: Target, note: Note) -> Self {
         Self {
             id,
@@ -477,6 +497,10 @@ pub enum PhraseForm {
     PianoRoll,
     Drum,
     Euclidean {
+        /// Optional pitches in unrotated pulse order. Missing assignments use
+        /// `pitch`; assignments survive reducing and restoring pulse count.
+        #[serde(default, skip_serializing_if = "Vec::is_empty")]
+        pitches: Vec<Option<u8>>,
         pulses: u32,
         rotation: u32,
         pitch: u8,
@@ -486,6 +510,8 @@ pub enum PhraseForm {
     },
     Random {
         seed: u64,
+        #[serde(default = "random_varies")]
+        vary: bool,
         density: u8,
         low: u8,
         high: u8,
@@ -496,6 +522,9 @@ pub enum PhraseForm {
         gate_high: Option<Beat>,
         target: Target,
     },
+}
+fn random_varies() -> bool {
+    true
 }
 pub use crate::harmony::Scale as Key;
 
@@ -565,6 +594,7 @@ impl Phrase {
     fn validate_generator(&self, song: &Song) -> Result<(), DocumentError> {
         let valid = match &self.form {
             PhraseForm::Euclidean {
+                pitches,
                 pulses,
                 rotation,
                 pitch,
@@ -576,6 +606,7 @@ impl Phrase {
                 *pulses <= self.steps
                     && *rotation < self.steps
                     && *pitch <= 127
+                    && pitches.iter().flatten().all(|pitch| *pitch <= 127)
                     && (1..=127).contains(velocity)
                     && !gate.is_zero()
             }
@@ -657,6 +688,21 @@ pub struct Track {
     pub slots: Vec<Option<ChainUse>>,
     pub looped: bool,
     pub muted: bool,
+}
+impl Track {
+    /// Materialize an edited arrangement cell; navigation alone adds no data.
+    pub fn ensure_slot(&mut self, slot: usize) -> Result<(), DocumentError> {
+        let length = slot
+            .checked_add(1)
+            .ok_or(DocumentError::Invalid("slot overflow"))?;
+        if length > self.slots.len() {
+            self.slots
+                .try_reserve(length - self.slots.len())
+                .map_err(|_| DocumentError::Invalid("cannot allocate arrangement slots"))?;
+            self.slots.resize(length, None);
+        }
+        Ok(())
+    }
 }
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]

@@ -50,6 +50,7 @@ impl Runtime {
                 return Ok(());
             }
         };
+        self.chord_library_publishing = chord.is_some();
         let (send, receive) = std::sync::mpsc::sync_channel(1);
         let root = library::data_directory().join("chords");
         std::thread::spawn(move || {
@@ -82,6 +83,10 @@ impl Runtime {
         let mut app = self.app.borrow_mut();
         app.chord_library =
             serde_json::json!({"entries":self.library_chords,"loading":false,"error":error});
+        if error.is_none() && self.chord_library_publishing {
+            crate::workspace::chord_saved(&mut app);
+        }
+        self.chord_library_publishing = false;
         app.status = error.unwrap_or_else(|| {
             format!(
                 "CHORD LIBRARY · {} revisions available across Songs",

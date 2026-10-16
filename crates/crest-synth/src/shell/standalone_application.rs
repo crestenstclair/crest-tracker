@@ -485,6 +485,7 @@ pub enum LiveSceneKind {
 /// A startup, control, fixture, device, or window failure.
 #[derive(Debug)]
 pub enum ApplicationError {
+    BrowserPreferences(String),
     Capability(CapabilityError),
     InstrumentComposition(InstrumentCompositionError),
     ProductionInstrumentComposition(
@@ -541,6 +542,7 @@ pub enum ApplicationError {
 impl fmt::Display for ApplicationError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
+            Self::BrowserPreferences(error) => write!(formatter, "browser preferences: {error}"),
             Self::Capability(error) => write!(formatter, "capability setup failed: {error}"),
             Self::InstrumentComposition(error) => {
                 write!(formatter, "instrument composition failed: {error}")
@@ -673,7 +675,8 @@ impl std::error::Error for ApplicationError {
             Self::Window(error) => Some(error),
             Self::Control(error) => Some(error),
             Self::AudioBoundaryFull(error) => Some(error),
-            Self::LiveDemoIncomplete
+            Self::BrowserPreferences(_)
+            | Self::LiveDemoIncomplete
             | Self::LiveGraphOwnershipIncomplete(_)
             | Self::LiveEventLogCapacity
             | Self::ObservationOverflow
@@ -1571,6 +1574,26 @@ where
             app_loop.dispatch_action(crate::control::SemanticAction::ToggleTestMidi)?;
         }
         if system_input_devices && full_demo.is_none() {
+            let directory =
+                crate::adapter::filesystem_midi_input_preference::per_user_midi_config_directory()
+                    .ok_or_else(|| {
+                        ApplicationError::BrowserPreferences(
+                            "User configuration directory unavailable".into(),
+                        )
+                    })?;
+            if let Some(preferences) = crate::adapter::browser_preferences::load(&directory)
+                .map_err(ApplicationError::BrowserPreferences)?
+            {
+                for (kind, folder) in preferences
+                    .folders()
+                    .map_err(ApplicationError::BrowserPreferences)?
+                {
+                    app_loop.dispatch(AppEvent::SetBrowserStart {
+                        asset_kind: kind,
+                        folder,
+                    })?;
+                }
+            }
             let midi_worker = ThreadedMidiDeviceWorker::new(
                 crate::adapter::midir_input_device::system_midi_input_device(),
                 crate::adapter::filesystem_midi_input_preference::per_user_midi_input_preference_store(
@@ -2808,6 +2831,7 @@ where
                 app_loop,
                 lifecycle.persisted_edits_blocked(),
                 owns_input,
+                elapsed,
                 &mut route,
             ) {
                 *error = Some(failure.into());

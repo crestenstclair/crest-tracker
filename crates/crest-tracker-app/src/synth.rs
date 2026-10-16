@@ -151,6 +151,8 @@ pub(crate) fn write_inventory() -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
+const DEFAULT_INSTRUMENT: &str = "instrument.mutable.plaits";
+
 pub fn run(app: App) -> Result<(), Box<dyn std::error::Error>> {
     let app = Rc::new(RefCell::new(app));
     let runtime = Runtime::new(Rc::clone(&app))?;
@@ -162,6 +164,9 @@ pub fn run(app: App) -> Result<(), Box<dyn std::error::Error>> {
     };
     let window = TauriWebviewWindow::new("Crest Tracker").with_host(presentation);
     production_application(window, ApplicationConfig::default())?
+        .with_default_session_blueprint(crest_synth::control::DefaultSessionBlueprint::new(
+            crest_synth::synth::CapabilityId::new(DEFAULT_INSTRUMENT)?,
+        ))
         .run_with_host(runtime)
         .map_err(Into::into)
 }
@@ -172,6 +177,7 @@ pub fn run_demo() -> Result<(), Box<dyn std::error::Error>> {
 
 struct Runtime {
     app: Rc<RefCell<App>>,
+    sticks: crate::workspace::sticks::Sticks,
     playback: Option<Playback>,
     sync: clock_runtime::ClockRuntime,
     tempo: TempoMap,
@@ -179,6 +185,7 @@ struct Runtime {
     transport_start: Beat,
     transport_offset_frames: u64,
     transport_selection: transport::PlaybackSelection,
+    chord_library_publishing: bool,
     chord_library_worker:
         Option<std::sync::mpsc::Receiver<Result<Vec<library::chords::PublishedChord>, String>>>,
     library_chords: Vec<library::chords::PublishedChord>,
@@ -242,13 +249,24 @@ struct Runtime {
 }
 impl Runtime {
     fn new(app: Rc<RefCell<App>>) -> Result<Self, Box<dyn std::error::Error>> {
-        Self::with_data_directory(app, library::data_directory())
+        let shared =
+            crest_synth::adapter::filesystem_midi_input_preference::per_user_midi_config_directory(
+            )
+            .ok_or("User configuration directory unavailable")?;
+        Self::with_storage(app, library::data_directory(), Some(shared))
     }
     fn with_data_directory(
         app: Rc<RefCell<App>>,
         directory: PathBuf,
     ) -> Result<Self, Box<dyn std::error::Error>> {
-        let sync = clock_runtime::ClockRuntime::new(directory.clone())?;
+        Self::with_storage(app, directory, None)
+    }
+    fn with_storage(
+        app: Rc<RefCell<App>>,
+        directory: PathBuf,
+        shared: Option<PathBuf>,
+    ) -> Result<Self, Box<dyn std::error::Error>> {
+        let sync = clock_runtime::ClockRuntime::new(directory.clone(), shared)?;
         let recovery_worker = RecoveryWorker::new(directory.clone())?;
         let (send, receive) = std::sync::mpsc::sync_channel(1);
         std::thread::spawn(move || {
@@ -256,6 +274,7 @@ impl Runtime {
         });
         Ok(Self {
             app,
+            sticks: crate::workspace::sticks::Sticks::default(),
             playback: None,
             sync,
             tempo: TempoMap::new(crest_tracker::time::Tempo::DEFAULT),
@@ -264,6 +283,7 @@ impl Runtime {
             transport_offset_frames: 0,
             transport_selection: transport::PlaybackSelection::Song,
             chord_library_worker: None,
+            chord_library_publishing: false,
             library_chords: Vec::new(),
             last_scheduled_frame: 0,
             last_clock: None,
@@ -683,6 +703,7 @@ impl Runtime {
         let audible_finished = heads.as_ref().is_some_and(Vec::is_empty);
         let mut app = self.app.borrow_mut();
         app.play_beat = Some(now);
+        crate::workspace::follow_playback(&mut app, now);
         app.playback_revision = Some(playback.revision());
         app.playback_pending = playback.pending_revision();
         let selected = app.occurrence();
@@ -777,6 +798,20 @@ impl Runtime {
                 }
             }
             Request::StartAt { scope, at } => self.start_at(sound, clock, scope, at),
+            Request::BrowserFolders { sample, soundfont } => {
+                for path in [&sample, &soundfont].into_iter().flatten() {
+                    if !std::path::Path::new(path).is_absolute()
+                        || !std::path::Path::new(path).is_dir()
+                    {
+                        return Err(format!("Starting folder is inaccessible: {path}"));
+                    }
+                }
+                let mut preferences = self.sync.preferences.clone();
+                preferences.sample_folder = sample;
+                preferences.soundfont_folder = soundfont;
+                let input_clock = preferences.clock.input.is_some();
+                self.configure_preferences(sound, preferences, input_clock)
+            }
             Request::Preferences {
                 default_tempo,
                 monitor,
@@ -837,6 +872,17 @@ impl Runtime {
                 _ => return Err("Unknown MIDI output action".into()),
             }
             .map_err(|v| v.to_string()),
+            Request::SynthAction { action } => {
+                let surface = sound.projection().semantic_model().active_surface();
+                if crate::workspace::return_from_synth(&mut self.app.borrow_mut(), &action, surface)
+                {
+                    Ok(())
+                } else {
+                    sound
+                        .dispatch_action(action, crest_synth::control::EventSource::System)
+                        .map_err(|e| e.to_string())
+                }
+            }
             Request::Stop => self.stop(sound),
             Request::Arm {
                 mpe,
@@ -1120,7 +1166,8 @@ impl Runtime {
             | FileAction::Open
             | FileAction::Close
             | FileAction::Example
-            | FileAction::Corridors => {
+            | FileAction::Corridors
+            | FileAction::ImportMidi => {
                 if self.saving {
                     return Err(
                         "Wait for the current save to finish before replacing this document".into(),
@@ -1130,20 +1177,38 @@ impl Runtime {
                     return Ok(false);
                 }
                 self.stop(sound)?;
-                if matches!(action, FileAction::Open) && selected.is_none() {
+                if matches!(action, FileAction::Open | FileAction::ImportMidi) && selected.is_none()
+                {
                     self.show_file_browser(
                         file_runtime::Purpose::File {
                             action,
                             approved: true,
                         },
-                        "Open Song".into(),
+                        if matches!(action, FileAction::ImportMidi) {
+                            "Import MIDI file"
+                        } else {
+                            "Open Song"
+                        }
+                        .into(),
                         file_dialog::Mode::Open,
                         self.file_initial_path(""),
-                        &["crest-song"],
+                        if matches!(action, FileAction::ImportMidi) {
+                            &["mid", "midi"]
+                        } else {
+                            &["crest-song"]
+                        },
                     )?;
                     return Ok(false);
                 }
                 self.discard_capture_for_replacement(sound)?;
+                if matches!(action, FileAction::ImportMidi) {
+                    self.loading = Some((
+                        LoadWorker::midi(selected.ok_or("Choose a MIDI file")?),
+                        PathBuf::new(),
+                    ));
+                    self.app.borrow_mut().status = "IMPORTING MIDI".into();
+                    return Ok(false);
+                }
                 if matches!(action, FileAction::Corridors) {
                     self.loading = Some((LoadWorker::corridors(), PathBuf::new()));
                     self.app.borrow_mut().status = "IMPORTING CORRIDORS OF TIME".into();
@@ -2536,6 +2601,8 @@ impl Runtime {
 impl ApplicationHost<LockFreeControlHandle> for Runtime {
     fn tick(&mut self, sound: &mut Sound<'_>, clock: HostClock) {
         self.last_clock = Some(clock);
+        self.sticks
+            .advance(&mut self.app.borrow_mut(), clock.elapsed);
         let result = (|| -> Result<(), String> {
             self.initialize(sound)?;
             self.poll_file_dialog(sound)?;
@@ -2668,6 +2735,18 @@ impl ApplicationHost<LockFreeControlHandle> for Runtime {
                 false
             }
         }
+    }
+    fn controller_input(
+        &mut self,
+        input: crest_synth::shell::hosted_application::HostControllerInput,
+        bindings: &crest_synth::control::ControllerBindings,
+    ) -> bool {
+        self.sticks.event(
+            &mut self.app.borrow_mut(),
+            input,
+            bindings,
+            &self.sync.preferences.roll_bindings,
+        )
     }
     fn action(&mut self, action: SemanticAction) -> bool {
         crate::workspace::action(&mut self.app.borrow_mut(), action)

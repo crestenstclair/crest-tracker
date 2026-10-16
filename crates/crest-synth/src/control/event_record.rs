@@ -367,6 +367,11 @@ pub enum EventInput {
         request_id: EngineSelectionRequestId,
         lifecycle: crate::control::SampleAssetLifecycle,
     },
+    SetBrowserStart {
+        #[serde(rename = "assetKind")]
+        asset_kind: crate::synth::AssetKind,
+        folder: crate::synth::FileBrowserFolderId,
+    },
     FileCatalogRefreshed {
         #[serde(rename = "assetKind")]
         asset_kind: crate::synth::AssetKind,
@@ -572,6 +577,10 @@ impl From<&AppEvent> for EventInput {
                 request_id: *request_id,
                 lifecycle: *lifecycle,
             },
+            AppEvent::SetBrowserStart { asset_kind, folder } => Self::SetBrowserStart {
+                asset_kind: *asset_kind,
+                folder: folder.clone(),
+            },
             AppEvent::FileCatalogRefreshed {
                 asset_kind,
                 folder,
@@ -755,6 +764,7 @@ impl EventInput {
                 | Self::SetPatchOverviewOriginEnabled { .. }
                 | Self::EngineSelectionLifecycleAdvanced { .. }
                 | Self::SampleAssetLifecycleAdvanced { .. }
+                | Self::SetBrowserStart { .. }
                 | Self::FileCatalogRefreshed { .. }
                 | Self::EnterSurface { .. }
                 | Self::Return

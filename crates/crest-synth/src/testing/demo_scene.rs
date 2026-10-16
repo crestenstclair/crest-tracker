@@ -2431,6 +2431,7 @@ fn build_expected_coverage(
             crate::control::app_event::AppEventSurfaceDescriptor::SampleAssetLifecycleAdvanced {
                 ..
             } => {}
+            crate::control::app_event::AppEventSurfaceDescriptor::SetBrowserStart {..}=>{},
             crate::control::app_event::AppEventSurfaceDescriptor::FileCatalogRefreshed {
                 ..
             } => {}
@@ -3134,7 +3135,7 @@ mod tests {
         assert_eq!(WindowInput::surface_descriptor().len(), 49);
         assert_eq!(
             crate::control::app_event::AppEvent::surface_descriptor().len(),
-            57
+            58
         );
         assert_eq!(
             crate::kernel::midi_message::MidiMessageKind::surface_descriptor().len(),

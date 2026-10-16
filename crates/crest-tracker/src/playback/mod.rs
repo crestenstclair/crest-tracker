@@ -451,6 +451,7 @@ impl Playback {
     fn advance(&mut self, end: Beat) -> Result<Vec<TimedEvent>, PlaybackError> {
         self.reconcile_stopped_lanes()?;
         let mut work = 0;
+        let mut cuts = Vec::new();
         while let Some(index) = self.next_cursor(end) {
             if work >= self.snapshot.budget.steps_per_window {
                 return Err(PlaybackError::Budget("step transitions"));
@@ -513,6 +514,12 @@ impl Playback {
                 end: step_end,
             });
             self.pending.extend(output.events);
+            cuts.extend(
+                output
+                    .cuts
+                    .into_iter()
+                    .map(|(at, target)| (at, cursor.track_id, target)),
+            );
             cursor.phrase_boundary = false;
             cursor.next = step_end;
             if let Some(jump) = output.jump {
@@ -541,6 +548,10 @@ impl Playback {
                 }
             }
         }
+        cuts.sort_by_key(|(at, _, _)| *at);
+        for (at, track, target) in cuts {
+            self.cut_voices(at, track, &target);
+        }
         self.pending.sort_by(|a, b| {
             (a.at, a.message.priority(), &a.owner).cmp(&(b.at, b.message.priority(), &b.owner))
         });
@@ -551,6 +562,61 @@ impl Playback {
             .retain_recent(self.snapshot.budget.steps_per_window);
         self.horizon = end;
         Ok(events)
+    }
+    fn cut_voices(&mut self, at: Beat, track: TrackId, target: &Target) {
+        // Future attacks are not sounding yet. All other pending releases carry
+        // the exact original owner, even across phrase boundaries and windows.
+        let future: std::collections::BTreeSet<_> = self
+            .pending
+            .iter()
+            .filter(|event| event.at >= at && matches!(event.message, Message::NoteOn { .. }))
+            .map(|event| event.owner.clone())
+            .collect();
+        let owners: std::collections::BTreeSet<_> = self
+            .pending
+            .iter()
+            .filter(|event| {
+                event.owner.track == track
+                    && &event.target == target
+                    && event.at >= at
+                    && matches!(
+                        event.message,
+                        Message::NoteOff { .. } | Message::EndExpression
+                    )
+                    && !future.contains(&event.owner)
+            })
+            .map(|event| event.owner.clone())
+            .collect();
+        self.pending.retain_mut(|event| {
+            if !owners.contains(&event.owner) {
+                return true;
+            }
+            if event.at >= at {
+                match event.message {
+                    Message::NoteOff { .. }
+                    | Message::EndExpression
+                    | Message::Expression {
+                        control:
+                            Control::Cc {
+                                number: 64,
+                                value: 0,
+                            },
+                    }
+                    | Message::MasterExpression {
+                        control:
+                            Control::Cc {
+                                number: 64,
+                                value: 0,
+                            },
+                    } => event.at = at,
+                    Message::Expression { .. } | Message::MasterExpression { .. } => return false,
+                    _ => {}
+                }
+            } else if let Message::ExpressionLifetime { duration } = &mut event.message {
+                *duration = (*duration).min(at.checked_sub(event.at).expect("earlier attack"));
+            }
+            true
+        });
     }
     fn reconcile_stopped_lanes(&mut self) -> Result<(), PlaybackError> {
         self.cursors.retain(|cursor| {

@@ -113,6 +113,13 @@ impl ApplicationHost<LockFreeControlHandle> for Host {
     fn owns_input(&self) -> bool {
         self.0.borrow().owns_input()
     }
+    fn controller_input(
+        &mut self,
+        input: crest_synth::shell::hosted_application::HostControllerInput,
+        bindings: &crest_synth::control::ControllerBindings,
+    ) -> bool {
+        self.0.borrow_mut().controller_input(input, bindings)
+    }
 }
 
 struct Window {

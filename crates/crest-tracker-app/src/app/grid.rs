@@ -15,7 +15,7 @@ pub(super) fn definition_label<Id: Ord, Value>(
     definitions
         .keys()
         .position(|candidate| candidate == id)
-        .map_or_else(|| "??".into(), |index| format!("{index:02X}"))
+        .map_or_else(|| "??".into(), |index| format!("{index:02}"))
 }
 
 /// Presentation window only. Absolute source rows and document limits stay intact.
@@ -148,7 +148,7 @@ impl App {
             .map(|track| track.slots.len() + 1)
             .max()
             .unwrap_or(0)
-            .max(12);
+            .max(self.row.saturating_add(12));
         let rows = GridRows::new(self.row, count, |row| song_row(song, row));
         (
             song.name.clone(),
@@ -215,7 +215,13 @@ impl App {
                     key.pitch_name(p)
                 }
             })
-            .unwrap_or("—".into());
+            .unwrap_or_else(|| {
+                if event.is_note_off() {
+                    "OFF".into()
+                } else {
+                    "—".into()
+                }
+            });
         let target = self.target_label(&event.target);
         let mut cells = vec![
             pitch,
@@ -340,8 +346,8 @@ mod tests {
         let (_, _, _, rows) = app.grid();
         assert_eq!(rows.values[0][0], "00");
         assert_eq!(rows.values[1][0], "01");
-        assert_eq!(rows.values[10][0], "0A");
-        assert_eq!(rows.values[28][0], "1C");
+        assert_eq!(rows.values[10][0], "10");
+        assert_eq!(rows.values[28][0], "28");
 
         app.apply(Request::Confirm).unwrap();
         let (_, subtitle, _, rows) = app.grid();

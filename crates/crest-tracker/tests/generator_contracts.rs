@@ -48,6 +48,7 @@ fn random_song() -> Song {
     generated_song(
         PhraseForm::Random {
             seed: 1984,
+            vary: true,
             density: 75,
             low: 36,
             high: 84,
@@ -128,6 +129,7 @@ fn shared_chain_occurrences_use_independent_random_streams() {
 fn euclidean_steps(rotation: u32) -> Vec<u64> {
     let song = generated_song(
         PhraseForm::Euclidean {
+            pitches: vec![],
             pulses: 5,
             rotation,
             pitch: 36,
@@ -157,6 +159,77 @@ fn euclidean_rotation_preserves_pulse_count_and_even_spacing() {
     wrapped.push(base[0] + 13);
     let gaps: Vec<_> = wrapped.windows(2).map(|pair| pair[1] - pair[0]).collect();
     assert_eq!(gaps.iter().max().unwrap() - gaps.iter().min().unwrap(), 1);
+}
+
+#[test]
+fn euclidean_pitches_follow_pulses_through_rotation_and_old_documents_load() {
+    let mut song = generated_song(
+        PhraseForm::Euclidean {
+            pitches: vec![Some(60), None, Some(67), Some(71), Some(74)],
+            pulses: 5,
+            rotation: 0,
+            pitch: 64,
+            velocity: 100,
+            gate: Beat::new(1, 2).unwrap(),
+            target: target(),
+        },
+        13,
+    );
+    let attacks = |song: &Song| {
+        notes(
+            &player(song).window(Beat::new(13, 4).unwrap()).unwrap(),
+            song.tracks[0].id,
+        )
+    };
+    let original = attacks(&song);
+    assert_eq!(
+        original
+            .iter()
+            .map(|(_, pitch, _)| *pitch)
+            .collect::<Vec<_>>(),
+        [60, 64, 67, 71, 74]
+    );
+    if let PhraseForm::Euclidean { rotation, .. } =
+        &mut song.phrases.values_mut().next().unwrap().form
+    {
+        *rotation = 3;
+    }
+    let mut expected: Vec<_> = original
+        .iter()
+        .map(|(at, pitch, velocity)| {
+            (
+                Beat::new((at.units(Beat::new(1, 4).unwrap()).unwrap() + 3) % 13, 4).unwrap(),
+                *pitch,
+                *velocity,
+            )
+        })
+        .collect();
+    expected.sort_by_key(|item| item.0);
+    assert_eq!(attacks(&song), expected);
+    if let PhraseForm::Euclidean { pulses, .. } =
+        &mut song.phrases.values_mut().next().unwrap().form
+    {
+        *pulses = 2;
+    }
+    assert_eq!(attacks(&song).len(), 2);
+    if let PhraseForm::Euclidean { pulses, .. } =
+        &mut song.phrases.values_mut().next().unwrap().form
+    {
+        *pulses = 5;
+    }
+    assert_eq!(attacks(&song), expected);
+    let form = &song.phrases.values().next().unwrap().form;
+    let mut legacy = serde_json::to_value(form).unwrap();
+    legacy.as_object_mut().unwrap().remove("pitches");
+    assert!(
+        matches!(serde_json::from_value::<PhraseForm>(legacy).unwrap(), PhraseForm::Euclidean { pitches, .. } if pitches.is_empty())
+    );
+    if let PhraseForm::Euclidean { pitches, .. } =
+        &mut song.phrases.values_mut().next().unwrap().form
+    {
+        pitches[0] = Some(128);
+    }
+    assert!(song.validate().is_err());
 }
 
 #[test]
@@ -231,4 +304,34 @@ fn random_gate_range_is_exact_bounded_deterministic_and_legacy_compatible() {
         *gate_high = Some(Beat::new(1, 8).unwrap());
     }
     assert!(ranged.validate().is_err());
+}
+
+#[test]
+fn random_keep_repeats_preview_while_vary_retains_legacy_behavior() {
+    let mut song = random_song();
+    if let PhraseForm::Random { vary, .. } = &mut song.phrases.values_mut().next().unwrap().form {
+        *vary = false;
+    }
+    let events = player(&song).window(Beat::integer(8)).unwrap();
+    let all = notes(&events, song.tracks[0].id);
+    let first: Vec<_> = all
+        .iter()
+        .filter(|(at, _, _)| *at < Beat::integer(4))
+        .copied()
+        .collect();
+    let second: Vec<_> = all
+        .iter()
+        .filter(|(at, _, _)| *at >= Beat::integer(4))
+        .map(|(at, pitch, velocity)| (at.checked_sub(Beat::integer(4)).unwrap(), *pitch, *velocity))
+        .collect();
+    assert_eq!(first, second);
+    let mut encoded = serde_json::to_value(&song).unwrap();
+    for phrase in encoded["phrases"].as_object_mut().unwrap().values_mut() {
+        phrase["form"].as_object_mut().unwrap().remove("vary");
+    }
+    let legacy: Song = serde_json::from_value(encoded).unwrap();
+    assert!(matches!(
+        legacy.phrases.values().next().unwrap().form,
+        PhraseForm::Random { vary: true, .. }
+    ));
 }

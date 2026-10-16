@@ -1686,7 +1686,7 @@ fn observe_records<'a>(
                 observed.insert("event.enginePrepared".to_owned());
             }
             EventInput::SampleAssetLifecycleAdvanced { .. } => {}
-            EventInput::FileCatalogRefreshed { .. } => {}
+            EventInput::FileCatalogRefreshed { .. } | EventInput::SetBrowserStart { .. } => {}
             EventInput::EnginePreparationFailed { .. } => {
                 observed.insert("event.enginePreparationFailed".to_owned());
             }

@@ -1223,3 +1223,118 @@ fn failed_mpe_window_admission_preserves_existing_tail_and_seek_state() {
     actual.extend(playback.window(Beat::integer(4)).unwrap());
     assert_eq!(actual, player(&repaired).window(Beat::integer(4)).unwrap());
 }
+
+#[test]
+fn off_cuts_owned_chord_across_windows_without_cutting_other_track_or_future_attack() {
+    let mut chord = note(110, Beat::ZERO, 60, Beat::integer(8));
+    chord.fx[0] = Some(Fx::Chord {
+        intervals: vec![0, 4, 7],
+    });
+    let off = Event::note_off(EventId::new(111).unwrap(), Beat::ONE, chord.target.clone());
+    let later = note(112, Beat::integer(2), 72, Beat::integer(3));
+    let mut song = single_lane(
+        Phrase {
+            events: vec![chord, off, later],
+            ..Phrase::default()
+        },
+        false,
+    );
+    let other_phrase = PhraseId::new(201).unwrap();
+    let other_chain = ChainId::new(202).unwrap();
+    song.phrases.insert(
+        other_phrase,
+        Phrase {
+            events: vec![note(210, Beat::ZERO, 60, Beat::integer(8))],
+            ..Phrase::default()
+        },
+    );
+    song.chains.insert(
+        other_chain,
+        Chain {
+            name: "Other".into(),
+            phrases: vec![PhraseUse {
+                id: UseId::new(203).unwrap(),
+                phrase: other_phrase,
+                repeats: 1,
+            }],
+        },
+    );
+    song.tracks.push(Track {
+        id: TrackId::new(2).unwrap(),
+        name: "Other".into(),
+        slots: vec![Some(ChainUse {
+            id: UseId::new(204).unwrap(),
+            chain: other_chain,
+            repeats: 1,
+        })],
+        looped: false,
+        muted: false,
+    });
+    let expected = player(&song).window(Beat::integer(10)).unwrap();
+    let mut playback = player(&song);
+    let mut actual = Vec::new();
+    for quarter in 1..=40 {
+        actual.extend(playback.window(beat(quarter, 4)).unwrap());
+    }
+    assert_eq!(
+        actual, expected,
+        "OFF must not depend on scheduler window size"
+    );
+    let releases: Vec<_> = actual
+        .iter()
+        .filter(|event| {
+            event.owner.event.get() == 110 && matches!(event.message, Message::NoteOff { .. })
+        })
+        .collect();
+    assert_eq!(releases.len(), 3);
+    assert!(releases.iter().all(|event| event.at == Beat::ONE));
+    assert!(actual.iter().any(|event| event.owner.event.get() == 210
+        && event.at == Beat::integer(8)
+        && matches!(event.message, Message::NoteOff { .. })));
+    assert!(actual.iter().any(|event| event.owner.event.get() == 112
+        && event.at == Beat::integer(5)
+        && matches!(event.message, Message::NoteOff { .. })));
+}
+
+#[test]
+fn off_ends_sustained_expression_and_removes_later_points() {
+    let mut event = mpe_note(110, Beat::ZERO, beat(1, 2), Beat::integer(4));
+    event.note.as_mut().unwrap().expression = vec![
+        expression(
+            Beat::ZERO,
+            1,
+            Control::Cc {
+                number: 64,
+                value: 127,
+            },
+        ),
+        expression(Beat::integer(2), 2, Control::Pressure { value: 100 }),
+    ];
+    let off = Event::note_off(EventId::new(111).unwrap(), Beat::ONE, event.target.clone());
+    let song = single_lane(
+        Phrase {
+            events: vec![event, off],
+            ..Phrase::default()
+        },
+        false,
+    );
+    let mut playback = player(&song);
+    playback.window(beat(3, 4)).unwrap();
+    let remaining = playback.window(Beat::integer(8)).unwrap();
+    assert!(remaining
+        .iter()
+        .any(|event| event.at == Beat::ONE && matches!(event.message, Message::EndExpression)));
+    assert!(remaining.iter().any(|event| event.at == Beat::ONE
+        && matches!(
+            event.message,
+            Message::Expression {
+                control: Control::Cc {
+                    number: 64,
+                    value: 0
+                }
+            }
+        )));
+    assert!(!remaining
+        .iter()
+        .any(|event| event.at > Beat::ONE && event.owner.event.get() == 110));
+}

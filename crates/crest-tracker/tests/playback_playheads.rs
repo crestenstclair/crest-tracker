@@ -1,6 +1,8 @@
 use crest_tracker::composition::*;
 use crest_tracker::editing::Occurrence;
-use crest_tracker::playback::{AudiblePlayhead, Playback, PlaybackBudget, PlaybackError, Snapshot};
+use crest_tracker::playback::{
+    AudiblePlayhead, Message, Playback, PlaybackBudget, PlaybackError, Snapshot,
+};
 use crest_tracker::time::{Beat, Division};
 use std::sync::Arc;
 
@@ -83,6 +85,102 @@ fn arrangement() -> Song {
     );
     song.tracks[0].slots.push(Some(slot(22, 2, 2)));
     song
+}
+
+#[test]
+fn ten_short_chains_and_one_long_chain_keep_independent_shared_phrase_cursors_and_notes() {
+    let mut song = Song::default();
+    song.tracks.truncate(2);
+    for (id, steps, pitch) in [(1, 10, 60), (2, 5, 72)] {
+        let mut phrase = phrase(steps, 16);
+        phrase.events = (0..steps)
+            .map(|row| {
+                Event::note(
+                    EventId::new(id * 100 + u64::from(row)).unwrap(),
+                    beat(u64::from(row), 4),
+                    Target::Channel {
+                        channel: Channel::FIRST,
+                        endpoint: None,
+                    },
+                    Note::new(pitch + row as u8, 100, beat(1, 8)).unwrap(),
+                )
+            })
+            .collect();
+        song.phrases.insert(PhraseId::new(id).unwrap(), phrase);
+    }
+    song.chains.insert(
+        ChainId::new(1).unwrap(),
+        Chain {
+            name: "10 rows".into(),
+            phrases: vec![usage(11, 1, 1)],
+        },
+    );
+    song.chains.insert(
+        ChainId::new(2).unwrap(),
+        Chain {
+            name: "100 rows, shared phrase offset by 5".into(),
+            phrases: vec![usage(12, 2, 1), usage(13, 1, 9), usage(14, 2, 1)],
+        },
+    );
+    song.tracks[0].slots = (21..31).map(|id| Some(slot(id, 1, 1))).collect();
+    song.tracks[1].slots = vec![Some(slot(31, 2, 1))];
+    for track in &mut song.tracks {
+        track.looped = false;
+    }
+    let mut playback = Playback::new(snapshot(&song, 0, 32));
+    for row in 0..100_u64 {
+        let at = beat(row, 4);
+        let events = playback.window(beat(row + 1, 4)).unwrap();
+        let heads = heads(&playback, at.checked_add(beat(1, 8)).unwrap());
+        assert_eq!(heads.len(), 2);
+        let (long_use, long_phrase, long_row, repeat) = match row {
+            0..5 => (12, 2, row, 0),
+            5..95 => (13, 1, (row - 5) % 10, (row - 5) / 10),
+            _ => (14, 2, row - 95, 0),
+        };
+        for (track, chain_use, phrase_use, phrase, local_row, phrase_repeat) in [
+            (0, 21 + row / 10, 11, 1, row % 10, 0),
+            (1, 31, long_use, long_phrase, long_row, repeat),
+        ] {
+            let head = &heads[track];
+            assert_eq!(
+                head.occurrence,
+                Occurrence {
+                    track: song.tracks[track].id,
+                    chain_use: UseId::new(chain_use).unwrap(),
+                    phrase_use: UseId::new(phrase_use).unwrap(),
+                }
+            );
+            assert_eq!(head.phrase.get(), phrase);
+            assert_eq!(u64::from(head.row), local_row);
+            assert_eq!(u64::from(head.phrase_repeat), phrase_repeat);
+            assert_eq!(head.local_beat, beat(local_row * 2 + 1, 8));
+            let lane: Vec<_> = events
+                .iter()
+                .filter(|event| event.owner.track == head.occurrence.track)
+                .collect();
+            assert_eq!(lane.len(), 2, "one attack and release per track per row");
+            let pitch = if phrase == 1 { 60 } else { 72 } + local_row as u8;
+            assert_eq!(lane[0].at, at);
+            assert_eq!(
+                lane[0].message,
+                Message::NoteOn {
+                    pitch,
+                    velocity: 100
+                }
+            );
+            assert_eq!(lane[1].at, at.checked_add(beat(1, 8)).unwrap());
+            assert!(matches!(lane[1].message, Message::NoteOff { pitch: p, .. } if p == pitch));
+            assert_eq!(lane[0].owner, lane[1].owner);
+            assert_eq!(lane[0].owner.chain_use, head.occurrence.chain_use);
+            assert_eq!(lane[0].owner.phrase_use, head.occurrence.phrase_use);
+            assert_eq!(lane[0].owner.cycle, head.cycle);
+            assert_eq!(lane[0].owner.event.get(), phrase * 100 + local_row);
+        }
+    }
+    assert!(playback.finished());
+    assert!(playback.window(beat(101, 4)).unwrap().is_empty());
+    assert!(heads(&playback, Beat::integer(25)).is_empty());
 }
 
 #[test]

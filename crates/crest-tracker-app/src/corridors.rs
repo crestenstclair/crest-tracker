@@ -193,6 +193,16 @@ fn parse(bytes: &[u8]) -> Result<Import, String> {
     let micros = u64::from(tempo.ok_or("Missing tempo")?);
     song.tempo = Tempo::new(((60_000_000_000_u64 + micros / 2) / micros) as u32)
         .map_err(|e| e.to_string())?;
+    arrange(song, parts, lanes, identity, end)
+}
+
+pub(crate) fn arrange(
+    mut song: Song,
+    parts: Vec<Part>,
+    lanes: [Vec<Event>; 16],
+    mut identity: u64,
+    end: Beat,
+) -> Result<Import, String> {
     // Each MIDI channel is one arrangement lane. Source parts still have distinct
     // instrument identities, including tracks reusing a channel in this export.
     // Four-bar Song rows keep the imported arrangement visible. Each placement

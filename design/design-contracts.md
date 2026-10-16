@@ -1,6 +1,6 @@
 # Figma guide, contracts and flows — text snapshot
 
-Captured 21 September 2026; guide and phrase-form text updated from live Figma on 15 October 2026. Preserve the distinction between confirmed product behavior and proposals. See product-spec.md for later corrections and explicit decisions.
+Captured 21 September 2026; guide and phrase-form text updated from live Figma on 15 October 2026. Preserve the distinction between confirmed product behavior and proposals. See product-spec.md for later corrections and explicit decisions. In particular, the 16 October review overrides the old pitch directions, root-specific default chords, picker search/edit actions, Expanded view, and recording setup below.
 
 ## Crest Tracker / Start here
 

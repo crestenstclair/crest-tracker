@@ -10,6 +10,8 @@ The product specification and live Figma remain the product authorities. This pl
 
 Full Synth reuse and a hard Synth/sequencer boundary are confirmed. Section 3 defines the chosen dependency/co-development approach. Remaining proposed defaults include macOS first, the musical defaults in section 5, and exact resource references plus Collect Assets. The rest of the plan turns requirements into delivery gates. No recurring approval is needed for ordinary implementation choices covered by the accepted plan.
 
+**Current scope override (16 October 2026):** recording setup and physical capture acceptance are deferred. Expanded view and its View Group UI are dropped. Minimap entry points are removed from the UI; retain its implementation. Retain existing saved data and backend compatibility; do not expose unfinished recording controls. Complete the remaining editing, settings, chord, generator, file/library and MIDI configuration workflows through the shared Synth shell. README.md records current behavior and outstanding evidence; the milestones below retain historical dependency context, not a claim that every physical or visual gate has passed.
+
 ## 1. What the completed application must do
 
 The primary acceptance journey is:
@@ -17,9 +19,9 @@ The primary acceptance journey is:
 1. Launch directly into an empty Song. Select a sound using the existing Synth catalog, then create a chain and phrase using a controller.
 2. Enter notes, explicit instrument/channel targets, velocity and three FX slots. Change length, division, scale and meter; hear the result immediately through Synth.
 3. Build a song across independently advancing tracks. Reuse a phrase, make one occurrence unique, and undo without changing the others.
-4. Record an external MIDI or supported MPE performance into Piano Roll while other tracks play. Preserve timing and expression, overdub without double monitoring, edit with the controller, quantize and undo.
+4. Edit and quantize Piano Roll notes and expression with the controller. Recording setup and physical capture acceptance are deferred; preserve existing capture data and backend behavior.
 5. Use Drum, Euclidean and Random forms, literal chords, inversions and spread through the same playback engine.
-6. Move between Song, Chain, Phrase, Expanded and Minimap without changing music or interrupting transport. Edit instruments, samples, effects, mixer and sends in the same application.
+6. Move between Song, Chain, Phrase and Minimap without changing music or interrupting transport. Edit instruments, samples, effects, mixer and sends in the same application.
 7. Save, close and reopen the exact Song, sound revisions, recorded expression and local mix. Missing resources produce actionable recovery rather than substituted sounds.
 8. Stop, seek, unplug a device, interrupt a save or exhaust an admitted queue without corrupting the Song or leaving owned notes and overrides active indefinitely.
 9. Configure controllers and external MIDI clock, then run a packaged macOS application outside either source checkout.
@@ -66,7 +68,7 @@ Synth owns SDL discovery, saved physical mappings, chord/hold interpretation, na
 
 The host owns one Song lifecycle and musical transport. Tracker edits go through its application commands and pure Editor. Synth changes go through `AppState::apply` and `HostedSynthControl`. Neither library imports the other. Open validates the composite candidate and required Patch identities before replacing the active sound and composition.
 
-The pre-recovery implementation remains at commit `0d85318cc63f63c8bce830dc2b0e5af43c0784fa`. Song format version 1 and machine preferences remain readable; no saved music or preferences are deleted. A rollback uses that commit's application without converting user files. Keep Synth assets under their inherited LFS rules and run `git lfs pull` in a new checkout before native audio/package checks.
+The pre-recovery implementation remains at commit `0d85318cc63f63c8bce830dc2b0e5af43c0784fa`. Song format version 1 and older machine preferences remain readable; no saved music or preferences are deleted. Song rollback needs no conversion. New optional browser-directory preferences may be rejected by older binaries with strict unknown-field validation; restore their prior preference file when rolling back. Keep Synth assets under their inherited LFS rules and run `git lfs pull` in a new checkout before native audio/package checks.
 
 ### Hard boundary and behavior ownership
 
@@ -323,11 +325,11 @@ Gate: all existing Synth functionality remains available in the integrated app; 
 
 Artifact: complete sound-editing workflow with native input/paint evidence.
 
-### M8 Complete Expanded, Minimap and broad daily usability
+### M8 Complete Minimap and broad daily usability
 
 Dependencies: M5 arrangement and M7 workspace. Completes former Phase 4 projections.
 
-1. Build Expanded from selected Chain occurrences, preserving headers, boundaries and source paths. Align by musical time without a second note store. Save View Group records selections and handles deleted sources visibly.
+1. Expanded and its View Group UI are dropped by the current scope override. Preserve legacy saved data; use Song/Chain/Phrase and Minimap for navigation.
 2. Build bounded Minimap activity/density, independent playheads, occurrence navigation, zoom/scroll/follow and narrow-screen windows. Mark conditional/unbounded flow at the preview horizon.
 3. Complete controller-only file picking, naming, dialogs, selection, recovery, Help and focus return. Keyboard equivalents supplement controllers; pointer use cannot be required.
 4. Review native screens against current relevant Figma frames. Fix clipping, unreadable fields, wrong hierarchy, hidden focus, missing statuses and broken shortcuts. Test designed desktop size and a smaller window without losing operations.
@@ -407,7 +409,7 @@ Keep fixtures for phrase timing/FX, two shared occurrences, ordinary MIDI, two-m
 | Scenarios 13–18: scale, display, chromatic intent, banks, voicing, recall | M2/M4 |
 | Scenarios 20–22: one Song, save consistency, pinned adoption | M1/M2 initial safety, M6 final proof |
 | Scenario 23 and all eight Piano Roll scenarios | M3, full accompaniment in M5, release evidence in M10 |
-| Expanded/Minimap source identity and view invariance | M8 |
+| Minimap source identity and view invariance | M8 |
 | Required navigation/controller-only operations | Native witnesses in M2/M3/M5/M7/M8 |
 | External clock/input failure policy | M9 |
 | Relocatable package/clean-machine resources | M10 |

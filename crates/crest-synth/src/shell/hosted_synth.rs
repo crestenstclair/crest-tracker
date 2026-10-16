@@ -370,6 +370,22 @@ impl<'a, Boundary: ControlAudioBoundary> HostedSynthControl<'a, Boundary> {
         self.dispatch_action(page.action(), source)
     }
 
+    /// Machine-local starting folders never enter saved sound definitions.
+    pub fn set_browser_start(
+        &mut self,
+        kind: crate::synth::AssetKind,
+        folder: crate::synth::FileBrowserFolderId,
+    ) -> Result<(), HostedSynthError> {
+        self.app.dispatch_from(
+            AppEvent::SetBrowserStart {
+                asset_kind: kind,
+                folder,
+            },
+            EventSource::System,
+        )?;
+        Ok(())
+    }
+
     /// Latest activity only while its connection revision remains canonical.
     pub fn midi_activity(&self) -> Option<MidiActivitySnapshot> {
         self.app.current_midi_activity()

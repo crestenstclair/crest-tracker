@@ -206,7 +206,7 @@ fn arrangement_grid_pages_preserve_occurrence_and_append_rows() {
     })
     .unwrap();
     assert_eq!(app.projection()["rowStart"], 128);
-    assert_eq!(app.projection()["rows"].as_array().unwrap().len(), 3);
+    assert_eq!(app.projection()["rows"].as_array().unwrap().len(), 13);
     assert_eq!(app.projection()["rows"][1][0], "00");
     let selected_use = song.tracks[0].slots[129].as_ref().unwrap().id;
     app.apply(Request::Confirm).unwrap();
@@ -487,6 +487,7 @@ fn generator_preview_is_read_only_and_invalidates_after_same_revision_replacemen
     let mut song = app.editor.song().clone();
     song.phrases.get_mut(&phrase).unwrap().form = PhraseForm::Random {
         seed: 7,
+        vary: true,
         density: 100,
         low: 60,
         high: 60,

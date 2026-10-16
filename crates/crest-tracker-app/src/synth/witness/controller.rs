@@ -94,7 +94,7 @@ fn face_buttons_create_navigate_edit_and_play_through_the_production_host() {
             assert_eq!(app.selected_phrase().unwrap().1.events.len(), 1);
         }),
         (Button::DPadDown, true, |r| {
-            assert_eq!(r.app.borrow().row, 1)
+            assert!(r.app.borrow().row > 1, "held direction must repeat")
         }),
         (Button::DPadDown, false, |_| {}),
         (Button::North, true, |r| {
@@ -103,6 +103,12 @@ fn face_buttons_create_navigate_edit_and_play_through_the_production_host() {
         (Button::North, false, |r| assert!(r.app.borrow().playing)),
         (Button::North, true, |r| assert!(!r.app.borrow().playing)),
         (Button::North, false, |_| {}),
+        (Button::Start, true, |r| {
+            assert!(r.app.borrow().playing, "Start must play, not open Settings")
+        }),
+        (Button::Start, false, |r| assert!(r.app.borrow().playing)),
+        (Button::Start, true, |r| assert!(!r.app.borrow().playing)),
+        (Button::Start, false, |_| {}),
         (Button::East, true, |_| {}),
         (Button::DPadLeft, true, |r| {
             assert_eq!(r.app.borrow().view, View::Chain)
@@ -116,7 +122,9 @@ fn face_buttons_create_navigate_edit_and_play_through_the_production_host() {
             assert_eq!(r.app.borrow().view, View::Instruments)
         }),
         (Button::DPadDown, false, |_| {}),
-        (Button::DPadUp, true, |_| {}),
+        (Button::DPadUp, true, |r| {
+            assert_eq!(r.app.borrow().view, View::Song)
+        }),
         (Button::DPadUp, false, |_| {}),
         (Button::East, false, |_| {}),
     ];
@@ -160,7 +168,16 @@ fn face_buttons_create_navigate_edit_and_play_through_the_production_host() {
             } else {
                 ticks += 1;
                 // Include scheduling lead time while preview/transport is held.
-                let dwell = if button == Button::North { 80 } else { 4 };
+                let dwell = if button == Button::North {
+                    80
+                } else if button == Button::DPadDown
+                    && down
+                    && runtime.app.borrow().view == View::Phrase
+                {
+                    100
+                } else {
+                    4
+                };
                 if ticks >= dwell {
                     check(runtime);
                     index += 1;
@@ -170,7 +187,7 @@ fn face_buttons_create_navigate_edit_and_play_through_the_production_host() {
             false
         }),
         Duration::from_secs(30),
-        crest_synth::adapter::braids_capability::BRAIDS_CAPABILITY_ID,
+        DEFAULT_INSTRUMENT,
         true,
     );
     evidence.check_cleanup();

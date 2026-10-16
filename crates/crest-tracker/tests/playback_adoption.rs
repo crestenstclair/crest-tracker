@@ -355,6 +355,7 @@ fn random_scale_edits_wait_for_the_generator_phrase_boundary() {
     phrase.events.clear();
     phrase.form = PhraseForm::Random {
         seed: 7,
+        vary: true,
         density: 100,
         low: 60,
         high: 62,

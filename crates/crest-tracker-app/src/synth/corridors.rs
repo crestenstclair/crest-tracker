@@ -18,7 +18,27 @@ pub(crate) fn document() -> Result<Document, String> {
 }
 
 fn build() -> Result<Document, Box<dyn std::error::Error>> {
-    let imported = crate::corridors::import()?;
+    build_import(crate::corridors::import()?)
+}
+
+pub(crate) fn midi_document(path: &std::path::Path) -> Result<Document, String> {
+    let metadata = std::fs::metadata(path).map_err(|e| e.to_string())?;
+    if metadata.len() > 64 * 1024 * 1024 {
+        return Err("MIDI file exceeds the 64 MiB import budget".into());
+    }
+    let bytes = std::fs::read(path).map_err(|e| e.to_string())?;
+    let imported = crate::midi_import::parse(
+        &bytes,
+        path.file_stem()
+            .and_then(|v| v.to_str())
+            .unwrap_or("Imported MIDI"),
+    )?;
+    build_import(imported).map_err(|e| format!("Cannot prepare MIDI sounds: {e}"))
+}
+
+fn build_import(
+    imported: crate::corridors::Import,
+) -> Result<Document, Box<dyn std::error::Error>> {
     let capability = production_soundfont_capability()?;
     let mut mappings = BTreeMap::new();
     let mut patches = Vec::new();

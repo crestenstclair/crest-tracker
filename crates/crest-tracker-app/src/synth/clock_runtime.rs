@@ -6,6 +6,7 @@ use crate::midi_clock::{
     PulseTimeline,
 };
 use crate::preferences::MachinePreferences;
+use crest_synth::adapter::browser_preferences::{self, BrowserPreferences};
 use std::collections::VecDeque;
 
 const INPUT_CAPACITY: usize = 1024;
@@ -21,6 +22,7 @@ struct ClockOutputRun {
 pub(super) struct ClockRuntime {
     pub preferences: MachinePreferences,
     directory: PathBuf,
+    shared_directory: Option<PathBuf>,
     operation: Option<std::sync::mpsc::Receiver<Result<MachinePreferences, String>>>,
     transport: ClockTransport,
     source: Option<ClockSource>,
@@ -33,15 +35,17 @@ pub(super) struct ClockRuntime {
     awaiting_start: Option<Beat>,
 }
 impl ClockRuntime {
-    pub fn new(directory: PathBuf) -> Result<Self, String> {
+    pub fn new(directory: PathBuf, shared_directory: Option<PathBuf>) -> Result<Self, String> {
         let (send, receive) = std::sync::mpsc::sync_channel(1);
         let root = directory.clone();
+        let shared = shared_directory.clone();
         std::thread::spawn(move || {
-            let _ = send.send(crate::preferences::load(&root));
+            let _ = send.send(load_preferences(&root, shared.as_deref()));
         });
         Ok(Self {
             preferences: MachinePreferences::default(),
             directory,
+            shared_directory,
             operation: Some(receive),
             transport: ClockTransport::default(),
             source: Some(ClockSource::Internal),
@@ -190,9 +194,30 @@ impl Runtime {
         }
         self.stop(sound)?;
         let directory = self.sync.directory.clone();
+        let shared = self.sync.shared_directory.clone();
+        let folders_changed = preferences.sample_folder != self.sync.preferences.sample_folder
+            || preferences.soundfont_folder != self.sync.preferences.soundfont_folder;
         let (send, receive) = std::sync::mpsc::sync_channel(1);
         std::thread::spawn(move || {
-            let result = crate::preferences::save(&directory, &preferences).map(|()| preferences);
+            let result = (|| {
+                if let Some(shared) = shared {
+                    if folders_changed {
+                        browser_preferences::save(
+                            &shared,
+                            &browser_preferences(&preferences),
+                            true,
+                        )?;
+                    } else {
+                        let mut local = preferences.clone();
+                        local.sample_folder = None;
+                        local.soundfont_folder = None;
+                        crate::preferences::save(&directory, &local)?;
+                    }
+                } else {
+                    crate::preferences::save(&directory, &preferences)?;
+                }
+                Ok(preferences)
+            })();
             let _ = send.send(result);
         });
         self.sync.operation = Some(receive);
@@ -210,6 +235,11 @@ impl Runtime {
             let preferences = result?;
             // Capture cutoff still belongs to the old authority and latency.
             self.stop(sound)?;
+            for (kind, folder) in browser_preferences(&preferences).folders()? {
+                sound
+                    .set_browser_start(kind, folder)
+                    .map_err(|error| error.to_string())?;
+            }
             self.sync.preferences = preferences;
             self.app.borrow_mut().status = "MACHINE PREFERENCES LOADED".into();
         }
@@ -277,6 +307,7 @@ impl Runtime {
         let active = sound.active_midi_input_identity();
         self.app.borrow_mut().preferences = serde_json::json!({
             "default_bpm":self.sync.preferences.default_tempo.bpm(),
+            "sample_folder":self.sync.preferences.sample_folder,"soundfont_folder":self.sync.preferences.soundfont_folder,
             "monitor":self.sync.preferences.monitor,"clock":self.sync.preferences.clock,
             "mpe_input":self.sync.preferences.mpe_input,
             "mpe_outputs":self.sync.preferences.mpe_outputs,
@@ -962,5 +993,76 @@ mod tests {
             std::thread::sleep(Duration::from_millis(2));
         }
         (connection, receiver, endpoint)
+    }
+}
+
+fn browser_preferences(preferences: &MachinePreferences) -> BrowserPreferences {
+    BrowserPreferences {
+        sample_folder: preferences.sample_folder.clone(),
+        soundfont_folder: preferences.soundfont_folder.clone(),
+    }
+}
+fn load_preferences(
+    directory: &std::path::Path,
+    shared: Option<&std::path::Path>,
+) -> Result<MachinePreferences, String> {
+    let mut preferences = crate::preferences::load(directory)?;
+    if let Some(shared) = shared {
+        let folders = match browser_preferences::load(shared)? {
+            Some(value) => value,
+            None => {
+                let legacy = browser_preferences(&preferences);
+                if legacy != BrowserPreferences::default() {
+                    browser_preferences::save(shared, &legacy, false)?;
+                    browser_preferences::load(shared)?
+                        .ok_or("Shared browser preferences disappeared during import")?
+                } else {
+                    legacy
+                }
+            }
+        };
+        preferences.sample_folder = folders.sample_folder;
+        preferences.soundfont_folder = folders.soundfont_folder;
+    }
+    Ok(preferences)
+}
+
+#[cfg(test)]
+mod browser_migration_tests {
+    use super::*;
+    #[test]
+    fn legacy_roots_import_once_and_existing_shared_settings_win() {
+        let root =
+            std::env::temp_dir().join(format!("crest-browser-migration-{}", std::process::id()));
+        let local = root.join("tracker");
+        let shared = root.join("synth");
+        let preferences = MachinePreferences {
+            sample_folder: Some(root.display().to_string()),
+            ..MachinePreferences::default()
+        };
+        crate::preferences::save(&local, &preferences).unwrap();
+        let original = std::fs::read(local.join("preferences.json")).unwrap();
+        assert_eq!(
+            load_preferences(&local, Some(&shared)).unwrap(),
+            preferences
+        );
+        assert_eq!(
+            browser_preferences::load(&shared).unwrap(),
+            Some(browser_preferences(&preferences))
+        );
+        browser_preferences::save(&shared, &BrowserPreferences::default(), true).unwrap();
+        assert_eq!(
+            load_preferences(&local, Some(&shared))
+                .unwrap()
+                .sample_folder,
+            None
+        );
+        assert_eq!(
+            std::fs::read(local.join("preferences.json")).unwrap(),
+            original
+        );
+        std::fs::write(shared.join("browser-starts.json"), b"invalid").unwrap();
+        assert!(load_preferences(&local, Some(&shared)).is_err());
+        std::fs::remove_dir_all(root).unwrap();
     }
 }

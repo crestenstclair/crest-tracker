@@ -9,6 +9,8 @@ pub struct WorkspaceRow {
     pub id: String,
     pub label: String,
     pub value: String,
+    pub selected: bool,
+    pub playing: bool,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize)]
@@ -28,9 +30,43 @@ pub struct WorkspaceTextEntry {
     pub submit_label: String,
 }
 
+/// Host-neutral duration marks over a labeled time/lane grid. Coordinates are
+/// ten-thousandths of the visible time window; document timing stays host-owned.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct WorkspaceSpan {
+    pub id: String,
+    pub label: String,
+    pub lane: usize,
+    pub start: u32,
+    pub end: u32,
+    pub level: u8,
+    pub selected: bool,
+}
+#[derive(Clone, Debug, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct WorkspaceTimeline {
+    /// Host-authored lane emphasis (for example, the raised keys of a keyboard).
+    pub secondary_lanes: Vec<usize>,
+    pub spans: Vec<WorkspaceSpan>,
+    pub playhead: Option<u32>,
+}
+#[derive(Clone, Debug, PartialEq, Eq, Serialize)]
+pub struct WorkspacePreview {
+    pub title: String,
+    pub caption: String,
+    pub values: Vec<String>,
+    pub keys: Vec<WorkspaceRow>,
+    pub footer: String,
+}
+
 #[derive(Clone, Debug, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct WorkspaceProjection {
+    pub overlay: bool,
+    pub playing: bool,
+    pub timeline: Option<WorkspaceTimeline>,
+    pub preview: Option<WorkspacePreview>,
     pub context: String,
     pub title: String,
     pub subtitle: String,
@@ -38,8 +74,10 @@ pub struct WorkspaceProjection {
     pub focus: String,
     pub adjusting: bool,
     pub columns: Vec<String>,
+    pub compact_grid: bool,
     pub grid: Vec<WorkspaceGridRow>,
     pub rows: Vec<WorkspaceRow>,
+    pub tabs: Vec<WorkspaceRow>,
     pub inspector_title: String,
     pub inspector: Vec<WorkspaceRow>,
     pub hints: String,
@@ -51,6 +89,8 @@ pub struct WorkspaceProjection {
 pub struct HostView {
     pub name: String,
     pub entry: WorkspaceRow,
+    /// Host-consumed semantic actions replace the matching native footer hint.
+    pub action_overrides: Vec<crate::control::ValidAction>,
     pub workspace: Option<WorkspaceProjection>,
 }
 impl HostView {
@@ -70,6 +110,7 @@ pub enum WorkspaceEvent {
     Focus { id: String },
     Activate { id: String },
     Submit { id: String, value: String },
+    TextChanged { id: String, value: String },
 }
 
 #[derive(Clone)]

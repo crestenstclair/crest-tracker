@@ -309,6 +309,21 @@ pub fn default_bank(scale: &Scale) -> Result<Vec<ChordRevision>, ChordBankError>
         .collect()
 }
 
+/// Factory entries in the shared library are interval shapes. The verification
+/// root is only a serialization witness; application always uses the note root.
+pub fn shared_catalog() -> Result<Vec<ChordRevision>, ChordBankError> {
+    crate::harmony::ChordKind::CATALOG
+        .into_iter()
+        .map(|kind| {
+            ChordRevision::new(
+                kind.name().into(),
+                ChordDefinition::new(crate::harmony::Chord::from_kind(kind), 0, false, 0)?,
+                Pitch::new(60)?,
+            )
+        })
+        .collect()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

@@ -43,6 +43,8 @@ enum Check {
     Chain,
     Phrase,
     View(View),
+    Panel(&'static str),
+    Synth,
     Note(bool),
     FileMenu,
     Confirm,
@@ -110,6 +112,7 @@ impl Scene {
                 Action(NavigatePage(Left)),
                 View(crate::app::View::Song),
             ),
+            ("Open menu for Song File", Activate("menu"), Panel("files")),
             ("Open Song File", Activate("files"), FileMenu),
             (
                 "Import protects unsaved edits",
@@ -154,6 +157,31 @@ impl Scene {
             ),
             (
                 "Return to Song during playback",
+                Action(NavigatePage(Left)),
+                View(crate::app::View::Song),
+            ),
+            (
+                "Global Settings from Song",
+                Action(NavigatePage(Up)),
+                Panel("key_scale"),
+            ),
+            (
+                "Close Global Settings",
+                Activate("back"),
+                View(crate::app::View::Song),
+            ),
+            (
+                "Open main menu",
+                Action(SemanticAction::Return),
+                Panel("instruments"),
+            ),
+            (
+                "Original Synth workspace remains available",
+                Activate("instruments"),
+                Synth,
+            ),
+            (
+                "Shift + Left returns to Song from Synth Overview",
                 Action(NavigatePage(Left)),
                 View(crate::app::View::Song),
             ),
@@ -298,6 +326,12 @@ impl Scene {
                 .count()
         };
         Ok(match check {
+            Check::Panel(id) => crate::workspace::project(&app)
+                .workspace
+                .is_some_and(|v| v.rows.iter().any(|r| r.id == *id)),
+            Check::Synth => {
+                app.view == View::Instruments && crate::workspace::project(&app).synth_visible()
+            }
             Check::Ready => runtime.initial_sound.is_some() && runtime.sync.ready(),
             Check::Held(held) => app.edit_held == *held,
             Check::Chain => app.view == View::Song && app.selected_chain().is_some(),

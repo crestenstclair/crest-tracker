@@ -2,6 +2,7 @@ mod app;
 mod corridors;
 mod library;
 mod midi_clock;
+mod midi_import;
 mod midi_output;
 mod persistence;
 mod preferences;

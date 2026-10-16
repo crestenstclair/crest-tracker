@@ -27,37 +27,42 @@ impl App {
         let choices: Vec<_> = self.editor.song().chains.keys().copied().collect();
         let current = self.selected_chain().map(|(id, _)| id);
         let mut track = self.editor.song().tracks[self.track].clone();
-        if let Some(chain) = adjacent(&choices, current, delta) {
+        let index = current.and_then(|id| choices.iter().position(|choice| *choice == id));
+        let wanted = index.map_or(0, |index| index.saturating_add_signed(delta as isize));
+        if let Some(chain) = choices.get(wanted).copied() {
             if current == Some(chain) {
                 return Ok(());
             }
             return self.assign_chain(track.id, self.slot, chain);
         }
-
+        // Coarse gestures create the intermediate catalog slots atomically,
+        // so 00 + ten is displayed as 10 even in a new Song.
+        let count = wanted.saturating_sub(choices.len()) + 1;
+        if count > 10 {
+            return Err(DocumentError::Invalid(
+                "reference gesture exceeds ten slots",
+            ));
+        }
         let next = self.editor.song().next_identity()?;
-        let id = ChainId::new(next)?;
+        let mut commands = Vec::new();
+        for offset in 0..count {
+            commands.push(Command::PutChain {
+                id: ChainId::new(fresh_identity(next, offset as u64)?)?,
+                chain: Chain {
+                    name: format!("Chain {:02}", choices.len() + offset),
+                    phrases: vec![],
+                },
+            });
+        }
         let usage = Some(ChainUse {
-            id: UseId::new(fresh_identity(next, 1)?)?,
-            chain: id,
+            id: UseId::new(fresh_identity(next, count as u64)?)?,
+            chain: ChainId::new(fresh_identity(next, count as u64 - 1)?)?,
             repeats: 1,
         });
-        if self.slot == track.slots.len() {
-            track.slots.push(usage);
-        } else {
-            track.slots[self.slot] = usage;
-        }
-        self.command(Command::Batch {
-            commands: vec![
-                Command::PutChain {
-                    id,
-                    chain: Chain {
-                        name: format!("Chain {:02X}", self.editor.song().chains.len()),
-                        phrases: vec![],
-                    },
-                },
-                Command::PutTrack { track },
-            ],
-        })
+        track.ensure_slot(self.slot)?;
+        track.slots[self.slot] = usage;
+        commands.push(Command::PutTrack { track });
+        self.command(Command::Batch { commands })
     }
 
     pub(super) fn adjust_phrase_reference(&mut self, delta: i32) -> Result<(), DocumentError> {
@@ -91,7 +96,7 @@ impl App {
                 Command::PutPhrase {
                     id: phrase,
                     phrase: Phrase {
-                        name: format!("Phrase {:02X}", self.editor.song().phrases.len()),
+                        name: format!("{:02}", self.editor.song().phrases.len()),
                         ..Phrase::default()
                     },
                 },

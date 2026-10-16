@@ -5,6 +5,7 @@ use crate::harmony::{Chord, Pitch};
 pub(super) struct StepOutput {
     pub events: Vec<TimedEvent>,
     pub jump: Option<u32>,
+    pub cuts: Vec<(Beat, Target)>,
 }
 pub(super) fn validate(
     phrase: &Phrase,
@@ -65,6 +66,7 @@ pub(super) fn step(
     let mut output = StepOutput {
         events: Vec::new(),
         jump: None,
+        cuts: Vec::new(),
     };
     for event in phrase
         .events
@@ -74,6 +76,9 @@ pub(super) fn step(
         let mut event_owner = owner.clone();
         event_owner.event = event.id;
         let time = at.checked_add(event.at.checked_sub(start)?)?;
+        if event.is_note_off() {
+            output.cuts.push((time, event.target.clone()));
+        }
         expand_event(
             event,
             time,
@@ -111,6 +116,7 @@ fn generated_event(
         };
     match &phrase.form {
         PhraseForm::Euclidean {
+            pitches,
             pulses,
             rotation,
             pitch,
@@ -123,10 +129,17 @@ fn generated_event(
             if shifted * u64::from(*pulses) % u64::from(phrase.steps) >= u64::from(*pulses) {
                 return Ok(None);
             }
-            make(*pitch, *velocity, *gate, target)
+            let pulse = (shifted * u64::from(*pulses) / u64::from(phrase.steps)) as usize;
+            make(
+                pitches.get(pulse).copied().flatten().unwrap_or(*pitch),
+                *velocity,
+                *gate,
+                target,
+            )
         }
         PhraseForm::Random {
             seed,
+            vary,
             density,
             low,
             high,
@@ -138,7 +151,7 @@ fn generated_event(
         } => {
             let random = random(
                 *seed
-                    ^ owner.cycle
+                    ^ if *vary { owner.cycle } else { 0 }
                     ^ owner.phrase_use.get()
                     ^ owner.track.get().rotate_left(7)
                     ^ owner.chain_use.get().rotate_left(19)

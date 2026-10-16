@@ -11,6 +11,8 @@ pub enum PianoValue {
 #[derive(Clone, Debug, Deserialize)]
 #[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
 pub enum PianoControl {
+    Toggle,
+    Velocity { delta: i32 },
     Grid { grid: Beat },
     Value { value: PianoValue },
     Cursor { at: Beat, pitch: u8 },
@@ -72,10 +74,33 @@ impl App {
     }
 
     pub(super) fn piano_control(&mut self, control: PianoControl) -> Result<(), DocumentError> {
-        if !self.is_piano_roll() {
+        if !self.is_piano_roll()
+            && !matches!(
+                control,
+                PianoControl::Grid { .. } | PianoControl::Value { .. }
+            )
+        {
             return Err(DocumentError::Invalid("open a Piano Roll phrase first"));
         }
         match control {
+            PianoControl::Toggle => {
+                if let Some(event) = self.piano_notes_at_cursor().first().copied() {
+                    let phrase = self.selected_phrase().unwrap().0;
+                    self.command(Command::DeleteEvents {
+                        phrase,
+                        events: vec![event],
+                    })?;
+                } else {
+                    self.piano_confirm()?;
+                }
+            }
+            PianoControl::Velocity { delta } => {
+                let previous = self.roll_value;
+                self.roll_value = PianoValue::Velocity;
+                let result = self.adjust_piano_notes(delta, false);
+                self.roll_value = previous;
+                result?;
+            }
             PianoControl::Grid { grid } => {
                 if grid.is_zero() {
                     return Err(DocumentError::Invalid("edit grid must be positive"));
@@ -92,12 +117,14 @@ impl App {
                 self.roll_cursor = at;
                 self.roll_pitch = pitch;
                 self.roll_range_anchor = None;
+                self.event_selection = None;
             }
             PianoControl::Navigate {
                 horizontal,
                 vertical,
             } => self.move_piano_cursor(horizontal, vertical)?,
             PianoControl::Nudge { delta } => {
+                self.select_cursor_for_edit()?;
                 let amount = self
                     .piano_step()?
                     .checked_scale(u64::from(delta.unsigned_abs()), 1)?;
@@ -170,6 +197,7 @@ impl App {
             self.event_selection = Some(EventSelection { phrase: id, events });
         } else {
             self.roll_range_anchor = None;
+            self.event_selection = None;
         }
         self.status = format!(
             "CURSOR · {}/{} beats · {}",
@@ -238,7 +266,23 @@ impl App {
         Ok(())
     }
 
+    fn select_cursor_for_edit(&mut self) -> Result<(), DocumentError> {
+        if self.selected_event_ids().is_empty() {
+            let ids = self.piano_notes_at_cursor();
+            if let Some(id) = ids.first() {
+                self.select_events(
+                    self.editor.revision(),
+                    self.occurrence().expect("piano occurrence"),
+                    vec![*id],
+                    false,
+                )?;
+            }
+        }
+        Ok(())
+    }
+
     fn adjust_piano_notes(&mut self, delta: i32, resize: bool) -> Result<(), DocumentError> {
+        self.select_cursor_for_edit()?;
         let (phrase, source) = self.selected_phrase().expect("piano phrase");
         let ids = self.selected_event_ids();
         if ids.is_empty() {
