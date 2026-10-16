@@ -2,11 +2,13 @@
 
 Updated 15 October 2026. These are not missing user requirements; they are the remaining choices needed to turn those requirements into reliable code. Use small repository investigations and focused design reviews to resolve them. Do not reopen confirmed boundaries without a reason.
 
+The [full implementation plan](implementation-plan.md) assigns M0–M10 gates. Full Synth functionality/rendering reuse, a hard synth/sequencer layer and dependency-based co-development are now confirmed. Section 3 defines local source overrides, paired edit/test/commit work and pinned clean builds; native Synth pages keep their own reducer/rendering path. Section 5's musical defaults and M6's resource policy remain proposals unless accepted separately. Existing Phase references below are conceptual; the plan defines execution order.
+
 | Decision | Current position | Resolve before |
 |---|---|---|
-| Synth language, APIs and hosting | Sibling source inspected: Rust 2021, `AppState::apply`, AppLoop, graph workers and native saved-session version 4. Prove the actual host integration and existing test coverage before implementation. | Phase 0 |
+| Synth language, APIs and hosting | Chosen: Rust source dependency, local override for fast paired development, exact Git pin for reproducible builds. Preserve complete existing Synth workspace and rendering through a narrow host seam; prove feature parity and standalone independence. | M0, parity recheck M7 |
 | Direct instrument addressing | Source exposes Patch-targeted normalized `AppEvent::Midi`; channel fanout is separate. Prove end-to-end host use and any external wire profile. Do not bypass MIDI with a Tracker-owned voice API. | First audible phrase |
-| Mixer/send/patch MIDI profile | Audit supported CC/NRPN/SysEx mappings and state observation. Resource loading/snapshot lifecycle must be distinguished from live musical controls. | Phase 0; full UI in Phase 6 |
+| Mixer/send/patch MIDI profile | Audit sequenced control mappings and state observation. Native Synth pages retain Synth reducers; the pure sequencer gets no sound-state access. Resource loading/snapshot lifecycle remains separate. | M0/M2; Song integration M7 |
 | Scheduling contract | Choose lookahead, timestamps, queue bounds and live-edit activation based on the actual audio/MIDI stack. Already delivered output may be uncancellable. | Phase 0/1 |
 | Note duration and overlap | Default gate, explicit off/cut entry and same-address/same-pitch retrigger policy. Architecture proposes owned releases and stale-off protection. | Phase 1 |
 | Phrase bounds and divisions | Maximum phrase length, exact tuplet presets, permitted ratios and UI steps. Through 1/64 plus subdivisions is confirmed. | Phase 1 |
@@ -17,12 +19,12 @@ Updated 15 October 2026. These are not missing user requirements; they are the r
 | Live regeneration | When Euclidean/Random parameters take effect, manual overrides, bake semantics and how cached output is keyed by context/revision/seed. | Phase 2 |
 | Drum layout and trigger pitch | User intended a separate drum reference. No dedicated drum reference was identified among the five supplied images saved here. Current layout is provisional; preserve fixed drum trigger pitches. | Phase 2 UI |
 | Euclidean and Random layouts | User explicitly reserved these for further thought. Separate models must still resolve to common NoteData. | Phase 2 UI |
-| Scale catalog and spelling | Supported scales, enharmonic spelling, interval/octave labels and unusual-scale Default-bank derivation. Authored-note preservation on key change is an architecture proposal. | Phase 1 basic scales; Phase 2 full bank |
-| Default/Custom bank scope | User requires immutable per-song Default and shared Custom resources. Finalize capacity, chord search criteria, revisions, publish/adopt policy and portable export. | Phase 2; persistence Phase 5 |
+| Scale catalog and spelling | Implemented: full core catalog, custom pitch classes, phrase override/inherit, spelling, Notes/Intervals display and explicit chromatic stepping. Key changes preserve authored pitches. Remaining visual/controller acceptance is tracked in README.md. | Native acceptance |
+| Default/Custom bank scope | Implemented: derived Default bank, Song-local immutable revisions, name/interval search and content-addressed shared Custom library with explicit publish/adopt. Song files retain adopted chord content. | Native acceptance |
 | Voicing and spread fixtures | Define exact pitches for each named open/inversion preset and numeric spread mapping. OXI behavior is verified at the feature level; exact algorithm equivalence is not claimed. | Phase 2 |
 | Auto voicing | Optional future proposal. If added, specify prior-voicing memory, ties, reset rules and voice budgets; do not alter chord quality. | Only if scheduled |
-| Remember shared-edit choice | Session-only is proposed. If persistent, make it visible and resettable; still protect shared containing chains. | Phase 3 |
-| Navigation edge case | Later Shift+Down → Quick Jump outside Song conflicts with earlier Settings→Song direct return. Later rule is used in the handoff; verify final binding before implementation. | Navigation wiring |
+| Remember shared-edit choice | Implemented session-only choice, visible/resettable through Shared References. Local edits protect shared containing chains; commands that also change arrangement cannot silently use a remembered Unique choice. | Physical controller acceptance |
+| Navigation edge case | Implemented later rule: Song Shift+Down opens original Synth Mixer; other views open Quick Jump. Phrase Shift+Up opens phrase settings and Edit+Up opens context actions. | Physical controller acceptance |
 | Minimap representation | Mode requested; activity encoding, viewport/zoom, narrow screens, controller shortcut, focus and follow are exploratory. | Phase 4 projection |
 | Minimap future timeline | Define finite preview under repeats/jumps and whether generative marks show a realization or an estimate. Never evaluate an unbounded arrangement to draw a view. | Phase 4 projection |
 | Expanded edit targeting | Preserve source occurrence identity in musical-time alignment; exact mixed-division cell focus/selection mechanics need interaction validation. | Phase 4 |

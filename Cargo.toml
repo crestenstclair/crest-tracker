@@ -1,0 +1,24 @@
+[workspace]
+members = ["crates/crest-tracker", "crates/crest-tracker-app"]
+default-members = ["crates/crest-tracker"]
+resolver = "2"
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+[workspace.dependencies]
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+thiserror = "2.0"
+crest-tracker = { path = "crates/crest-tracker" }
+crest-synth = { git = "https://github.com/crestenstclair/crest-synth.git", rev = "1a6b0ad9a18a817572ae9641482b11194759a635" }
+
+[profile.dev]
+debug = "line-tables-only"
+
+[profile.test]
+opt-level = 3
+debug = "line-tables-only"
+incremental = false

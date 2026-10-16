@@ -6,13 +6,13 @@
   "files": [
     {
       "path": "Crest-Tracker-Architecture-v1.md",
-      "bytes": 64094,
-      "sha256": "2a6d886be63fe5de5a977a34297459cb3b01e1adaba4ac9e0a6a8c2a9fe7303e"
+      "bytes": 76502,
+      "sha256": "ca515332d3e3395e67c7e8ccef5c1b22cd12830939e468ab94176a8cede0ee22"
     },
     {
       "path": "README.md",
-      "bytes": 5014,
-      "sha256": "974c5de374386d8c4855b863059df813f29ddcb64cab621a3aff255da3dd5f50"
+      "bytes": 64710,
+      "sha256": "4daab208b1add16bdc2dde18acc9880591bb9ec6a5f17cd6b4a5d37c63cba10c"
     },
     {
       "path": "archive/Crest-Tracker-Design-Notes.md",
@@ -116,8 +116,8 @@
     },
     {
       "path": "design/piano-roll.md",
-      "bytes": 19638,
-      "sha256": "578f700c1134bf6b6eba7ce5e0d719266f2bb932edd2d95945c9dd889819d020"
+      "bytes": 20222,
+      "sha256": "46ff46bf70765e464dc2457353d2f78d9485080b76ca53126b4e36c31336aa71"
     },
     {
       "path": "design/piano-roll.png",
@@ -161,23 +161,23 @@
     },
     {
       "path": "implementation-kickoff.md",
-      "bytes": 5490,
-      "sha256": "158c9098ff988a91c084da6046112eb59917791178f99c9b70458ee8baecf455"
+      "bytes": 7048,
+      "sha256": "a77f8dd3a44261b6067a607622ce15fd860726911e3d7adf630bcbedd1d6c15c"
     },
     {
       "path": "implementation-plan.md",
-      "bytes": 11138,
-      "sha256": "54d3a211517a1353946e7653ada684feb248d1e76aed0c6261dd78ffe005275f"
+      "bytes": 58689,
+      "sha256": "ea4daec909cd60a3ad71dbb7152b1d8fa82b7472015c316f37935fb7509c74ad"
     },
     {
       "path": "open-decisions.md",
-      "bytes": 7398,
-      "sha256": "9b18c02423ae586c89b5e42a111993c2348c0cf671c961015538861e1ad42249"
+      "bytes": 8258,
+      "sha256": "b9f3d3d61e2548934905f8157d240135a29971cfc7484a38335cce8bfd1dead4"
     },
     {
       "path": "product-spec.md",
-      "bytes": 15993,
-      "sha256": "146899ea86dc27302b225cacccf3795d1a3950ace114563992a697a3d3eb10a9"
+      "bytes": 16606,
+      "sha256": "8b84378ac8ef243f2ad1a6ae269765b1dda9b3d7babc077ea14cf242cc0cf7f1"
     },
     {
       "path": "references/6988270f-b552-4f0c-955e-7e2084d22c27.png",
@@ -220,10 +220,10 @@
     "crest-tracker-handoff.zip (derived archive)"
   ],
   "limitations": [
-    "No Crest Synth repository or verified API implementation included.",
+    "Crest Synth is a separate source dependency. The working host APIs require the paired checkout until a containing revision is published and pinned.",
     "Figma JSON exports are snapshots, not a native .fig backup.",
     "Generator and minimap layout proposals remain explicitly provisional.",
-    "Piano Roll is specified and prototyped; no Tracker recording runtime or verified hardware/MPE integration is included."
+    "Tracker recording/MPE contracts and integrated audio workloads have deterministic coverage; physical MIDI/MPE/controller/clock/latency, complete native workflow parity and visual acceptance remain open."
   ],
-  "updated": "2026-10-15"
+  "updated": "2026-10-16"
 }

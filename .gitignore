@@ -1,0 +1,8 @@
+/target/
+/.dev/
+/.cargo/config.local.toml
+__pycache__/
+*.pyc
+.DS_Store
+
+.dev-*.log

@@ -1,0 +1,6308 @@
+{
+  "format": "crest-tracker-song",
+  "version": 1,
+  "song": {
+    "name": "Window Light",
+    "tempo": 108000,
+    "key": {
+      "root": 0,
+      "kind": "major",
+      "pitch_classes": [
+        0,
+        2,
+        4,
+        5,
+        7,
+        9,
+        11
+      ],
+      "spelling": "sharps"
+    },
+    "meters": [
+      {
+        "at": {
+          "numerator": 0,
+          "denominator": 1
+        },
+        "meter": [
+          4,
+          4
+        ]
+      }
+    ],
+    "tracks": [
+      {
+        "id": 1,
+        "name": "Melody",
+        "slots": [
+          {
+            "id": 83,
+            "chain": 78,
+            "repeats": 1
+          }
+        ],
+        "looped": true,
+        "muted": false
+      },
+      {
+        "id": 2,
+        "name": "Bass",
+        "slots": [
+          {
+            "id": 87,
+            "chain": 84,
+            "repeats": 1
+          }
+        ],
+        "looped": true,
+        "muted": false
+      },
+      {
+        "id": 3,
+        "name": "Harmony",
+        "slots": [
+          {
+            "id": 91,
+            "chain": 88,
+            "repeats": 1
+          }
+        ],
+        "looped": true,
+        "muted": false
+      },
+      {
+        "id": 4,
+        "name": "Euclidean",
+        "slots": [
+          {
+            "id": 97,
+            "chain": 92,
+            "repeats": 1
+          }
+        ],
+        "looped": true,
+        "muted": false
+      },
+      {
+        "id": 5,
+        "name": "Pulse",
+        "slots": [
+          {
+            "id": 103,
+            "chain": 98,
+            "repeats": 1
+          }
+        ],
+        "looped": true,
+        "muted": false
+      },
+      {
+        "id": 6,
+        "name": "Track 06",
+        "slots": [],
+        "looped": false,
+        "muted": false
+      },
+      {
+        "id": 7,
+        "name": "Track 07",
+        "slots": [],
+        "looped": false,
+        "muted": false
+      },
+      {
+        "id": 8,
+        "name": "Track 08",
+        "slots": [],
+        "looped": false,
+        "muted": false
+      },
+      {
+        "id": 9,
+        "name": "Track 09",
+        "slots": [],
+        "looped": false,
+        "muted": false
+      },
+      {
+        "id": 10,
+        "name": "Track 10",
+        "slots": [],
+        "looped": false,
+        "muted": false
+      },
+      {
+        "id": 11,
+        "name": "Track 11",
+        "slots": [],
+        "looped": false,
+        "muted": false
+      },
+      {
+        "id": 12,
+        "name": "Track 12",
+        "slots": [],
+        "looped": false,
+        "muted": false
+      },
+      {
+        "id": 13,
+        "name": "Track 13",
+        "slots": [],
+        "looped": false,
+        "muted": false
+      },
+      {
+        "id": 14,
+        "name": "Track 14",
+        "slots": [],
+        "looped": false,
+        "muted": false
+      },
+      {
+        "id": 15,
+        "name": "Track 15",
+        "slots": [],
+        "looped": false,
+        "muted": false
+      },
+      {
+        "id": 16,
+        "name": "Track 16",
+        "slots": [],
+        "looped": false,
+        "muted": false
+      }
+    ],
+    "chains": {
+      "78": {
+        "name": "Melody",
+        "phrases": [
+          {
+            "id": 79,
+            "phrase": 72,
+            "repeats": 1
+          },
+          {
+            "id": 80,
+            "phrase": 73,
+            "repeats": 1
+          },
+          {
+            "id": 81,
+            "phrase": 72,
+            "repeats": 1
+          },
+          {
+            "id": 82,
+            "phrase": 73,
+            "repeats": 1
+          }
+        ]
+      },
+      "84": {
+        "name": "Bass",
+        "phrases": [
+          {
+            "id": 85,
+            "phrase": 74,
+            "repeats": 1
+          },
+          {
+            "id": 86,
+            "phrase": 74,
+            "repeats": 1
+          }
+        ]
+      },
+      "88": {
+        "name": "Harmony",
+        "phrases": [
+          {
+            "id": 89,
+            "phrase": 75,
+            "repeats": 1
+          },
+          {
+            "id": 90,
+            "phrase": 75,
+            "repeats": 1
+          }
+        ]
+      },
+      "92": {
+        "name": "Euclidean",
+        "phrases": [
+          {
+            "id": 93,
+            "phrase": 76,
+            "repeats": 1
+          },
+          {
+            "id": 94,
+            "phrase": 76,
+            "repeats": 1
+          },
+          {
+            "id": 95,
+            "phrase": 76,
+            "repeats": 1
+          },
+          {
+            "id": 96,
+            "phrase": 76,
+            "repeats": 1
+          }
+        ]
+      },
+      "98": {
+        "name": "Pulse",
+        "phrases": [
+          {
+            "id": 99,
+            "phrase": 77,
+            "repeats": 1
+          },
+          {
+            "id": 100,
+            "phrase": 77,
+            "repeats": 1
+          },
+          {
+            "id": 101,
+            "phrase": 77,
+            "repeats": 1
+          },
+          {
+            "id": 102,
+            "phrase": 77,
+            "repeats": 1
+          }
+        ]
+      }
+    },
+    "phrases": {
+      "72": {
+        "name": "Window Light · A",
+        "steps": 32,
+        "division": {
+          "denominator": 16,
+          "notes": 1,
+          "in_time_of": 1
+        },
+        "key": null,
+        "form": {
+          "kind": "piano_roll"
+        },
+        "events": [
+          {
+            "id": 22,
+            "at": {
+              "numerator": 0,
+              "denominator": 1
+            },
+            "target": {
+              "kind": "instrument",
+              "id": 17,
+              "channel": 2
+            },
+            "note": {
+              "pitch": 64,
+              "velocity": 94,
+              "release_velocity": 47,
+              "duration": {
+                "numerator": 3,
+                "denominator": 8
+              },
+              "expression": [
+                {
+                  "offset": {
+                    "numerator": 0,
+                    "denominator": 1
+                  },
+                  "control": {
+                    "kind": "bend",
+                    "value": 8192
+                  }
+                },
+                {
+                  "offset": {
+                    "numerator": 0,
+                    "denominator": 1
+                  },
+                  "control": {
+                    "kind": "pressure",
+                    "value": 105
+                  }
+                },
+                {
+                  "offset": {
+                    "numerator": 0,
+                    "denominator": 1
+                  },
+                  "control": {
+                    "kind": "cc",
+                    "number": 74,
+                    "value": 45
+                  }
+                },
+                {
+                  "offset": {
+                    "numerator": 1,
+                    "denominator": 8
+                  },
+                  "control": {
+                    "kind": "bend",
+                    "value": 8704
+                  }
+                },
+                {
+                  "offset": {
+                    "numerator": 1,
+                    "denominator": 4
+                  },
+                  "control": {
+                    "kind": "pressure",
+                    "value": 118
+                  }
+                },
+                {
+                  "offset": {
+                    "numerator": 7,
+                    "denominator": 16
+                  },
+                  "control": {
+                    "kind": "bend",
+                    "value": 8192
+                  }
+                }
+              ],
+              "master_expression": [
+                {
+                  "offset": {
+                    "numerator": 0,
+                    "denominator": 1
+                  },
+                  "control": {
+                    "kind": "bend",
+                    "value": 8192
+                  }
+                },
+                {
+                  "offset": {
+                    "numerator": 0,
+                    "denominator": 1
+                  },
+                  "control": {
+                    "kind": "pressure",
+                    "value": 120
+                  }
+                }
+              ],
+              "expression_duration": {
+                "numerator": 1,
+                "denominator": 2
+              },
+              "mpe": {
+                "profile": {
+                  "source": "example:window-light",
+                  "zone": {
+                    "kind": "lower",
+                    "members": 15
+                  },
+                  "member_range": {
+                    "semitones": 2,
+                    "cents": 0
+                  },
+                  "master_range": {
+                    "semitones": 2,
+                    "cents": 0
+                  }
+                },
+                "member": 2
+              }
+            },
+            "controls": [],
+            "fx": [
+              null,
+              null,
+              null
+            ]
+          },
+          {
+            "id": 23,
+            "at": {
+              "numerator": 13,
+              "denominator": 24
+            },
+            "target": {
+              "kind": "instrument",
+              "id": 17,
+              "channel": 2
+            },
+            "note": {
+              "pitch": 67,
+              "velocity": 76,
+              "release_velocity": 47,
+              "duration": {
+                "numerator": 3,
+                "denominator": 8
+              },
+              "expression": [
+                {
+                  "offset": {
+                    "numerator": 0,
+                    "denominator": 1
+                  },
+                  "control": {
+                    "kind": "bend",
+                    "value": 8192
+                  }
+                },
+                {
+                  "offset": {
+                    "numerator": 0,
+                    "denominator": 1
+                  },
+                  "control": {
+                    "kind": "pressure",
+                    "value": 105
+                  }
+                },
+                {
+                  "offset": {
+                    "numerator": 0,
+                    "denominator": 1
+                  },
+                  "control": {
+                    "kind": "cc",
+                    "number": 74,
+                    "value": 45
+                  }
+                },
+                {
+                  "offset": {
+                    "numerator": 1,
+                    "denominator": 8
+                  },
+                  "control": {
+                    "kind": "bend",
+                    "value": 8704
+                  }
+                },
+                {
+                  "offset": {
+                    "numerator": 1,
+                    "denominator": 4
+                  },
+                  "control": {
+                    "kind": "pressure",
+                    "value": 118
+                  }
+                },
+                {
+                  "offset": {
+                    "numerator": 7,
+                    "denominator": 16
+                  },
+                  "control": {
+                    "kind": "bend",
+                    "value": 8192
+                  }
+                }
+              ],
+              "master_expression": [
+                {
+                  "offset": {
+                    "numerator": 0,
+                    "denominator": 1
+                  },
+                  "control": {
+                    "kind": "bend",
+                    "value": 8192
+                  }
+                },
+                {
+                  "offset": {
+                    "numerator": 0,
+                    "denominator": 1
+                  },
+                  "control": {
+                    "kind": "pressure",
+                    "value": 120
+                  }
+                }
+              ],
+              "expression_duration": {
+                "numerator": 1,
+                "denominator": 2
+              },
+              "mpe": {
+                "profile": {
+                  "source": "example:window-light",
+                  "zone": {
+                    "kind": "lower",
+                    "members": 15
+                  },
+                  "member_range": {
+                    "semitones": 2,
+                    "cents": 0
+                  },
+                  "master_range": {
+                    "semitones": 2,
+                    "cents": 0
+                  }
+                },
+                "member": 2
+              }
+            },
+            "controls": [],
+            "fx": [
+              null,
+              null,
+              null
+            ]
+          },
+          {
+            "id": 24,
+            "at": {
+              "numerator": 1,
+              "denominator": 1
+            },
+            "target": {
+              "kind": "instrument",
+              "id": 17,
+              "channel": 2
+            },
+            "note": {
+              "pitch": 71,
+              "velocity": 76,
+              "release_velocity": 47,
+              "duration": {
+                "numerator": 3,
+                "denominator": 8
+              },
+              "expression": [
+                {
+                  "offset": {
+                    "numerator": 0,
+                    "denominator": 1
+                  },
+                  "control": {
+                    "kind": "bend",
+                    "value": 8192
+                  }
+                },
+                {
+                  "offset": {
+                    "numerator": 0,
+                    "denominator": 1
+                  },
+                  "control": {
+                    "kind": "pressure",
+                    "value": 105
+                  }
+                },
+                {
+                  "offset": {
+                    "numerator": 0,
+                    "denominator": 1
+                  },
+                  "control": {
+                    "kind": "cc",
+                    "number": 74,
+                    "value": 45
+                  }
+                },
+                {
+                  "offset": {
+                    "numerator": 1,
+                    "denominator": 8
+                  },
+                  "control": {
+                    "kind": "bend",
+                    "value": 8704
+                  }
+                },
+                {
+                  "offset": {
+                    "numerator": 1,
+                    "denominator": 4
+                  },
+                  "control": {
+                    "kind": "pressure",
+                    "value": 118
+                  }
+                },
+                {
+                  "offset": {
+                    "numerator": 7,
+                    "denominator": 16
+                  },
+                  "control": {
+                    "kind": "bend",
+                    "value": 8192
+                  }
+                }
+              ],
+              "master_expression": [
+                {
+                  "offset": {
+                    "numerator": 0,
+                    "denominator": 1
+                  },
+                  "control": {
+                    "kind": "bend",
+                    "value": 8192
+                  }
+                },
+                {
+                  "offset": {
+                    "numerator": 0,
+                    "denominator": 1
+                  },
+                  "control": {
+                    "kind": "pressure",
+                    "value": 120
+                  }
+                }
+              ],
+              "expression_duration": {
+                "numerator": 1,
+                "denominator": 2
+              },
+              "mpe": {
+                "profile": {
+                  "source": "example:window-light",
+                  "zone": {
+                    "kind": "lower",
+                    "members": 15
+                  },
+                  "member_range": {
+                    "semitones": 2,
+                    "cents": 0
+                  },
+                  "master_range": {
+                    "semitones": 2,
+                    "cents": 0
+                  }
+                },
+                "member": 2
+              }
+            },
+            "controls": [],
+            "fx": [
+              null,
+              null,
+              null
+            ]
+          },
+          {
+            "id": 25,
+            "at": {
+              "numerator": 3,
+              "denominator": 2
+            },
+            "target": {
+              "kind": "instrument",
+              "id": 17,
+              "channel": 2
+            },
+            "note": {
+              "pitch": 69,
+              "velocity": 76,
+              "release_velocity": 47,
+              "duration": {
+                "numerator": 3,
+                "denominator": 8
+              },
+              "expression": [
+                {
+                  "offset": {
+                    "numerator": 0,
+                    "denominator": 1
+                  },
+                  "control": {
+                    "kind": "bend",
+                    "value": 8192
+                  }
+                },
+                {
+                  "offset": {
+                    "numerator": 0,
+                    "denominator": 1
+                  },
+                  "control": {
+                    "kind": "pressure",
+                    "value": 105
+                  }
+                },
+                {
+                  "offset": {
+                    "numerator": 0,
+                    "denominator": 1
+                  },
+                  "control": {
+                    "kind": "cc",
+                    "number": 74,
+                    "value": 45
+                  }
+                },
+                {
+                  "offset": {
+                    "numerator": 1,
+                    "denominator": 8
+                  },
+                  "control": {
+                    "kind": "bend",
+                    "value": 8704
+                  }
+                },
+                {
+                  "offset": {
+                    "numerator": 1,
+                    "denominator": 4
+                  },
+                  "control": {
+                    "kind": "pressure",
+                    "value": 118
+                  }
+                },
+                {
+                  "offset": {
+                    "numerator": 7,
+                    "denominator": 16
+                  },
+                  "control": {
+                    "kind": "bend",
+                    "value": 8192
+                  }
+                }
+              ],
+              "master_expression": [
+                {
+                  "offset": {
+                    "numerator": 0,
+                    "denominator": 1
+                  },
+                  "control": {
+                    "kind": "bend",
+                    "value": 8192
+                  }
+                },
+                {
+                  "offset": {
+                    "numerator": 0,
+                    "denominator": 1
+                  },
+                  "control": {
+                    "kind": "pressure",
+                    "value": 120
+                  }
+                }
+              ],
+              "expression_duration": {
+                "numerator": 1,
+                "denominator": 2
+              },
+              "mpe": {
+                "profile": {
+                  "source": "example:window-light",
+                  "zone": {
+                    "kind": "lower",
+                    "members": 15
+                  },
+                  "member_range": {
+                    "semitones": 2,
+                    "cents": 0
+                  },
+                  "master_range": {
+                    "semitones": 2,
+                    "cents": 0
+                  }
+                },
+                "member": 2
+              }
+            },
+            "controls": [],
+            "fx": [
+              null,
+              null,
+              null
+            ]
+          },
+          {
+            "id": 26,
+            "at": {
+              "numerator": 2,
+              "denominator": 1
+            },
+            "target": {
+              "kind": "instrument",
+              "id": 17,
+              "channel": 2
+            },
+            "note": {
+              "pitch": 67,
+              "velocity": 94,
+              "release_velocity": 47,
+              "duration": {
+                "numerator": 3,
+                "denominator": 8
+              },
+              "expression": [
+                {
+                  "offset": {
+                    "numerator": 0,
+                    "denominator": 1
+                  },
+                  "control": {
+                    "kind": "bend",
+                    "value": 8192
+                  }
+                },
+                {
+                  "offset": {
+                    "numerator": 0,
+                    "denominator": 1
+                  },
+                  "control": {
+                    "kind": "pressure",
+                    "value": 105
+                  }
+                },
+                {
+                  "offset": {
+                    "numerator": 0,
+                    "denominator": 1
+                  },
+                  "control": {
+                    "kind": "cc",
+                    "number": 74,
+                    "value": 45
+                  }
+                },
+                {
+                  "offset": {
+                    "numerator": 1,
+                    "denominator": 8
+                  },
+                  "control": {
+                    "kind": "bend",
+                    "value": 8704
+                  }
+                },
+                {
+                  "offset": {
+                    "numerator": 1,
+                    "denominator": 4
+                  },
+                  "control": {
+                    "kind": "pressure",
+                    "value": 118
+                  }
+                },
+                {
+                  "offset": {
+                    "numerator": 7,
+                    "denominator": 16
+                  },
+                  "control": {
+                    "kind": "bend",
+                    "value": 8192
+                  }
+                }
+              ],
+              "master_expression": [
+                {
+                  "offset": {
+                    "numerator": 0,
+                    "denominator": 1
+                  },
+                  "control": {
+                    "kind": "bend",
+                    "value": 8192
+                  }
+                },
+                {
+                  "offset": {
+                    "numerator": 0,
+                    "denominator": 1
+                  },
+                  "control": {
+                    "kind": "pressure",
+                    "value": 120
+                  }
+                }
+              ],
+              "expression_duration": {
+                "numerator": 1,
+                "denominator": 2
+              },
+              "mpe": {
+                "profile": {
+                  "source": "example:window-light",
+                  "zone": {
+                    "kind": "lower",
+                    "members": 15
+                  },
+                  "member_range": {
+                    "semitones": 2,
+                    "cents": 0
+                  },
+                  "master_range": {
+                    "semitones": 2,
+                    "cents": 0
+                  }
+                },
+                "member": 2
+              }
+            },
+            "controls": [],
+            "fx": [
+              null,
+              null,
+              null
+            ]
+          },
+          {
+            "id": 27,
+            "at": {
+              "numerator": 61,
+              "denominator": 24
+            },
+            "target": {
+              "kind": "instrument",
+              "id": 17,
+              "channel": 2
+            },
+            "note": {
+              "pitch": 62,
+              "velocity": 76,
+              "release_velocity": 47,
+              "duration": {
+                "numerator": 3,
+                "denominator": 8
+              },
+              "expression": [
+                {
+                  "offset": {
+                    "numerator": 0,
+                    "denominator": 1
+                  },
+                  "control": {
+                    "kind": "bend",
+                    "value": 8192
+                  }
+                },
+                {
+                  "offset": {
+                    "numerator": 0,
+                    "denominator": 1
+                  },
+                  "control": {
+                    "kind": "pressure",
+                    "value": 105
+                  }
+                },
+                {
+                  "offset": {
+                    "numerator": 0,
+                    "denominator": 1
+                  },
+                  "control": {
+                    "kind": "cc",
+                    "number": 74,
+                    "value": 45
+                  }
+                },
+                {
+                  "offset": {
+                    "numerator": 1,
+                    "denominator": 8
+                  },
+                  "control": {
+                    "kind": "bend",
+                    "value": 8704
+                  }
+                },
+                {
+                  "offset": {
+                    "numerator": 1,
+                    "denominator": 4
+                  },
+                  "control": {
+                    "kind": "pressure",
+                    "value": 118
+                  }
+                },
+                {
+                  "offset": {
+                    "numerator": 7,
+                    "denominator": 16
+                  },
+                  "control": {
+                    "kind": "bend",
+                    "value": 8192
+                  }
+                }
+              ],
+              "master_expression": [
+                {
+                  "offset": {
+                    "numerator": 0,
+                    "denominator": 1
+                  },
+                  "control": {
+                    "kind": "bend",
+                    "value": 8192
+                  }
+                },
+                {
+                  "offset": {
+                    "numerator": 0,
+                    "denominator": 1
+                  },
+                  "control": {
+                    "kind": "pressure",
+                    "value": 120
+                  }
+                }
+              ],
+              "expression_duration": {
+                "numerator": 1,
+                "denominator": 2
+              },
+              "mpe": {
+                "profile": {
+                  "source": "example:window-light",
+                  "zone": {
+                    "kind": "lower",
+                    "members": 15
+                  },
+                  "member_range": {
+                    "semitones": 2,
+                    "cents": 0
+                  },
+                  "master_range": {
+                    "semitones": 2,
+                    "cents": 0
+                  }
+                },
+                "member": 2
+              }
+            },
+            "controls": [],
+            "fx": [
+              null,
+              null,
+              null
+            ]
+          },
+          {
+            "id": 28,
+            "at": {
+              "numerator": 3,
+              "denominator": 1
+            },
+            "target": {
+              "kind": "instrument",
+              "id": 17,
+              "channel": 2
+            },
+            "note": {
+              "pitch": 64,
+              "velocity": 76,
+              "release_velocity": 47,
+              "duration": {
+                "numerator": 3,
+                "denominator": 8
+              },
+              "expression": [
+                {
+                  "offset": {
+                    "numerator": 0,
+                    "denominator": 1
+                  },
+                  "control": {
+                    "kind": "bend",
+                    "value": 8192
+                  }
+                },
+                {
+                  "offset": {
+                    "numerator": 0,
+                    "denominator": 1
+                  },
+                  "control": {
+                    "kind": "pressure",
+                    "value": 105
+                  }
+                },
+                {
+                  "offset": {
+                    "numerator": 0,
+                    "denominator": 1
+                  },
+                  "control": {
+                    "kind": "cc",
+                    "number": 74,
+                    "value": 45
+                  }
+                },
+                {
+                  "offset": {
+                    "numerator": 1,
+                    "denominator": 8
+                  },
+                  "control": {
+                    "kind": "bend",
+                    "value": 8704
+                  }
+                },
+                {
+                  "offset": {
+                    "numerator": 1,
+                    "denominator": 4
+                  },
+                  "control": {
+                    "kind": "pressure",
+                    "value": 118
+                  }
+                },
+                {
+                  "offset": {
+                    "numerator": 7,
+                    "denominator": 16
+                  },
+                  "control": {
+                    "kind": "bend",
+                    "value": 8192
+                  }
+                }
+              ],
+              "master_expression": [
+                {
+                  "offset": {
+                    "numerator": 0,
+                    "denominator": 1
+                  },
+                  "control": {
+                    "kind": "bend",
+                    "value": 8192
+                  }
+                },
+                {
+                  "offset": {
+                    "numerator": 0,
+                    "denominator": 1
+                  },
+                  "control": {
+                    "kind": "pressure",
+                    "value": 120
+                  }
+                }
+              ],
+              "expression_duration": {
+                "numerator": 1,
+                "denominator": 2
+              },
+              "mpe": {
+                "profile": {
+                  "source": "example:window-light",
+                  "zone": {
+                    "kind": "lower",
+                    "members": 15
+                  },
+                  "member_range": {
+                    "semitones": 2,
+                    "cents": 0
+                  },
+                  "master_range": {
+                    "semitones": 2,
+                    "cents": 0
+                  }
+                },
+                "member": 2
+              }
+            },
+            "controls": [],
+            "fx": [
+              null,
+              null,
+              null
+            ]
+          },
+          {
+            "id": 29,
+            "at": {
+              "numerator": 7,
+              "denominator": 2
+            },
+            "target": {
+              "kind": "instrument",
+              "id": 17,
+              "channel": 2
+            },
+            "note": {
+              "pitch": 60,
+              "velocity": 76,
+              "release_velocity": 47,
+              "duration": {
+                "numerator": 3,
+                "denominator": 8
+              },
+              "expression": [
+                {
+                  "offset": {
+                    "numerator": 0,
+                    "denominator": 1
+                  },
+                  "control": {
+                    "kind": "bend",
+                    "value": 8192
+                  }
+                },
+                {
+                  "offset": {
+                    "numerator": 0,
+                    "denominator": 1
+                  },
+                  "control": {
+                    "kind": "pressure",
+                    "value": 105
+                  }
+                },
+                {
+                  "offset": {
+                    "numerator": 0,
+                    "denominator": 1
+                  },
+                  "control": {
+                    "kind": "cc",
+                    "number": 74,
+                    "value": 45
+                  }
+                },
+                {
+                  "offset": {
+                    "numerator": 1,
+                    "denominator": 8
+                  },
+                  "control": {
+                    "kind": "bend",
+                    "value": 8704
+                  }
+                },
+                {
+                  "offset": {
+                    "numerator": 1,
+                    "denominator": 4
+                  },
+                  "control": {
+                    "kind": "pressure",
+                    "value": 118
+                  }
+                },
+                {
+                  "offset": {
+                    "numerator": 7,
+                    "denominator": 16
+                  },
+                  "control": {
+                    "kind": "bend",
+                    "value": 8192
+                  }
+                }
+              ],
+              "master_expression": [
+                {
+                  "offset": {
+                    "numerator": 0,
+                    "denominator": 1
+                  },
+                  "control": {
+                    "kind": "bend",
+                    "value": 8192
+                  }
+                },
+                {
+                  "offset": {
+                    "numerator": 0,
+                    "denominator": 1
+                  },
+                  "control": {
+                    "kind": "pressure",
+                    "value": 120
+                  }
+                }
+              ],
+              "expression_duration": {
+                "numerator": 1,
+                "denominator": 2
+              },
+              "mpe": {
+                "profile": {
+                  "source": "example:window-light",
+                  "zone": {
+                    "kind": "lower",
+                    "members": 15
+                  },
+                  "member_range": {
+                    "semitones": 2,
+                    "cents": 0
+                  },
+                  "master_range": {
+                    "semitones": 2,
+                    "cents": 0
+                  }
+                },
+                "member": 2
+              }
+            },
+            "controls": [],
+            "fx": [
+              null,
+              null,
+              null
+            ]
+          },
+          {
+            "id": 30,
+            "at": {
+              "numerator": 4,
+              "denominator": 1
+            },
+            "target": {
+              "kind": "instrument",
+              "id": 17,
+              "channel": 2
+            },
+            "note": {
+              "pitch": 64,
+              "velocity": 94,
+              "release_velocity": 47,
+              "duration": {
+                "numerator": 3,
+                "denominator": 8
+              },
+              "expression": [
+                {
+                  "offset": {
+                    "numerator": 0,
+                    "denominator": 1
+                  },
+                  "control": {
+                    "kind": "bend",
+                    "value": 8192
+                  }
+                },
+                {
+                  "offset": {
+                    "numerator": 0,
+                    "denominator": 1
+                  },
+                  "control": {
+                    "kind": "pressure",
+                    "value": 105
+                  }
+                },
+                {
+                  "offset": {
+                    "numerator": 0,
+                    "denominator": 1
+                  },
+                  "control": {
+                    "kind": "cc",
+                    "number": 74,
+                    "value": 45
+                  }
+                },
+                {
+                  "offset": {
+                    "numerator": 1,
+                    "denominator": 8
+                  },
+                  "control": {
+                    "kind": "bend",
+                    "value": 8704
+                  }
+                },
+                {
+                  "offset": {
+                    "numerator": 1,
+                    "denominator": 4
+                  },
+                  "control": {
+                    "kind": "pressure",
+                    "value": 118
+                  }
+                },
+                {
+                  "offset": {
+                    "numerator": 7,
+                    "denominator": 16
+                  },
+                  "control": {
+                    "kind": "bend",
+                    "value": 8192
+                  }
+                }
+              ],
+              "master_expression": [
+                {
+                  "offset": {
+                    "numerator": 0,
+                    "denominator": 1
+                  },
+                  "control": {
+                    "kind": "bend",
+                    "value": 8192
+                  }
+                },
+                {
+                  "offset": {
+                    "numerator": 0,
+                    "denominator": 1
+                  },
+                  "control": {
+                    "kind": "pressure",
+                    "value": 120
+                  }
+                }
+              ],
+              "expression_duration": {
+                "numerator": 1,
+                "denominator": 2
+              },
+              "mpe": {
+                "profile": {
+                  "source": "example:window-light",
+                  "zone": {
+                    "kind": "lower",
+                    "members": 15
+                  },
+                  "member_range": {
+                    "semitones": 2,
+                    "cents": 0
+                  },
+                  "master_range": {
+                    "semitones": 2,
+                    "cents": 0
+                  }
+                },
+                "member": 2
+              }
+            },
+            "controls": [],
+            "fx": [
+              null,
+              null,
+              null
+            ]
+          },
+          {
+            "id": 31,
+            "at": {
+              "numerator": 109,
+              "denominator": 24
+            },
+            "target": {
+              "kind": "instrument",
+              "id": 17,
+              "channel": 2
+            },
+            "note": {
+              "pitch": 67,
+              "velocity": 76,
+              "release_velocity": 47,
+              "duration": {
+                "numerator": 3,
+                "denominator": 8
+              },
+              "expression": [
+                {
+                  "offset": {
+                    "numerator": 0,
+                    "denominator": 1
+                  },
+                  "control": {
+                    "kind": "bend",
+                    "value": 8192
+                  }
+                },
+                {
+                  "offset": {
+                    "numerator": 0,
+                    "denominator": 1
+                  },
+                  "control": {
+                    "kind": "pressure",
+                    "value": 105
+                  }
+                },
+                {
+                  "offset": {
+                    "numerator": 0,
+                    "denominator": 1
+                  },
+                  "control": {
+                    "kind": "cc",
+                    "number": 74,
+                    "value": 45
+                  }
+                },
+                {
+                  "offset": {
+                    "numerator": 1,
+                    "denominator": 8
+                  },
+                  "control": {
+                    "kind": "bend",
+                    "value": 8704
+                  }
+                },
+                {
+                  "offset": {
+                    "numerator": 1,
+                    "denominator": 4
+                  },
+                  "control": {
+                    "kind": "pressure",
+                    "value": 118
+                  }
+                },
+                {
+                  "offset": {
+                    "numerator": 7,
+                    "denominator": 16
+                  },
+                  "control": {
+                    "kind": "bend",
+                    "value": 8192
+                  }
+                }
+              ],
+              "master_expression": [
+                {
+                  "offset": {
+                    "numerator": 0,
+                    "denominator": 1
+                  },
+                  "control": {
+                    "kind": "bend",
+                    "value": 8192
+                  }
+                },
+                {
+                  "offset": {
+                    "numerator": 0,
+                    "denominator": 1
+                  },
+                  "control": {
+                    "kind": "pressure",
+                    "value": 120
+                  }
+                }
+              ],
+              "expression_duration": {
+                "numerator": 1,
+                "denominator": 2
+              },
+              "mpe": {
+                "profile": {
+                  "source": "example:window-light",
+                  "zone": {
+                    "kind": "lower",
+                    "members": 15
+                  },
+                  "member_range": {
+                    "semitones": 2,
+                    "cents": 0
+                  },
+                  "master_range": {
+                    "semitones": 2,
+                    "cents": 0
+                  }
+                },
+                "member": 2
+              }
+            },
+            "controls": [],
+            "fx": [
+              null,
+              null,
+              null
+            ]
+          },
+          {
+            "id": 32,
+            "at": {
+              "numerator": 5,
+              "denominator": 1
+            },
+            "target": {
+              "kind": "instrument",
+              "id": 17,
+              "channel": 2
+            },
+            "note": {
+              "pitch": 72,
+              "velocity": 76,
+              "release_velocity": 47,
+              "duration": {
+                "numerator": 3,
+                "denominator": 8
+              },
+              "expression": [
+                {
+                  "offset": {
+                    "numerator": 0,
+                    "denominator": 1
+                  },
+                  "control": {
+                    "kind": "bend",
+                    "value": 8192
+                  }
+                },
+                {
+                  "offset": {
+                    "numerator": 0,
+                    "denominator": 1
+                  },
+                  "control": {
+                    "kind": "pressure",
+                    "value": 105
+                  }
+                },
+                {
+                  "offset": {
+                    "numerator": 0,
+                    "denominator": 1
+                  },
+                  "control": {
+                    "kind": "cc",
+                    "number": 74,
+                    "value": 45
+                  }
+                },
+                {
+                  "offset": {
+                    "numerator": 1,
+                    "denominator": 8
+                  },
+                  "control": {
+                    "kind": "bend",
+                    "value": 8704
+                  }
+                },
+                {
+                  "offset": {
+                    "numerator": 1,
+                    "denominator": 4
+                  },
+                  "control": {
+                    "kind": "pressure",
+                    "value": 118
+                  }
+                },
+                {
+                  "offset": {
+                    "numerator": 7,
+                    "denominator": 16
+                  },
+                  "control": {
+                    "kind": "bend",
+                    "value": 8192
+                  }
+                }
+              ],
+              "master_expression": [
+                {
+                  "offset": {
+                    "numerator": 0,
+                    "denominator": 1
+                  },
+                  "control": {
+                    "kind": "bend",
+                    "value": 8192
+                  }
+                },
+                {
+                  "offset": {
+                    "numerator": 0,
+                    "denominator": 1
+                  },
+                  "control": {
+                    "kind": "pressure",
+                    "value": 120
+                  }
+                }
+              ],
+              "expression_duration": {
+                "numerator": 1,
+                "denominator": 2
+              },
+              "mpe": {
+                "profile": {
+                  "source": "example:window-light",
+                  "zone": {
+                    "kind": "lower",
+                    "members": 15
+                  },
+                  "member_range": {
+                    "semitones": 2,
+                    "cents": 0
+                  },
+                  "master_range": {
+                    "semitones": 2,
+                    "cents": 0
+                  }
+                },
+                "member": 2
+              }
+            },
+            "controls": [],
+            "fx": [
+              null,
+              null,
+              null
+            ]
+          },
+          {
+            "id": 33,
+            "at": {
+              "numerator": 11,
+              "denominator": 2
+            },
+            "target": {
+              "kind": "instrument",
+              "id": 17,
+              "channel": 2
+            },
+            "note": {
+              "pitch": 71,
+              "velocity": 76,
+              "release_velocity": 47,
+              "duration": {
+                "numerator": 3,
+                "denominator": 8
+              },
+              "expression": [
+                {
+                  "offset": {
+                    "numerator": 0,
+                    "denominator": 1
+                  },
+                  "control": {
+                    "kind": "bend",
+                    "value": 8192
+                  }
+                },
+                {
+                  "offset": {
+                    "numerator": 0,
+                    "denominator": 1
+                  },
+                  "control": {
+                    "kind": "pressure",
+                    "value": 105
+                  }
+                },
+                {
+                  "offset": {
+                    "numerator": 0,
+                    "denominator": 1
+                  },
+                  "control": {
+                    "kind": "cc",
+                    "number": 74,
+                    "value": 45
+                  }
+                },
+                {
+                  "offset": {
+                    "numerator": 1,
+                    "denominator": 8
+                  },
+                  "control": {
+                    "kind": "bend",
+                    "value": 8704
+                  }
+                },
+                {
+                  "offset": {
+                    "numerator": 1,
+                    "denominator": 4
+                  },
+                  "control": {
+                    "kind": "pressure",
+                    "value": 118
+                  }
+                },
+                {
+                  "offset": {
+                    "numerator": 7,
+                    "denominator": 16
+                  },
+                  "control": {
+                    "kind": "bend",
+                    "value": 8192
+                  }
+                }
+              ],
+              "master_expression": [
+                {
+                  "offset": {
+                    "numerator": 0,
+                    "denominator": 1
+                  },
+                  "control": {
+                    "kind": "bend",
+                    "value": 8192
+                  }
+                },
+                {
+                  "offset": {
+                    "numerator": 0,
+                    "denominator": 1
+                  },
+                  "control": {
+                    "kind": "pressure",
+                    "value": 120
+                  }
+                }
+              ],
+              "expression_duration": {
+                "numerator": 1,
+                "denominator": 2
+              },
+              "mpe": {
+                "profile": {
+                  "source": "example:window-light",
+                  "zone": {
+                    "kind": "lower",
+                    "members": 15
+                  },
+                  "member_range": {
+                    "semitones": 2,
+                    "cents": 0
+                  },
+                  "master_range": {
+                    "semitones": 2,
+                    "cents": 0
+                  }
+                },
+                "member": 2
+              }
+            },
+            "controls": [],
+            "fx": [
+              null,
+              null,
+              null
+            ]
+          },
+          {
+            "id": 34,
+            "at": {
+              "numerator": 6,
+              "denominator": 1
+            },
+            "target": {
+              "kind": "instrument",
+              "id": 17,
+              "channel": 2
+            },
+            "note": {
+              "pitch": 69,
+              "velocity": 94,
+              "release_velocity": 47,
+              "duration": {
+                "numerator": 3,
+                "denominator": 8
+              },
+              "expression": [
+                {
+                  "offset": {
+                    "numerator": 0,
+                    "denominator": 1
+                  },
+                  "control": {
+                    "kind": "bend",
+                    "value": 8192
+                  }
+                },
+                {
+                  "offset": {
+                    "numerator": 0,
+                    "denominator": 1
+                  },
+                  "control": {
+                    "kind": "pressure",
+                    "value": 105
+                  }
+                },
+                {
+                  "offset": {
+                    "numerator": 0,
+                    "denominator": 1
+                  },
+                  "control": {
+                    "kind": "cc",
+                    "number": 74,
+                    "value": 45
+                  }
+                },
+                {
+                  "offset": {
+                    "numerator": 1,
+                    "denominator": 8
+                  },
+                  "control": {
+                    "kind": "bend",
+                    "value": 8704
+                  }
+                },
+                {
+                  "offset": {
+                    "numerator": 1,
+                    "denominator": 4
+                  },
+                  "control": {
+                    "kind": "pressure",
+                    "value": 118
+                  }
+                },
+                {
+                  "offset": {
+                    "numerator": 7,
+                    "denominator": 16
+                  },
+                  "control": {
+                    "kind": "bend",
+                    "value": 8192
+                  }
+                }
+              ],
+              "master_expression": [
+                {
+                  "offset": {
+                    "numerator": 0,
+                    "denominator": 1
+                  },
+                  "control": {
+                    "kind": "bend",
+                    "value": 8192
+                  }
+                },
+                {
+                  "offset": {
+                    "numerator": 0,
+                    "denominator": 1
+                  },
+                  "control": {
+                    "kind": "pressure",
+                    "value": 120
+                  }
+                }
+              ],
+              "expression_duration": {
+                "numerator": 1,
+                "denominator": 2
+              },
+              "mpe": {
+                "profile": {
+                  "source": "example:window-light",
+                  "zone": {
+                    "kind": "lower",
+                    "members": 15
+                  },
+                  "member_range": {
+                    "semitones": 2,
+                    "cents": 0
+                  },
+                  "master_range": {
+                    "semitones": 2,
+                    "cents": 0
+                  }
+                },
+                "member": 2
+              }
+            },
+            "controls": [],
+            "fx": [
+              null,
+              null,
+              null
+            ]
+          },
+          {
+            "id": 35,
+            "at": {
+              "numerator": 157,
+              "denominator": 24
+            },
+            "target": {
+              "kind": "instrument",
+              "id": 17,
+              "channel": 2
+            },
+            "note": {
+              "pitch": 67,
+              "velocity": 76,
+              "release_velocity": 47,
+              "duration": {
+                "numerator": 3,
+                "denominator": 8
+              },
+              "expression": [
+                {
+                  "offset": {
+                    "numerator": 0,
+                    "denominator": 1
+                  },
+                  "control": {
+                    "kind": "bend",
+                    "value": 8192
+                  }
+                },
+                {
+                  "offset": {
+                    "numerator": 0,
+                    "denominator": 1
+                  },
+                  "control": {
+                    "kind": "pressure",
+                    "value": 105
+                  }
+                },
+                {
+                  "offset": {
+                    "numerator": 0,
+                    "denominator": 1
+                  },
+                  "control": {
+                    "kind": "cc",
+                    "number": 74,
+                    "value": 45
+                  }
+                },
+                {
+                  "offset": {
+                    "numerator": 1,
+                    "denominator": 8
+                  },
+                  "control": {
+                    "kind": "bend",
+                    "value": 8704
+                  }
+                },
+                {
+                  "offset": {
+                    "numerator": 1,
+                    "denominator": 4
+                  },
+                  "control": {
+                    "kind": "pressure",
+                    "value": 118
+                  }
+                },
+                {
+                  "offset": {
+                    "numerator": 7,
+                    "denominator": 16
+                  },
+                  "control": {
+                    "kind": "bend",
+                    "value": 8192
+                  }
+                }
+              ],
+              "master_expression": [
+                {
+                  "offset": {
+                    "numerator": 0,
+                    "denominator": 1
+                  },
+                  "control": {
+                    "kind": "bend",
+                    "value": 8192
+                  }
+                },
+                {
+                  "offset": {
+                    "numerator": 0,
+                    "denominator": 1
+                  },
+                  "control": {
+                    "kind": "pressure",
+                    "value": 120
+                  }
+                }
+              ],
+              "expression_duration": {
+                "numerator": 1,
+                "denominator": 2
+              },
+              "mpe": {
+                "profile": {
+                  "source": "example:window-light",
+                  "zone": {
+                    "kind": "lower",
+                    "members": 15
+                  },
+                  "member_range": {
+                    "semitones": 2,
+                    "cents": 0
+                  },
+                  "master_range": {
+                    "semitones": 2,
+                    "cents": 0
+                  }
+                },
+                "member": 2
+              }
+            },
+            "controls": [],
+            "fx": [
+              null,
+              null,
+              null
+            ]
+          },
+          {
+            "id": 36,
+            "at": {
+              "numerator": 7,
+              "denominator": 1
+            },
+            "target": {
+              "kind": "instrument",
+              "id": 17,
+              "channel": 2
+            },
+            "note": {
+              "pitch": 64,
+              "velocity": 76,
+              "release_velocity": 47,
+              "duration": {
+                "numerator": 3,
+                "denominator": 8
+              },
+              "expression": [
+                {
+                  "offset": {
+                    "numerator": 0,
+                    "denominator": 1
+                  },
+                  "control": {
+                    "kind": "bend",
+                    "value": 8192
+                  }
+                },
+                {
+                  "offset": {
+                    "numerator": 0,
+                    "denominator": 1
+                  },
+                  "control": {
+                    "kind": "pressure",
+                    "value": 105
+                  }
+                },
+                {
+                  "offset": {
+                    "numerator": 0,
+                    "denominator": 1
+                  },
+                  "control": {
+                    "kind": "cc",
+                    "number": 74,
+                    "value": 45
+                  }
+                },
+                {
+                  "offset": {
+                    "numerator": 1,
+                    "denominator": 8
+                  },
+                  "control": {
+                    "kind": "bend",
+                    "value": 8704
+                  }
+                },
+                {
+                  "offset": {
+                    "numerator": 1,
+                    "denominator": 4
+                  },
+                  "control": {
+                    "kind": "pressure",
+                    "value": 118
+                  }
+                },
+                {
+                  "offset": {
+                    "numerator": 7,
+                    "denominator": 16
+                  },
+                  "control": {
+                    "kind": "bend",
+                    "value": 8192
+                  }
+                }
+              ],
+              "master_expression": [
+                {
+                  "offset": {
+                    "numerator": 0,
+                    "denominator": 1
+                  },
+                  "control": {
+                    "kind": "bend",
+                    "value": 8192
+                  }
+                },
+                {
+                  "offset": {
+                    "numerator": 0,
+                    "denominator": 1
+                  },
+                  "control": {
+                    "kind": "pressure",
+                    "value": 120
+                  }
+                }
+              ],
+              "expression_duration": {
+                "numerator": 1,
+                "denominator": 2
+              },
+              "mpe": {
+                "profile": {
+                  "source": "example:window-light",
+                  "zone": {
+                    "kind": "lower",
+                    "members": 15
+                  },
+                  "member_range": {
+                    "semitones": 2,
+                    "cents": 0
+                  },
+                  "master_range": {
+                    "semitones": 2,
+                    "cents": 0
+                  }
+                },
+                "member": 2
+              }
+            },
+            "controls": [],
+            "fx": [
+              null,
+              null,
+              null
+            ]
+          },
+          {
+            "id": 37,
+            "at": {
+              "numerator": 15,
+              "denominator": 2
+            },
+            "target": {
+              "kind": "instrument",
+              "id": 17,
+              "channel": 2
+            },
+            "note": {
+              "pitch": 62,
+              "velocity": 76,
+              "release_velocity": 47,
+              "duration": {
+                "numerator": 3,
+                "denominator": 8
+              },
+              "expression": [
+                {
+                  "offset": {
+                    "numerator": 0,
+                    "denominator": 1
+                  },
+                  "control": {
+                    "kind": "bend",
+                    "value": 8192
+                  }
+                },
+                {
+                  "offset": {
+                    "numerator": 0,
+                    "denominator": 1
+                  },
+                  "control": {
+                    "kind": "pressure",
+                    "value": 105
+                  }
+                },
+                {
+                  "offset": {
+                    "numerator": 0,
+                    "denominator": 1
+                  },
+                  "control": {
+                    "kind": "cc",
+                    "number": 74,
+                    "value": 45
+                  }
+                },
+                {
+                  "offset": {
+                    "numerator": 1,
+                    "denominator": 8
+                  },
+                  "control": {
+                    "kind": "bend",
+                    "value": 8704
+                  }
+                },
+                {
+                  "offset": {
+                    "numerator": 1,
+                    "denominator": 4
+                  },
+                  "control": {
+                    "kind": "pressure",
+                    "value": 118
+                  }
+                },
+                {
+                  "offset": {
+                    "numerator": 7,
+                    "denominator": 16
+                  },
+                  "control": {
+                    "kind": "bend",
+                    "value": 8192
+                  }
+                }
+              ],
+              "master_expression": [
+                {
+                  "offset": {
+                    "numerator": 0,
+                    "denominator": 1
+                  },
+                  "control": {
+                    "kind": "bend",
+                    "value": 8192
+                  }
+                },
+                {
+                  "offset": {
+                    "numerator": 0,
+                    "denominator": 1
+                  },
+                  "control": {
+                    "kind": "pressure",
+                    "value": 120
+                  }
+                }
+              ],
+              "expression_duration": {
+                "numerator": 1,
+                "denominator": 2
+              },
+              "mpe": {
+                "profile": {
+                  "source": "example:window-light",
+                  "zone": {
+                    "kind": "lower",
+                    "members": 15
+                  },
+                  "member_range": {
+                    "semitones": 2,
+                    "cents": 0
+                  },
+                  "master_range": {
+                    "semitones": 2,
+                    "cents": 0
+                  }
+                },
+                "member": 2
+              }
+            },
+            "controls": [],
+            "fx": [
+              null,
+              null,
+              null
+            ]
+          }
+        ],
+        "seed": 1
+      },
+      "73": {
+        "name": "Window Light · B",
+        "steps": 32,
+        "division": {
+          "denominator": 16,
+          "notes": 1,
+          "in_time_of": 1
+        },
+        "key": null,
+        "form": {
+          "kind": "piano_roll"
+        },
+        "events": [
+          {
+            "id": 38,
+            "at": {
+              "numerator": 0,
+              "denominator": 1
+            },
+            "target": {
+              "kind": "instrument",
+              "id": 17,
+              "channel": 2
+            },
+            "note": {
+              "pitch": 64,
+              "velocity": 94,
+              "release_velocity": 47,
+              "duration": {
+                "numerator": 3,
+                "denominator": 8
+              },
+              "expression": [
+                {
+                  "offset": {
+                    "numerator": 0,
+                    "denominator": 1
+                  },
+                  "control": {
+                    "kind": "bend",
+                    "value": 8192
+                  }
+                },
+                {
+                  "offset": {
+                    "numerator": 0,
+                    "denominator": 1
+                  },
+                  "control": {
+                    "kind": "pressure",
+                    "value": 105
+                  }
+                },
+                {
+                  "offset": {
+                    "numerator": 0,
+                    "denominator": 1
+                  },
+                  "control": {
+                    "kind": "cc",
+                    "number": 74,
+                    "value": 45
+                  }
+                },
+                {
+                  "offset": {
+                    "numerator": 1,
+                    "denominator": 8
+                  },
+                  "control": {
+                    "kind": "bend",
+                    "value": 8704
+                  }
+                },
+                {
+                  "offset": {
+                    "numerator": 1,
+                    "denominator": 4
+                  },
+                  "control": {
+                    "kind": "pressure",
+                    "value": 118
+                  }
+                },
+                {
+                  "offset": {
+                    "numerator": 7,
+                    "denominator": 16
+                  },
+                  "control": {
+                    "kind": "bend",
+                    "value": 8192
+                  }
+                }
+              ],
+              "master_expression": [
+                {
+                  "offset": {
+                    "numerator": 0,
+                    "denominator": 1
+                  },
+                  "control": {
+                    "kind": "bend",
+                    "value": 8192
+                  }
+                },
+                {
+                  "offset": {
+                    "numerator": 0,
+                    "denominator": 1
+                  },
+                  "control": {
+                    "kind": "pressure",
+                    "value": 120
+                  }
+                }
+              ],
+              "expression_duration": {
+                "numerator": 1,
+                "denominator": 2
+              },
+              "mpe": {
+                "profile": {
+                  "source": "example:window-light",
+                  "zone": {
+                    "kind": "lower",
+                    "members": 15
+                  },
+                  "member_range": {
+                    "semitones": 2,
+                    "cents": 0
+                  },
+                  "master_range": {
+                    "semitones": 2,
+                    "cents": 0
+                  }
+                },
+                "member": 2
+              }
+            },
+            "controls": [],
+            "fx": [
+              null,
+              null,
+              null
+            ]
+          },
+          {
+            "id": 39,
+            "at": {
+              "numerator": 13,
+              "denominator": 24
+            },
+            "target": {
+              "kind": "instrument",
+              "id": 17,
+              "channel": 2
+            },
+            "note": {
+              "pitch": 67,
+              "velocity": 76,
+              "release_velocity": 47,
+              "duration": {
+                "numerator": 3,
+                "denominator": 8
+              },
+              "expression": [
+                {
+                  "offset": {
+                    "numerator": 0,
+                    "denominator": 1
+                  },
+                  "control": {
+                    "kind": "bend",
+                    "value": 8192
+                  }
+                },
+                {
+                  "offset": {
+                    "numerator": 0,
+                    "denominator": 1
+                  },
+                  "control": {
+                    "kind": "pressure",
+                    "value": 105
+                  }
+                },
+                {
+                  "offset": {
+                    "numerator": 0,
+                    "denominator": 1
+                  },
+                  "control": {
+                    "kind": "cc",
+                    "number": 74,
+                    "value": 45
+                  }
+                },
+                {
+                  "offset": {
+                    "numerator": 1,
+                    "denominator": 8
+                  },
+                  "control": {
+                    "kind": "bend",
+                    "value": 8704
+                  }
+                },
+                {
+                  "offset": {
+                    "numerator": 1,
+                    "denominator": 4
+                  },
+                  "control": {
+                    "kind": "pressure",
+                    "value": 118
+                  }
+                },
+                {
+                  "offset": {
+                    "numerator": 7,
+                    "denominator": 16
+                  },
+                  "control": {
+                    "kind": "bend",
+                    "value": 8192
+                  }
+                }
+              ],
+              "master_expression": [
+                {
+                  "offset": {
+                    "numerator": 0,
+                    "denominator": 1
+                  },
+                  "control": {
+                    "kind": "bend",
+                    "value": 8192
+                  }
+                },
+                {
+                  "offset": {
+                    "numerator": 0,
+                    "denominator": 1
+                  },
+                  "control": {
+                    "kind": "pressure",
+                    "value": 120
+                  }
+                }
+              ],
+              "expression_duration": {
+                "numerator": 1,
+                "denominator": 2
+              },
+              "mpe": {
+                "profile": {
+                  "source": "example:window-light",
+                  "zone": {
+                    "kind": "lower",
+                    "members": 15
+                  },
+                  "member_range": {
+                    "semitones": 2,
+                    "cents": 0
+                  },
+                  "master_range": {
+                    "semitones": 2,
+                    "cents": 0
+                  }
+                },
+                "member": 2
+              }
+            },
+            "controls": [],
+            "fx": [
+              null,
+              null,
+              null
+            ]
+          },
+          {
+            "id": 40,
+            "at": {
+              "numerator": 1,
+              "denominator": 1
+            },
+            "target": {
+              "kind": "instrument",
+              "id": 17,
+              "channel": 2
+            },
+            "note": {
+              "pitch": 72,
+              "velocity": 76,
+              "release_velocity": 47,
+              "duration": {
+                "numerator": 3,
+                "denominator": 8
+              },
+              "expression": [
+                {
+                  "offset": {
+                    "numerator": 0,
+                    "denominator": 1
+                  },
+                  "control": {
+                    "kind": "bend",
+                    "value": 8192
+                  }
+                },
+                {
+                  "offset": {
+                    "numerator": 0,
+                    "denominator": 1
+                  },
+                  "control": {
+                    "kind": "pressure",
+                    "value": 105
+                  }
+                },
+                {
+                  "offset": {
+                    "numerator": 0,
+                    "denominator": 1
+                  },
+                  "control": {
+                    "kind": "cc",
+                    "number": 74,
+                    "value": 45
+                  }
+                },
+                {
+                  "offset": {
+                    "numerator": 1,
+                    "denominator": 8
+                  },
+                  "control": {
+                    "kind": "bend",
+                    "value": 8704
+                  }
+                },
+                {
+                  "offset": {
+                    "numerator": 1,
+                    "denominator": 4
+                  },
+                  "control": {
+                    "kind": "pressure",
+                    "value": 118
+                  }
+                },
+                {
+                  "offset": {
+                    "numerator": 7,
+                    "denominator": 16
+                  },
+                  "control": {
+                    "kind": "bend",
+                    "value": 8192
+                  }
+                }
+              ],
+              "master_expression": [
+                {
+                  "offset": {
+                    "numerator": 0,
+                    "denominator": 1
+                  },
+                  "control": {
+                    "kind": "bend",
+                    "value": 8192
+                  }
+                },
+                {
+                  "offset": {
+                    "numerator": 0,
+                    "denominator": 1
+                  },
+                  "control": {
+                    "kind": "pressure",
+                    "value": 120
+                  }
+                }
+              ],
+              "expression_duration": {
+                "numerator": 1,
+                "denominator": 2
+              },
+              "mpe": {
+                "profile": {
+                  "source": "example:window-light",
+                  "zone": {
+                    "kind": "lower",
+                    "members": 15
+                  },
+                  "member_range": {
+                    "semitones": 2,
+                    "cents": 0
+                  },
+                  "master_range": {
+                    "semitones": 2,
+                    "cents": 0
+                  }
+                },
+                "member": 2
+              }
+            },
+            "controls": [],
+            "fx": [
+              null,
+              null,
+              null
+            ]
+          },
+          {
+            "id": 41,
+            "at": {
+              "numerator": 3,
+              "denominator": 2
+            },
+            "target": {
+              "kind": "instrument",
+              "id": 17,
+              "channel": 2
+            },
+            "note": {
+              "pitch": 69,
+              "velocity": 76,
+              "release_velocity": 47,
+              "duration": {
+                "numerator": 3,
+                "denominator": 8
+              },
+              "expression": [
+                {
+                  "offset": {
+                    "numerator": 0,
+                    "denominator": 1
+                  },
+                  "control": {
+                    "kind": "bend",
+                    "value": 8192
+                  }
+                },
+                {
+                  "offset": {
+                    "numerator": 0,
+                    "denominator": 1
+                  },
+                  "control": {
+                    "kind": "pressure",
+                    "value": 105
+                  }
+                },
+                {
+                  "offset": {
+                    "numerator": 0,
+                    "denominator": 1
+                  },
+                  "control": {
+                    "kind": "cc",
+                    "number": 74,
+                    "value": 45
+                  }
+                },
+                {
+                  "offset": {
+                    "numerator": 1,
+                    "denominator": 8
+                  },
+                  "control": {
+                    "kind": "bend",
+                    "value": 8704
+                  }
+                },
+                {
+                  "offset": {
+                    "numerator": 1,
+                    "denominator": 4
+                  },
+                  "control": {
+                    "kind": "pressure",
+                    "value": 118
+                  }
+                },
+                {
+                  "offset": {
+                    "numerator": 7,
+                    "denominator": 16
+                  },
+                  "control": {
+                    "kind": "bend",
+                    "value": 8192
+                  }
+                }
+              ],
+              "master_expression": [
+                {
+                  "offset": {
+                    "numerator": 0,
+                    "denominator": 1
+                  },
+                  "control": {
+                    "kind": "bend",
+                    "value": 8192
+                  }
+                },
+                {
+                  "offset": {
+                    "numerator": 0,
+                    "denominator": 1
+                  },
+                  "control": {
+                    "kind": "pressure",
+                    "value": 120
+                  }
+                }
+              ],
+              "expression_duration": {
+                "numerator": 1,
+                "denominator": 2
+              },
+              "mpe": {
+                "profile": {
+                  "source": "example:window-light",
+                  "zone": {
+                    "kind": "lower",
+                    "members": 15
+                  },
+                  "member_range": {
+                    "semitones": 2,
+                    "cents": 0
+                  },
+                  "master_range": {
+                    "semitones": 2,
+                    "cents": 0
+                  }
+                },
+                "member": 2
+              }
+            },
+            "controls": [],
+            "fx": [
+              null,
+              null,
+              null
+            ]
+          },
+          {
+            "id": 42,
+            "at": {
+              "numerator": 2,
+              "denominator": 1
+            },
+            "target": {
+              "kind": "instrument",
+              "id": 17,
+              "channel": 2
+            },
+            "note": {
+              "pitch": 67,
+              "velocity": 94,
+              "release_velocity": 47,
+              "duration": {
+                "numerator": 3,
+                "denominator": 8
+              },
+              "expression": [
+                {
+                  "offset": {
+                    "numerator": 0,
+                    "denominator": 1
+                  },
+                  "control": {
+                    "kind": "bend",
+                    "value": 8192
+                  }
+                },
+                {
+                  "offset": {
+                    "numerator": 0,
+                    "denominator": 1
+                  },
+                  "control": {
+                    "kind": "pressure",
+                    "value": 105
+                  }
+                },
+                {
+                  "offset": {
+                    "numerator": 0,
+                    "denominator": 1
+                  },
+                  "control": {
+                    "kind": "cc",
+                    "number": 74,
+                    "value": 45
+                  }
+                },
+                {
+                  "offset": {
+                    "numerator": 1,
+                    "denominator": 8
+                  },
+                  "control": {
+                    "kind": "bend",
+                    "value": 8704
+                  }
+                },
+                {
+                  "offset": {
+                    "numerator": 1,
+                    "denominator": 4
+                  },
+                  "control": {
+                    "kind": "pressure",
+                    "value": 118
+                  }
+                },
+                {
+                  "offset": {
+                    "numerator": 7,
+                    "denominator": 16
+                  },
+                  "control": {
+                    "kind": "bend",
+                    "value": 8192
+                  }
+                }
+              ],
+              "master_expression": [
+                {
+                  "offset": {
+                    "numerator": 0,
+                    "denominator": 1
+                  },
+                  "control": {
+                    "kind": "bend",
+                    "value": 8192
+                  }
+                },
+                {
+                  "offset": {
+                    "numerator": 0,
+                    "denominator": 1
+                  },
+                  "control": {
+                    "kind": "pressure",
+                    "value": 120
+                  }
+                }
+              ],
+              "expression_duration": {
+                "numerator": 1,
+                "denominator": 2
+              },
+              "mpe": {
+                "profile": {
+                  "source": "example:window-light",
+                  "zone": {
+                    "kind": "lower",
+                    "members": 15
+                  },
+                  "member_range": {
+                    "semitones": 2,
+                    "cents": 0
+                  },
+                  "master_range": {
+                    "semitones": 2,
+                    "cents": 0
+                  }
+                },
+                "member": 2
+              }
+            },
+            "controls": [],
+            "fx": [
+              null,
+              null,
+              null
+            ]
+          },
+          {
+            "id": 43,
+            "at": {
+              "numerator": 61,
+              "denominator": 24
+            },
+            "target": {
+              "kind": "instrument",
+              "id": 17,
+              "channel": 2
+            },
+            "note": {
+              "pitch": 64,
+              "velocity": 76,
+              "release_velocity": 47,
+              "duration": {
+                "numerator": 3,
+                "denominator": 8
+              },
+              "expression": [
+                {
+                  "offset": {
+                    "numerator": 0,
+                    "denominator": 1
+                  },
+                  "control": {
+                    "kind": "bend",
+                    "value": 8192
+                  }
+                },
+                {
+                  "offset": {
+                    "numerator": 0,
+                    "denominator": 1
+                  },
+                  "control": {
+                    "kind": "pressure",
+                    "value": 105
+                  }
+                },
+                {
+                  "offset": {
+                    "numerator": 0,
+                    "denominator": 1
+                  },
+                  "control": {
+                    "kind": "cc",
+                    "number": 74,
+                    "value": 45
+                  }
+                },
+                {
+                  "offset": {
+                    "numerator": 1,
+                    "denominator": 8
+                  },
+                  "control": {
+                    "kind": "bend",
+                    "value": 8704
+                  }
+                },
+                {
+                  "offset": {
+                    "numerator": 1,
+                    "denominator": 4
+                  },
+                  "control": {
+                    "kind": "pressure",
+                    "value": 118
+                  }
+                },
+                {
+                  "offset": {
+                    "numerator": 7,
+                    "denominator": 16
+                  },
+                  "control": {
+                    "kind": "bend",
+                    "value": 8192
+                  }
+                }
+              ],
+              "master_expression": [
+                {
+                  "offset": {
+                    "numerator": 0,
+                    "denominator": 1
+                  },
+                  "control": {
+                    "kind": "bend",
+                    "value": 8192
+                  }
+                },
+                {
+                  "offset": {
+                    "numerator": 0,
+                    "denominator": 1
+                  },
+                  "control": {
+                    "kind": "pressure",
+                    "value": 120
+                  }
+                }
+              ],
+              "expression_duration": {
+                "numerator": 1,
+                "denominator": 2
+              },
+              "mpe": {
+                "profile": {
+                  "source": "example:window-light",
+                  "zone": {
+                    "kind": "lower",
+                    "members": 15
+                  },
+                  "member_range": {
+                    "semitones": 2,
+                    "cents": 0
+                  },
+                  "master_range": {
+                    "semitones": 2,
+                    "cents": 0
+                  }
+                },
+                "member": 2
+              }
+            },
+            "controls": [],
+            "fx": [
+              null,
+              null,
+              null
+            ]
+          },
+          {
+            "id": 44,
+            "at": {
+              "numerator": 3,
+              "denominator": 1
+            },
+            "target": {
+              "kind": "instrument",
+              "id": 17,
+              "channel": 2
+            },
+            "note": {
+              "pitch": 64,
+              "velocity": 76,
+              "release_velocity": 47,
+              "duration": {
+                "numerator": 3,
+                "denominator": 8
+              },
+              "expression": [
+                {
+                  "offset": {
+                    "numerator": 0,
+                    "denominator": 1
+                  },
+                  "control": {
+                    "kind": "bend",
+                    "value": 8192
+                  }
+                },
+                {
+                  "offset": {
+                    "numerator": 0,
+                    "denominator": 1
+                  },
+                  "control": {
+                    "kind": "pressure",
+                    "value": 105
+                  }
+                },
+                {
+                  "offset": {
+                    "numerator": 0,
+                    "denominator": 1
+                  },
+                  "control": {
+                    "kind": "cc",
+                    "number": 74,
+                    "value": 45
+                  }
+                },
+                {
+                  "offset": {
+                    "numerator": 1,
+                    "denominator": 8
+                  },
+                  "control": {
+                    "kind": "bend",
+                    "value": 8704
+                  }
+                },
+                {
+                  "offset": {
+                    "numerator": 1,
+                    "denominator": 4
+                  },
+                  "control": {
+                    "kind": "pressure",
+                    "value": 118
+                  }
+                },
+                {
+                  "offset": {
+                    "numerator": 7,
+                    "denominator": 16
+                  },
+                  "control": {
+                    "kind": "bend",
+                    "value": 8192
+                  }
+                }
+              ],
+              "master_expression": [
+                {
+                  "offset": {
+                    "numerator": 0,
+                    "denominator": 1
+                  },
+                  "control": {
+                    "kind": "bend",
+                    "value": 8192
+                  }
+                },
+                {
+                  "offset": {
+                    "numerator": 0,
+                    "denominator": 1
+                  },
+                  "control": {
+                    "kind": "pressure",
+                    "value": 120
+                  }
+                }
+              ],
+              "expression_duration": {
+                "numerator": 1,
+                "denominator": 2
+              },
+              "mpe": {
+                "profile": {
+                  "source": "example:window-light",
+                  "zone": {
+                    "kind": "lower",
+                    "members": 15
+                  },
+                  "member_range": {
+                    "semitones": 2,
+                    "cents": 0
+                  },
+                  "master_range": {
+                    "semitones": 2,
+                    "cents": 0
+                  }
+                },
+                "member": 2
+              }
+            },
+            "controls": [],
+            "fx": [
+              null,
+              null,
+              null
+            ]
+          },
+          {
+            "id": 45,
+            "at": {
+              "numerator": 7,
+              "denominator": 2
+            },
+            "target": {
+              "kind": "instrument",
+              "id": 17,
+              "channel": 2
+            },
+            "note": {
+              "pitch": 60,
+              "velocity": 76,
+              "release_velocity": 47,
+              "duration": {
+                "numerator": 3,
+                "denominator": 8
+              },
+              "expression": [
+                {
+                  "offset": {
+                    "numerator": 0,
+                    "denominator": 1
+                  },
+                  "control": {
+                    "kind": "bend",
+                    "value": 8192
+                  }
+                },
+                {
+                  "offset": {
+                    "numerator": 0,
+                    "denominator": 1
+                  },
+                  "control": {
+                    "kind": "pressure",
+                    "value": 105
+                  }
+                },
+                {
+                  "offset": {
+                    "numerator": 0,
+                    "denominator": 1
+                  },
+                  "control": {
+                    "kind": "cc",
+                    "number": 74,
+                    "value": 45
+                  }
+                },
+                {
+                  "offset": {
+                    "numerator": 1,
+                    "denominator": 8
+                  },
+                  "control": {
+                    "kind": "bend",
+                    "value": 8704
+                  }
+                },
+                {
+                  "offset": {
+                    "numerator": 1,
+                    "denominator": 4
+                  },
+                  "control": {
+                    "kind": "pressure",
+                    "value": 118
+                  }
+                },
+                {
+                  "offset": {
+                    "numerator": 7,
+                    "denominator": 16
+                  },
+                  "control": {
+                    "kind": "bend",
+                    "value": 8192
+                  }
+                }
+              ],
+              "master_expression": [
+                {
+                  "offset": {
+                    "numerator": 0,
+                    "denominator": 1
+                  },
+                  "control": {
+                    "kind": "bend",
+                    "value": 8192
+                  }
+                },
+                {
+                  "offset": {
+                    "numerator": 0,
+                    "denominator": 1
+                  },
+                  "control": {
+                    "kind": "pressure",
+                    "value": 120
+                  }
+                }
+              ],
+              "expression_duration": {
+                "numerator": 1,
+                "denominator": 2
+              },
+              "mpe": {
+                "profile": {
+                  "source": "example:window-light",
+                  "zone": {
+                    "kind": "lower",
+                    "members": 15
+                  },
+                  "member_range": {
+                    "semitones": 2,
+                    "cents": 0
+                  },
+                  "master_range": {
+                    "semitones": 2,
+                    "cents": 0
+                  }
+                },
+                "member": 2
+              }
+            },
+            "controls": [],
+            "fx": [
+              null,
+              null,
+              null
+            ]
+          },
+          {
+            "id": 46,
+            "at": {
+              "numerator": 4,
+              "denominator": 1
+            },
+            "target": {
+              "kind": "instrument",
+              "id": 17,
+              "channel": 2
+            },
+            "note": {
+              "pitch": 64,
+              "velocity": 94,
+              "release_velocity": 47,
+              "duration": {
+                "numerator": 3,
+                "denominator": 8
+              },
+              "expression": [
+                {
+                  "offset": {
+                    "numerator": 0,
+                    "denominator": 1
+                  },
+                  "control": {
+                    "kind": "bend",
+                    "value": 8192
+                  }
+                },
+                {
+                  "offset": {
+                    "numerator": 0,
+                    "denominator": 1
+                  },
+                  "control": {
+                    "kind": "pressure",
+                    "value": 105
+                  }
+                },
+                {
+                  "offset": {
+                    "numerator": 0,
+                    "denominator": 1
+                  },
+                  "control": {
+                    "kind": "cc",
+                    "number": 74,
+                    "value": 45
+                  }
+                },
+                {
+                  "offset": {
+                    "numerator": 1,
+                    "denominator": 8
+                  },
+                  "control": {
+                    "kind": "bend",
+                    "value": 8704
+                  }
+                },
+                {
+                  "offset": {
+                    "numerator": 1,
+                    "denominator": 4
+                  },
+                  "control": {
+                    "kind": "pressure",
+                    "value": 118
+                  }
+                },
+                {
+                  "offset": {
+                    "numerator": 7,
+                    "denominator": 16
+                  },
+                  "control": {
+                    "kind": "bend",
+                    "value": 8192
+                  }
+                }
+              ],
+              "master_expression": [
+                {
+                  "offset": {
+                    "numerator": 0,
+                    "denominator": 1
+                  },
+                  "control": {
+                    "kind": "bend",
+                    "value": 8192
+                  }
+                },
+                {
+                  "offset": {
+                    "numerator": 0,
+                    "denominator": 1
+                  },
+                  "control": {
+                    "kind": "pressure",
+                    "value": 120
+                  }
+                }
+              ],
+              "expression_duration": {
+                "numerator": 1,
+                "denominator": 2
+              },
+              "mpe": {
+                "profile": {
+                  "source": "example:window-light",
+                  "zone": {
+                    "kind": "lower",
+                    "members": 15
+                  },
+                  "member_range": {
+                    "semitones": 2,
+                    "cents": 0
+                  },
+                  "master_range": {
+                    "semitones": 2,
+                    "cents": 0
+                  }
+                },
+                "member": 2
+              }
+            },
+            "controls": [],
+            "fx": [
+              null,
+              null,
+              null
+            ]
+          },
+          {
+            "id": 47,
+            "at": {
+              "numerator": 109,
+              "denominator": 24
+            },
+            "target": {
+              "kind": "instrument",
+              "id": 17,
+              "channel": 2
+            },
+            "note": {
+              "pitch": 67,
+              "velocity": 76,
+              "release_velocity": 47,
+              "duration": {
+                "numerator": 3,
+                "denominator": 8
+              },
+              "expression": [
+                {
+                  "offset": {
+                    "numerator": 0,
+                    "denominator": 1
+                  },
+                  "control": {
+                    "kind": "bend",
+                    "value": 8192
+                  }
+                },
+                {
+                  "offset": {
+                    "numerator": 0,
+                    "denominator": 1
+                  },
+                  "control": {
+                    "kind": "pressure",
+                    "value": 105
+                  }
+                },
+                {
+                  "offset": {
+                    "numerator": 0,
+                    "denominator": 1
+                  },
+                  "control": {
+                    "kind": "cc",
+                    "number": 74,
+                    "value": 45
+                  }
+                },
+                {
+                  "offset": {
+                    "numerator": 1,
+                    "denominator": 8
+                  },
+                  "control": {
+                    "kind": "bend",
+                    "value": 8704
+                  }
+                },
+                {
+                  "offset": {
+                    "numerator": 1,
+                    "denominator": 4
+                  },
+                  "control": {
+                    "kind": "pressure",
+                    "value": 118
+                  }
+                },
+                {
+                  "offset": {
+                    "numerator": 7,
+                    "denominator": 16
+                  },
+                  "control": {
+                    "kind": "bend",
+                    "value": 8192
+                  }
+                }
+              ],
+              "master_expression": [
+                {
+                  "offset": {
+                    "numerator": 0,
+                    "denominator": 1
+                  },
+                  "control": {
+                    "kind": "bend",
+                    "value": 8192
+                  }
+                },
+                {
+                  "offset": {
+                    "numerator": 0,
+                    "denominator": 1
+                  },
+                  "control": {
+                    "kind": "pressure",
+                    "value": 120
+                  }
+                }
+              ],
+              "expression_duration": {
+                "numerator": 1,
+                "denominator": 2
+              },
+              "mpe": {
+                "profile": {
+                  "source": "example:window-light",
+                  "zone": {
+                    "kind": "lower",
+                    "members": 15
+                  },
+                  "member_range": {
+                    "semitones": 2,
+                    "cents": 0
+                  },
+                  "master_range": {
+                    "semitones": 2,
+                    "cents": 0
+                  }
+                },
+                "member": 2
+              }
+            },
+            "controls": [],
+            "fx": [
+              null,
+              null,
+              null
+            ]
+          },
+          {
+            "id": 48,
+            "at": {
+              "numerator": 5,
+              "denominator": 1
+            },
+            "target": {
+              "kind": "instrument",
+              "id": 17,
+              "channel": 2
+            },
+            "note": {
+              "pitch": 74,
+              "velocity": 76,
+              "release_velocity": 47,
+              "duration": {
+                "numerator": 3,
+                "denominator": 8
+              },
+              "expression": [
+                {
+                  "offset": {
+                    "numerator": 0,
+                    "denominator": 1
+                  },
+                  "control": {
+                    "kind": "bend",
+                    "value": 8192
+                  }
+                },
+                {
+                  "offset": {
+                    "numerator": 0,
+                    "denominator": 1
+                  },
+                  "control": {
+                    "kind": "pressure",
+                    "value": 105
+                  }
+                },
+                {
+                  "offset": {
+                    "numerator": 0,
+                    "denominator": 1
+                  },
+                  "control": {
+                    "kind": "cc",
+                    "number": 74,
+                    "value": 45
+                  }
+                },
+                {
+                  "offset": {
+                    "numerator": 1,
+                    "denominator": 8
+                  },
+                  "control": {
+                    "kind": "bend",
+                    "value": 8704
+                  }
+                },
+                {
+                  "offset": {
+                    "numerator": 1,
+                    "denominator": 4
+                  },
+                  "control": {
+                    "kind": "pressure",
+                    "value": 118
+                  }
+                },
+                {
+                  "offset": {
+                    "numerator": 7,
+                    "denominator": 16
+                  },
+                  "control": {
+                    "kind": "bend",
+                    "value": 8192
+                  }
+                }
+              ],
+              "master_expression": [
+                {
+                  "offset": {
+                    "numerator": 0,
+                    "denominator": 1
+                  },
+                  "control": {
+                    "kind": "bend",
+                    "value": 8192
+                  }
+                },
+                {
+                  "offset": {
+                    "numerator": 0,
+                    "denominator": 1
+                  },
+                  "control": {
+                    "kind": "pressure",
+                    "value": 120
+                  }
+                }
+              ],
+              "expression_duration": {
+                "numerator": 1,
+                "denominator": 2
+              },
+              "mpe": {
+                "profile": {
+                  "source": "example:window-light",
+                  "zone": {
+                    "kind": "lower",
+                    "members": 15
+                  },
+                  "member_range": {
+                    "semitones": 2,
+                    "cents": 0
+                  },
+                  "master_range": {
+                    "semitones": 2,
+                    "cents": 0
+                  }
+                },
+                "member": 2
+              }
+            },
+            "controls": [],
+            "fx": [
+              null,
+              null,
+              null
+            ]
+          },
+          {
+            "id": 49,
+            "at": {
+              "numerator": 11,
+              "denominator": 2
+            },
+            "target": {
+              "kind": "instrument",
+              "id": 17,
+              "channel": 2
+            },
+            "note": {
+              "pitch": 72,
+              "velocity": 76,
+              "release_velocity": 47,
+              "duration": {
+                "numerator": 3,
+                "denominator": 8
+              },
+              "expression": [
+                {
+                  "offset": {
+                    "numerator": 0,
+                    "denominator": 1
+                  },
+                  "control": {
+                    "kind": "bend",
+                    "value": 8192
+                  }
+                },
+                {
+                  "offset": {
+                    "numerator": 0,
+                    "denominator": 1
+                  },
+                  "control": {
+                    "kind": "pressure",
+                    "value": 105
+                  }
+                },
+                {
+                  "offset": {
+                    "numerator": 0,
+                    "denominator": 1
+                  },
+                  "control": {
+                    "kind": "cc",
+                    "number": 74,
+                    "value": 45
+                  }
+                },
+                {
+                  "offset": {
+                    "numerator": 1,
+                    "denominator": 8
+                  },
+                  "control": {
+                    "kind": "bend",
+                    "value": 8704
+                  }
+                },
+                {
+                  "offset": {
+                    "numerator": 1,
+                    "denominator": 4
+                  },
+                  "control": {
+                    "kind": "pressure",
+                    "value": 118
+                  }
+                },
+                {
+                  "offset": {
+                    "numerator": 7,
+                    "denominator": 16
+                  },
+                  "control": {
+                    "kind": "bend",
+                    "value": 8192
+                  }
+                }
+              ],
+              "master_expression": [
+                {
+                  "offset": {
+                    "numerator": 0,
+                    "denominator": 1
+                  },
+                  "control": {
+                    "kind": "bend",
+                    "value": 8192
+                  }
+                },
+                {
+                  "offset": {
+                    "numerator": 0,
+                    "denominator": 1
+                  },
+                  "control": {
+                    "kind": "pressure",
+                    "value": 120
+                  }
+                }
+              ],
+              "expression_duration": {
+                "numerator": 1,
+                "denominator": 2
+              },
+              "mpe": {
+                "profile": {
+                  "source": "example:window-light",
+                  "zone": {
+                    "kind": "lower",
+                    "members": 15
+                  },
+                  "member_range": {
+                    "semitones": 2,
+                    "cents": 0
+                  },
+                  "master_range": {
+                    "semitones": 2,
+                    "cents": 0
+                  }
+                },
+                "member": 2
+              }
+            },
+            "controls": [],
+            "fx": [
+              null,
+              null,
+              null
+            ]
+          },
+          {
+            "id": 50,
+            "at": {
+              "numerator": 6,
+              "denominator": 1
+            },
+            "target": {
+              "kind": "instrument",
+              "id": 17,
+              "channel": 2
+            },
+            "note": {
+              "pitch": 69,
+              "velocity": 94,
+              "release_velocity": 47,
+              "duration": {
+                "numerator": 3,
+                "denominator": 8
+              },
+              "expression": [
+                {
+                  "offset": {
+                    "numerator": 0,
+                    "denominator": 1
+                  },
+                  "control": {
+                    "kind": "bend",
+                    "value": 8192
+                  }
+                },
+                {
+                  "offset": {
+                    "numerator": 0,
+                    "denominator": 1
+                  },
+                  "control": {
+                    "kind": "pressure",
+                    "value": 105
+                  }
+                },
+                {
+                  "offset": {
+                    "numerator": 0,
+                    "denominator": 1
+                  },
+                  "control": {
+                    "kind": "cc",
+                    "number": 74,
+                    "value": 45
+                  }
+                },
+                {
+                  "offset": {
+                    "numerator": 1,
+                    "denominator": 8
+                  },
+                  "control": {
+                    "kind": "bend",
+                    "value": 8704
+                  }
+                },
+                {
+                  "offset": {
+                    "numerator": 1,
+                    "denominator": 4
+                  },
+                  "control": {
+                    "kind": "pressure",
+                    "value": 118
+                  }
+                },
+                {
+                  "offset": {
+                    "numerator": 7,
+                    "denominator": 16
+                  },
+                  "control": {
+                    "kind": "bend",
+                    "value": 8192
+                  }
+                }
+              ],
+              "master_expression": [
+                {
+                  "offset": {
+                    "numerator": 0,
+                    "denominator": 1
+                  },
+                  "control": {
+                    "kind": "bend",
+                    "value": 8192
+                  }
+                },
+                {
+                  "offset": {
+                    "numerator": 0,
+                    "denominator": 1
+                  },
+                  "control": {
+                    "kind": "pressure",
+                    "value": 120
+                  }
+                }
+              ],
+              "expression_duration": {
+                "numerator": 1,
+                "denominator": 2
+              },
+              "mpe": {
+                "profile": {
+                  "source": "example:window-light",
+                  "zone": {
+                    "kind": "lower",
+                    "members": 15
+                  },
+                  "member_range": {
+                    "semitones": 2,
+                    "cents": 0
+                  },
+                  "master_range": {
+                    "semitones": 2,
+                    "cents": 0
+                  }
+                },
+                "member": 2
+              }
+            },
+            "controls": [],
+            "fx": [
+              null,
+              null,
+              null
+            ]
+          },
+          {
+            "id": 51,
+            "at": {
+              "numerator": 157,
+              "denominator": 24
+            },
+            "target": {
+              "kind": "instrument",
+              "id": 17,
+              "channel": 2
+            },
+            "note": {
+              "pitch": 67,
+              "velocity": 76,
+              "release_velocity": 47,
+              "duration": {
+                "numerator": 3,
+                "denominator": 8
+              },
+              "expression": [
+                {
+                  "offset": {
+                    "numerator": 0,
+                    "denominator": 1
+                  },
+                  "control": {
+                    "kind": "bend",
+                    "value": 8192
+                  }
+                },
+                {
+                  "offset": {
+                    "numerator": 0,
+                    "denominator": 1
+                  },
+                  "control": {
+                    "kind": "pressure",
+                    "value": 105
+                  }
+                },
+                {
+                  "offset": {
+                    "numerator": 0,
+                    "denominator": 1
+                  },
+                  "control": {
+                    "kind": "cc",
+                    "number": 74,
+                    "value": 45
+                  }
+                },
+                {
+                  "offset": {
+                    "numerator": 1,
+                    "denominator": 8
+                  },
+                  "control": {
+                    "kind": "bend",
+                    "value": 8704
+                  }
+                },
+                {
+                  "offset": {
+                    "numerator": 1,
+                    "denominator": 4
+                  },
+                  "control": {
+                    "kind": "pressure",
+                    "value": 118
+                  }
+                },
+                {
+                  "offset": {
+                    "numerator": 7,
+                    "denominator": 16
+                  },
+                  "control": {
+                    "kind": "bend",
+                    "value": 8192
+                  }
+                }
+              ],
+              "master_expression": [
+                {
+                  "offset": {
+                    "numerator": 0,
+                    "denominator": 1
+                  },
+                  "control": {
+                    "kind": "bend",
+                    "value": 8192
+                  }
+                },
+                {
+                  "offset": {
+                    "numerator": 0,
+                    "denominator": 1
+                  },
+                  "control": {
+                    "kind": "pressure",
+                    "value": 120
+                  }
+                }
+              ],
+              "expression_duration": {
+                "numerator": 1,
+                "denominator": 2
+              },
+              "mpe": {
+                "profile": {
+                  "source": "example:window-light",
+                  "zone": {
+                    "kind": "lower",
+                    "members": 15
+                  },
+                  "member_range": {
+                    "semitones": 2,
+                    "cents": 0
+                  },
+                  "master_range": {
+                    "semitones": 2,
+                    "cents": 0
+                  }
+                },
+                "member": 2
+              }
+            },
+            "controls": [],
+            "fx": [
+              null,
+              null,
+              null
+            ]
+          },
+          {
+            "id": 52,
+            "at": {
+              "numerator": 7,
+              "denominator": 1
+            },
+            "target": {
+              "kind": "instrument",
+              "id": 17,
+              "channel": 2
+            },
+            "note": {
+              "pitch": 64,
+              "velocity": 76,
+              "release_velocity": 47,
+              "duration": {
+                "numerator": 3,
+                "denominator": 8
+              },
+              "expression": [
+                {
+                  "offset": {
+                    "numerator": 0,
+                    "denominator": 1
+                  },
+                  "control": {
+                    "kind": "bend",
+                    "value": 8192
+                  }
+                },
+                {
+                  "offset": {
+                    "numerator": 0,
+                    "denominator": 1
+                  },
+                  "control": {
+                    "kind": "pressure",
+                    "value": 105
+                  }
+                },
+                {
+                  "offset": {
+                    "numerator": 0,
+                    "denominator": 1
+                  },
+                  "control": {
+                    "kind": "cc",
+                    "number": 74,
+                    "value": 45
+                  }
+                },
+                {
+                  "offset": {
+                    "numerator": 1,
+                    "denominator": 8
+                  },
+                  "control": {
+                    "kind": "bend",
+                    "value": 8704
+                  }
+                },
+                {
+                  "offset": {
+                    "numerator": 1,
+                    "denominator": 4
+                  },
+                  "control": {
+                    "kind": "pressure",
+                    "value": 118
+                  }
+                },
+                {
+                  "offset": {
+                    "numerator": 7,
+                    "denominator": 16
+                  },
+                  "control": {
+                    "kind": "bend",
+                    "value": 8192
+                  }
+                }
+              ],
+              "master_expression": [
+                {
+                  "offset": {
+                    "numerator": 0,
+                    "denominator": 1
+                  },
+                  "control": {
+                    "kind": "bend",
+                    "value": 8192
+                  }
+                },
+                {
+                  "offset": {
+                    "numerator": 0,
+                    "denominator": 1
+                  },
+                  "control": {
+                    "kind": "pressure",
+                    "value": 120
+                  }
+                }
+              ],
+              "expression_duration": {
+                "numerator": 1,
+                "denominator": 2
+              },
+              "mpe": {
+                "profile": {
+                  "source": "example:window-light",
+                  "zone": {
+                    "kind": "lower",
+                    "members": 15
+                  },
+                  "member_range": {
+                    "semitones": 2,
+                    "cents": 0
+                  },
+                  "master_range": {
+                    "semitones": 2,
+                    "cents": 0
+                  }
+                },
+                "member": 2
+              }
+            },
+            "controls": [],
+            "fx": [
+              null,
+              null,
+              null
+            ]
+          },
+          {
+            "id": 53,
+            "at": {
+              "numerator": 15,
+              "denominator": 2
+            },
+            "target": {
+              "kind": "instrument",
+              "id": 17,
+              "channel": 2
+            },
+            "note": {
+              "pitch": 64,
+              "velocity": 76,
+              "release_velocity": 47,
+              "duration": {
+                "numerator": 3,
+                "denominator": 8
+              },
+              "expression": [
+                {
+                  "offset": {
+                    "numerator": 0,
+                    "denominator": 1
+                  },
+                  "control": {
+                    "kind": "bend",
+                    "value": 8192
+                  }
+                },
+                {
+                  "offset": {
+                    "numerator": 0,
+                    "denominator": 1
+                  },
+                  "control": {
+                    "kind": "pressure",
+                    "value": 105
+                  }
+                },
+                {
+                  "offset": {
+                    "numerator": 0,
+                    "denominator": 1
+                  },
+                  "control": {
+                    "kind": "cc",
+                    "number": 74,
+                    "value": 45
+                  }
+                },
+                {
+                  "offset": {
+                    "numerator": 1,
+                    "denominator": 8
+                  },
+                  "control": {
+                    "kind": "bend",
+                    "value": 8704
+                  }
+                },
+                {
+                  "offset": {
+                    "numerator": 1,
+                    "denominator": 4
+                  },
+                  "control": {
+                    "kind": "pressure",
+                    "value": 118
+                  }
+                },
+                {
+                  "offset": {
+                    "numerator": 7,
+                    "denominator": 16
+                  },
+                  "control": {
+                    "kind": "bend",
+                    "value": 8192
+                  }
+                }
+              ],
+              "master_expression": [
+                {
+                  "offset": {
+                    "numerator": 0,
+                    "denominator": 1
+                  },
+                  "control": {
+                    "kind": "bend",
+                    "value": 8192
+                  }
+                },
+                {
+                  "offset": {
+                    "numerator": 0,
+                    "denominator": 1
+                  },
+                  "control": {
+                    "kind": "pressure",
+                    "value": 120
+                  }
+                }
+              ],
+              "expression_duration": {
+                "numerator": 1,
+                "denominator": 2
+              },
+              "mpe": {
+                "profile": {
+                  "source": "example:window-light",
+                  "zone": {
+                    "kind": "lower",
+                    "members": 15
+                  },
+                  "member_range": {
+                    "semitones": 2,
+                    "cents": 0
+                  },
+                  "master_range": {
+                    "semitones": 2,
+                    "cents": 0
+                  }
+                },
+                "member": 2
+              }
+            },
+            "controls": [],
+            "fx": [
+              null,
+              null,
+              null
+            ]
+          }
+        ],
+        "seed": 1
+      },
+      "74": {
+        "name": "Roots · C Am F G",
+        "steps": 32,
+        "division": {
+          "denominator": 16,
+          "notes": 1,
+          "in_time_of": 1
+        },
+        "key": null,
+        "form": {
+          "kind": "tracker"
+        },
+        "events": [
+          {
+            "id": 54,
+            "at": {
+              "numerator": 0,
+              "denominator": 1
+            },
+            "target": {
+              "kind": "instrument",
+              "id": 18,
+              "channel": 2
+            },
+            "note": {
+              "pitch": 36,
+              "velocity": 88,
+              "release_velocity": 0,
+              "duration": {
+                "numerator": 3,
+                "denominator": 8
+              },
+              "expression": []
+            },
+            "controls": [],
+            "fx": [
+              null,
+              null,
+              null
+            ]
+          },
+          {
+            "id": 55,
+            "at": {
+              "numerator": 3,
+              "denominator": 2
+            },
+            "target": {
+              "kind": "instrument",
+              "id": 18,
+              "channel": 2
+            },
+            "note": {
+              "pitch": 36,
+              "velocity": 65,
+              "release_velocity": 0,
+              "duration": {
+                "numerator": 3,
+                "denominator": 8
+              },
+              "expression": []
+            },
+            "controls": [],
+            "fx": [
+              null,
+              null,
+              null
+            ]
+          },
+          {
+            "id": 56,
+            "at": {
+              "numerator": 2,
+              "denominator": 1
+            },
+            "target": {
+              "kind": "instrument",
+              "id": 18,
+              "channel": 2
+            },
+            "note": {
+              "pitch": 33,
+              "velocity": 88,
+              "release_velocity": 0,
+              "duration": {
+                "numerator": 3,
+                "denominator": 8
+              },
+              "expression": []
+            },
+            "controls": [],
+            "fx": [
+              null,
+              null,
+              null
+            ]
+          },
+          {
+            "id": 57,
+            "at": {
+              "numerator": 7,
+              "denominator": 2
+            },
+            "target": {
+              "kind": "instrument",
+              "id": 18,
+              "channel": 2
+            },
+            "note": {
+              "pitch": 33,
+              "velocity": 65,
+              "release_velocity": 0,
+              "duration": {
+                "numerator": 3,
+                "denominator": 8
+              },
+              "expression": []
+            },
+            "controls": [],
+            "fx": [
+              null,
+              null,
+              null
+            ]
+          },
+          {
+            "id": 58,
+            "at": {
+              "numerator": 4,
+              "denominator": 1
+            },
+            "target": {
+              "kind": "instrument",
+              "id": 18,
+              "channel": 2
+            },
+            "note": {
+              "pitch": 41,
+              "velocity": 88,
+              "release_velocity": 0,
+              "duration": {
+                "numerator": 3,
+                "denominator": 8
+              },
+              "expression": []
+            },
+            "controls": [],
+            "fx": [
+              null,
+              null,
+              null
+            ]
+          },
+          {
+            "id": 59,
+            "at": {
+              "numerator": 11,
+              "denominator": 2
+            },
+            "target": {
+              "kind": "instrument",
+              "id": 18,
+              "channel": 2
+            },
+            "note": {
+              "pitch": 41,
+              "velocity": 65,
+              "release_velocity": 0,
+              "duration": {
+                "numerator": 3,
+                "denominator": 8
+              },
+              "expression": []
+            },
+            "controls": [],
+            "fx": [
+              null,
+              null,
+              null
+            ]
+          },
+          {
+            "id": 60,
+            "at": {
+              "numerator": 6,
+              "denominator": 1
+            },
+            "target": {
+              "kind": "instrument",
+              "id": 18,
+              "channel": 2
+            },
+            "note": {
+              "pitch": 43,
+              "velocity": 88,
+              "release_velocity": 0,
+              "duration": {
+                "numerator": 3,
+                "denominator": 8
+              },
+              "expression": []
+            },
+            "controls": [],
+            "fx": [
+              null,
+              null,
+              null
+            ]
+          },
+          {
+            "id": 61,
+            "at": {
+              "numerator": 15,
+              "denominator": 2
+            },
+            "target": {
+              "kind": "instrument",
+              "id": 18,
+              "channel": 2
+            },
+            "note": {
+              "pitch": 43,
+              "velocity": 65,
+              "release_velocity": 0,
+              "duration": {
+                "numerator": 3,
+                "denominator": 8
+              },
+              "expression": []
+            },
+            "controls": [],
+            "fx": [
+              null,
+              null,
+              null
+            ]
+          }
+        ],
+        "seed": 1
+      },
+      "75": {
+        "name": "Sevenths · editable chord FX",
+        "steps": 32,
+        "division": {
+          "denominator": 16,
+          "notes": 1,
+          "in_time_of": 1
+        },
+        "key": null,
+        "form": {
+          "kind": "tracker"
+        },
+        "events": [
+          {
+            "id": 62,
+            "at": {
+              "numerator": 0,
+              "denominator": 1
+            },
+            "target": {
+              "kind": "instrument",
+              "id": 19,
+              "channel": 2
+            },
+            "note": {
+              "pitch": 48,
+              "velocity": 48,
+              "release_velocity": 0,
+              "duration": {
+                "numerator": 7,
+                "denominator": 4
+              },
+              "expression": []
+            },
+            "controls": [],
+            "fx": [
+              {
+                "kind": "chord",
+                "intervals": [
+                  0,
+                  4,
+                  7,
+                  11
+                ]
+              },
+              null,
+              null
+            ]
+          },
+          {
+            "id": 63,
+            "at": {
+              "numerator": 2,
+              "denominator": 1
+            },
+            "target": {
+              "kind": "instrument",
+              "id": 19,
+              "channel": 2
+            },
+            "note": {
+              "pitch": 45,
+              "velocity": 48,
+              "release_velocity": 0,
+              "duration": {
+                "numerator": 7,
+                "denominator": 4
+              },
+              "expression": []
+            },
+            "controls": [],
+            "fx": [
+              {
+                "kind": "chord",
+                "intervals": [
+                  0,
+                  3,
+                  7,
+                  10
+                ]
+              },
+              null,
+              null
+            ]
+          },
+          {
+            "id": 64,
+            "at": {
+              "numerator": 4,
+              "denominator": 1
+            },
+            "target": {
+              "kind": "instrument",
+              "id": 19,
+              "channel": 2
+            },
+            "note": {
+              "pitch": 53,
+              "velocity": 48,
+              "release_velocity": 0,
+              "duration": {
+                "numerator": 7,
+                "denominator": 4
+              },
+              "expression": []
+            },
+            "controls": [],
+            "fx": [
+              {
+                "kind": "chord",
+                "intervals": [
+                  0,
+                  4,
+                  7,
+                  11
+                ]
+              },
+              null,
+              null
+            ]
+          },
+          {
+            "id": 65,
+            "at": {
+              "numerator": 6,
+              "denominator": 1
+            },
+            "target": {
+              "kind": "instrument",
+              "id": 19,
+              "channel": 2
+            },
+            "note": {
+              "pitch": 55,
+              "velocity": 48,
+              "release_velocity": 0,
+              "duration": {
+                "numerator": 7,
+                "denominator": 4
+              },
+              "expression": []
+            },
+            "controls": [],
+            "fx": [
+              {
+                "kind": "chord",
+                "intervals": [
+                  0,
+                  4,
+                  7,
+                  10
+                ]
+              },
+              null,
+              null
+            ]
+          }
+        ],
+        "seed": 1
+      },
+      "76": {
+        "name": "Five against eight",
+        "steps": 8,
+        "division": {
+          "denominator": 8,
+          "notes": 1,
+          "in_time_of": 1
+        },
+        "key": null,
+        "form": {
+          "kind": "euclidean",
+          "pulses": 5,
+          "rotation": 0,
+          "pitch": 79,
+          "velocity": 39,
+          "gate": {
+            "numerator": 1,
+            "denominator": 5
+          },
+          "target": {
+            "kind": "instrument",
+            "id": 20,
+            "channel": 2
+          }
+        },
+        "events": [],
+        "seed": 1
+      },
+      "77": {
+        "name": "Pulse · Drum lanes",
+        "steps": 16,
+        "division": {
+          "denominator": 16,
+          "notes": 1,
+          "in_time_of": 1
+        },
+        "key": null,
+        "form": {
+          "kind": "drum"
+        },
+        "events": [
+          {
+            "id": 66,
+            "at": {
+              "numerator": 0,
+              "denominator": 1
+            },
+            "target": {
+              "kind": "instrument",
+              "id": 21,
+              "channel": 2
+            },
+            "note": {
+              "pitch": 48,
+              "velocity": 75,
+              "release_velocity": 0,
+              "duration": {
+                "numerator": 1,
+                "denominator": 16
+              },
+              "expression": []
+            },
+            "controls": [],
+            "fx": [
+              null,
+              null,
+              null
+            ]
+          },
+          {
+            "id": 67,
+            "at": {
+              "numerator": 1,
+              "denominator": 1
+            },
+            "target": {
+              "kind": "instrument",
+              "id": 21,
+              "channel": 2
+            },
+            "note": {
+              "pitch": 48,
+              "velocity": 45,
+              "release_velocity": 0,
+              "duration": {
+                "numerator": 1,
+                "denominator": 16
+              },
+              "expression": []
+            },
+            "controls": [],
+            "fx": [
+              null,
+              null,
+              null
+            ]
+          },
+          {
+            "id": 68,
+            "at": {
+              "numerator": 2,
+              "denominator": 1
+            },
+            "target": {
+              "kind": "instrument",
+              "id": 21,
+              "channel": 2
+            },
+            "note": {
+              "pitch": 48,
+              "velocity": 75,
+              "release_velocity": 0,
+              "duration": {
+                "numerator": 1,
+                "denominator": 16
+              },
+              "expression": []
+            },
+            "controls": [],
+            "fx": [
+              null,
+              null,
+              null
+            ]
+          },
+          {
+            "id": 69,
+            "at": {
+              "numerator": 5,
+              "denominator": 2
+            },
+            "target": {
+              "kind": "instrument",
+              "id": 21,
+              "channel": 2
+            },
+            "note": {
+              "pitch": 72,
+              "velocity": 45,
+              "release_velocity": 0,
+              "duration": {
+                "numerator": 1,
+                "denominator": 16
+              },
+              "expression": []
+            },
+            "controls": [],
+            "fx": [
+              null,
+              null,
+              null
+            ]
+          },
+          {
+            "id": 70,
+            "at": {
+              "numerator": 3,
+              "denominator": 1
+            },
+            "target": {
+              "kind": "instrument",
+              "id": 21,
+              "channel": 2
+            },
+            "note": {
+              "pitch": 48,
+              "velocity": 45,
+              "release_velocity": 0,
+              "duration": {
+                "numerator": 1,
+                "denominator": 16
+              },
+              "expression": []
+            },
+            "controls": [],
+            "fx": [
+              null,
+              null,
+              null
+            ]
+          },
+          {
+            "id": 71,
+            "at": {
+              "numerator": 7,
+              "denominator": 2
+            },
+            "target": {
+              "kind": "instrument",
+              "id": 21,
+              "channel": 2
+            },
+            "note": {
+              "pitch": 72,
+              "velocity": 45,
+              "release_velocity": 0,
+              "duration": {
+                "numerator": 1,
+                "denominator": 16
+              },
+              "expression": []
+            },
+            "controls": [],
+            "fx": [
+              null,
+              null,
+              null
+            ]
+          }
+        ],
+        "seed": 1
+      }
+    },
+    "instruments": {
+      "17": {
+        "name": "Glass lead",
+        "resource": {
+          "resource": "f8449390-b10d-4428-850e-000000000001",
+          "revision": "bb4a0dfe416650136bda33725292759c59451a834f4fddc86363c900a9eec00c"
+        }
+      },
+      "18": {
+        "name": "Round bass",
+        "resource": {
+          "resource": "f8449390-b10d-4428-850e-000000000002",
+          "revision": "ec9a7bd57987119cd1482fb72d96eaf0ac5c258a7ebc8a585cd8d144e5aeae94"
+        }
+      },
+      "19": {
+        "name": "Soft harmony",
+        "resource": {
+          "resource": "f8449390-b10d-4428-850e-000000000003",
+          "revision": "f2ca74be8701afe7ba26c677a88e22047b7e534852eb9b32112701bd30838791"
+        }
+      },
+      "20": {
+        "name": "Bell steps",
+        "resource": {
+          "resource": "f8449390-b10d-4428-850e-000000000004",
+          "revision": "6460b50901cc48af824d75dcfe3a8d6a4aa66febafb0e3e7c00fce563a3c8988"
+        }
+      },
+      "21": {
+        "name": "Wood pulse",
+        "resource": {
+          "resource": "f8449390-b10d-4428-850e-000000000005",
+          "revision": "c0a46f0eaaa60faf6a6e68b05b722c541132453690830effa52cddb9f3af933e"
+        }
+      }
+    },
+    "chords": {}
+  },
+  "synth": {
+    "masterGainDb": -12.0,
+    "mixer": {
+      "tracks": [
+        {
+          "levelDb": -6.0,
+          "mute": false,
+          "pan": -0.15000000596046448,
+          "sends": [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "solo": false
+        },
+        {
+          "levelDb": -6.0,
+          "mute": false,
+          "pan": 0.0,
+          "sends": [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "solo": false
+        },
+        {
+          "levelDb": -6.0,
+          "mute": false,
+          "pan": 0.15000000596046448,
+          "sends": [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "solo": false
+        },
+        {
+          "levelDb": -6.0,
+          "mute": false,
+          "pan": -0.4000000059604645,
+          "sends": [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "solo": false
+        },
+        {
+          "levelDb": -6.0,
+          "mute": false,
+          "pan": 0.30000001192092896,
+          "sends": [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "solo": false
+        },
+        {
+          "levelDb": 0.0,
+          "mute": false,
+          "pan": 0.0,
+          "sends": [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "solo": false
+        },
+        {
+          "levelDb": 0.0,
+          "mute": false,
+          "pan": 0.0,
+          "sends": [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "solo": false
+        },
+        {
+          "levelDb": 0.0,
+          "mute": false,
+          "pan": 0.0,
+          "sends": [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "solo": false
+        },
+        {
+          "levelDb": 0.0,
+          "mute": false,
+          "pan": 0.0,
+          "sends": [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "solo": false
+        },
+        {
+          "levelDb": 0.0,
+          "mute": false,
+          "pan": 0.0,
+          "sends": [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "solo": false
+        },
+        {
+          "levelDb": 0.0,
+          "mute": false,
+          "pan": 0.0,
+          "sends": [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "solo": false
+        },
+        {
+          "levelDb": 0.0,
+          "mute": false,
+          "pan": 0.0,
+          "sends": [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "solo": false
+        },
+        {
+          "levelDb": 0.0,
+          "mute": false,
+          "pan": 0.0,
+          "sends": [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "solo": false
+        },
+        {
+          "levelDb": 0.0,
+          "mute": false,
+          "pan": 0.0,
+          "sends": [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "solo": false
+        },
+        {
+          "levelDb": 0.0,
+          "mute": false,
+          "pan": 0.0,
+          "sends": [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "solo": false
+        },
+        {
+          "levelDb": 0.0,
+          "mute": false,
+          "pan": 0.0,
+          "sends": [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "solo": false
+        }
+      ]
+    },
+    "patches": [
+      {
+        "channel": 0,
+        "effects": [
+          null,
+          null,
+          null
+        ],
+        "envelope": {
+          "attackMilliseconds": 8.0,
+          "decayMilliseconds": 110.0,
+          "releaseMilliseconds": 180.0,
+          "sustain": 0.7200000286102295
+        },
+        "id": 1,
+        "instrument": {
+          "assetReferences": [],
+          "capabilityId": "instrument.braids",
+          "values": [
+            {
+              "parameterId": "braids.model",
+              "value": {
+                "kind": "choice",
+                "value": "braids.model.sine-triangle"
+              }
+            },
+            {
+              "parameterId": "braids.timbre",
+              "value": {
+                "kind": "continuous",
+                "value": 0.3499999940395355
+              }
+            },
+            {
+              "parameterId": "braids.color",
+              "value": {
+                "kind": "continuous",
+                "value": 0.5
+              }
+            }
+          ]
+        },
+        "name": "Glass lead",
+        "output": {
+          "trackId": 0,
+          "trimGainDb": 0.0
+        },
+        "sends": [
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "voiceLimit": 16
+      },
+      {
+        "channel": 1,
+        "effects": [
+          null,
+          null,
+          null
+        ],
+        "envelope": {
+          "attackMilliseconds": 8.0,
+          "decayMilliseconds": 110.0,
+          "releaseMilliseconds": 180.0,
+          "sustain": 0.7200000286102295
+        },
+        "id": 2,
+        "instrument": {
+          "assetReferences": [],
+          "capabilityId": "instrument.braids",
+          "values": [
+            {
+              "parameterId": "braids.model",
+              "value": {
+                "kind": "choice",
+                "value": "braids.model.square-sub"
+              }
+            },
+            {
+              "parameterId": "braids.timbre",
+              "value": {
+                "kind": "continuous",
+                "value": 0.25
+              }
+            },
+            {
+              "parameterId": "braids.color",
+              "value": {
+                "kind": "continuous",
+                "value": 0.5
+              }
+            }
+          ]
+        },
+        "name": "Round bass",
+        "output": {
+          "trackId": 1,
+          "trimGainDb": 0.0
+        },
+        "sends": [
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "voiceLimit": 16
+      },
+      {
+        "channel": 2,
+        "effects": [
+          null,
+          null,
+          null
+        ],
+        "envelope": {
+          "attackMilliseconds": 8.0,
+          "decayMilliseconds": 110.0,
+          "releaseMilliseconds": 180.0,
+          "sustain": 0.7200000286102295
+        },
+        "id": 3,
+        "instrument": {
+          "assetReferences": [],
+          "capabilityId": "instrument.braids",
+          "values": [
+            {
+              "parameterId": "braids.model",
+              "value": {
+                "kind": "choice",
+                "value": "braids.model.triple-sine"
+              }
+            },
+            {
+              "parameterId": "braids.timbre",
+              "value": {
+                "kind": "continuous",
+                "value": 0.4000000059604645
+              }
+            },
+            {
+              "parameterId": "braids.color",
+              "value": {
+                "kind": "continuous",
+                "value": 0.5
+              }
+            }
+          ]
+        },
+        "name": "Soft harmony",
+        "output": {
+          "trackId": 2,
+          "trimGainDb": 0.0
+        },
+        "sends": [
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "voiceLimit": 16
+      },
+      {
+        "channel": 3,
+        "effects": [
+          null,
+          null,
+          null
+        ],
+        "envelope": {
+          "attackMilliseconds": 8.0,
+          "decayMilliseconds": 110.0,
+          "releaseMilliseconds": 180.0,
+          "sustain": 0.7200000286102295
+        },
+        "id": 4,
+        "instrument": {
+          "assetReferences": [],
+          "capabilityId": "instrument.braids",
+          "values": [
+            {
+              "parameterId": "braids.model",
+              "value": {
+                "kind": "choice",
+                "value": "braids.model.struck-bell"
+              }
+            },
+            {
+              "parameterId": "braids.timbre",
+              "value": {
+                "kind": "continuous",
+                "value": 0.44999998807907104
+              }
+            },
+            {
+              "parameterId": "braids.color",
+              "value": {
+                "kind": "continuous",
+                "value": 0.5
+              }
+            }
+          ]
+        },
+        "name": "Bell steps",
+        "output": {
+          "trackId": 3,
+          "trimGainDb": 0.0
+        },
+        "sends": [
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "voiceLimit": 16
+      },
+      {
+        "channel": 4,
+        "effects": [
+          null,
+          null,
+          null
+        ],
+        "envelope": {
+          "attackMilliseconds": 8.0,
+          "decayMilliseconds": 110.0,
+          "releaseMilliseconds": 180.0,
+          "sustain": 0.7200000286102295
+        },
+        "id": 5,
+        "instrument": {
+          "assetReferences": [],
+          "capabilityId": "instrument.braids",
+          "values": [
+            {
+              "parameterId": "braids.model",
+              "value": {
+                "kind": "choice",
+                "value": "braids.model.struck-drum"
+              }
+            },
+            {
+              "parameterId": "braids.timbre",
+              "value": {
+                "kind": "continuous",
+                "value": 0.30000001192092896
+              }
+            },
+            {
+              "parameterId": "braids.color",
+              "value": {
+                "kind": "continuous",
+                "value": 0.5
+              }
+            }
+          ]
+        },
+        "name": "Wood pulse",
+        "output": {
+          "trackId": 4,
+          "trimGainDb": 0.0
+        },
+        "sends": [
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "voiceLimit": 16
+      }
+    ],
+    "returns": [
+      {
+        "effects": [],
+        "name": "INIT",
+        "returnLevel": 0.5
+      },
+      {
+        "effects": [],
+        "name": "INIT",
+        "returnLevel": 0.5
+      },
+      {
+        "effects": [],
+        "name": "INIT",
+        "returnLevel": 0.5
+      },
+      {
+        "effects": [],
+        "name": "INIT",
+        "returnLevel": 0.5
+      },
+      {
+        "effects": [],
+        "name": "INIT",
+        "returnLevel": 0.5
+      },
+      {
+        "effects": [],
+        "name": "INIT",
+        "returnLevel": 0.5
+      },
+      {
+        "effects": [],
+        "name": "INIT",
+        "returnLevel": 0.5
+      },
+      {
+        "effects": [],
+        "name": "INIT",
+        "returnLevel": 0.5
+      },
+      {
+        "effects": [],
+        "name": "INIT",
+        "returnLevel": 0.5
+      },
+      {
+        "effects": [],
+        "name": "INIT",
+        "returnLevel": 0.5
+      },
+      {
+        "effects": [],
+        "name": "INIT",
+        "returnLevel": 0.5
+      },
+      {
+        "effects": [],
+        "name": "INIT",
+        "returnLevel": 0.5
+      },
+      {
+        "effects": [],
+        "name": "INIT",
+        "returnLevel": 0.5
+      },
+      {
+        "effects": [],
+        "name": "INIT",
+        "returnLevel": 0.5
+      },
+      {
+        "effects": [],
+        "name": "INIT",
+        "returnLevel": 0.5
+      },
+      {
+        "effects": [],
+        "name": "INIT",
+        "returnLevel": 0.5
+      }
+    ],
+    "version": 4
+  },
+  "installed_patches": {
+    "17": 1,
+    "18": 2,
+    "19": 3,
+    "20": 4,
+    "21": 5
+  },
+  "pinned_sounds": [
+    {
+      "resource": "f8449390-b10d-4428-850e-000000000001",
+      "revision": "bb4a0dfe416650136bda33725292759c59451a834f4fddc86363c900a9eec00c",
+      "definition": {
+        "effects": [
+          null,
+          null,
+          null
+        ],
+        "envelope": {
+          "attackMilliseconds": 8.0,
+          "decayMilliseconds": 110.0,
+          "releaseMilliseconds": 180.0,
+          "sustain": 0.7200000286102295
+        },
+        "instrument": {
+          "assetReferences": [],
+          "capabilityId": "instrument.braids",
+          "values": [
+            {
+              "parameterId": "braids.model",
+              "value": {
+                "kind": "choice",
+                "value": "braids.model.sine-triangle"
+              }
+            },
+            {
+              "parameterId": "braids.timbre",
+              "value": {
+                "kind": "continuous",
+                "value": 0.3499999940395355
+              }
+            },
+            {
+              "parameterId": "braids.color",
+              "value": {
+                "kind": "continuous",
+                "value": 0.5
+              }
+            }
+          ]
+        },
+        "name": "Glass lead",
+        "version": 1,
+        "voiceLimit": 16
+      }
+    },
+    {
+      "resource": "f8449390-b10d-4428-850e-000000000002",
+      "revision": "ec9a7bd57987119cd1482fb72d96eaf0ac5c258a7ebc8a585cd8d144e5aeae94",
+      "definition": {
+        "effects": [
+          null,
+          null,
+          null
+        ],
+        "envelope": {
+          "attackMilliseconds": 8.0,
+          "decayMilliseconds": 110.0,
+          "releaseMilliseconds": 180.0,
+          "sustain": 0.7200000286102295
+        },
+        "instrument": {
+          "assetReferences": [],
+          "capabilityId": "instrument.braids",
+          "values": [
+            {
+              "parameterId": "braids.model",
+              "value": {
+                "kind": "choice",
+                "value": "braids.model.square-sub"
+              }
+            },
+            {
+              "parameterId": "braids.timbre",
+              "value": {
+                "kind": "continuous",
+                "value": 0.25
+              }
+            },
+            {
+              "parameterId": "braids.color",
+              "value": {
+                "kind": "continuous",
+                "value": 0.5
+              }
+            }
+          ]
+        },
+        "name": "Round bass",
+        "version": 1,
+        "voiceLimit": 16
+      }
+    },
+    {
+      "resource": "f8449390-b10d-4428-850e-000000000003",
+      "revision": "f2ca74be8701afe7ba26c677a88e22047b7e534852eb9b32112701bd30838791",
+      "definition": {
+        "effects": [
+          null,
+          null,
+          null
+        ],
+        "envelope": {
+          "attackMilliseconds": 8.0,
+          "decayMilliseconds": 110.0,
+          "releaseMilliseconds": 180.0,
+          "sustain": 0.7200000286102295
+        },
+        "instrument": {
+          "assetReferences": [],
+          "capabilityId": "instrument.braids",
+          "values": [
+            {
+              "parameterId": "braids.model",
+              "value": {
+                "kind": "choice",
+                "value": "braids.model.triple-sine"
+              }
+            },
+            {
+              "parameterId": "braids.timbre",
+              "value": {
+                "kind": "continuous",
+                "value": 0.4000000059604645
+              }
+            },
+            {
+              "parameterId": "braids.color",
+              "value": {
+                "kind": "continuous",
+                "value": 0.5
+              }
+            }
+          ]
+        },
+        "name": "Soft harmony",
+        "version": 1,
+        "voiceLimit": 16
+      }
+    },
+    {
+      "resource": "f8449390-b10d-4428-850e-000000000004",
+      "revision": "6460b50901cc48af824d75dcfe3a8d6a4aa66febafb0e3e7c00fce563a3c8988",
+      "definition": {
+        "effects": [
+          null,
+          null,
+          null
+        ],
+        "envelope": {
+          "attackMilliseconds": 8.0,
+          "decayMilliseconds": 110.0,
+          "releaseMilliseconds": 180.0,
+          "sustain": 0.7200000286102295
+        },
+        "instrument": {
+          "assetReferences": [],
+          "capabilityId": "instrument.braids",
+          "values": [
+            {
+              "parameterId": "braids.model",
+              "value": {
+                "kind": "choice",
+                "value": "braids.model.struck-bell"
+              }
+            },
+            {
+              "parameterId": "braids.timbre",
+              "value": {
+                "kind": "continuous",
+                "value": 0.44999998807907104
+              }
+            },
+            {
+              "parameterId": "braids.color",
+              "value": {
+                "kind": "continuous",
+                "value": 0.5
+              }
+            }
+          ]
+        },
+        "name": "Bell steps",
+        "version": 1,
+        "voiceLimit": 16
+      }
+    },
+    {
+      "resource": "f8449390-b10d-4428-850e-000000000005",
+      "revision": "c0a46f0eaaa60faf6a6e68b05b722c541132453690830effa52cddb9f3af933e",
+      "definition": {
+        "effects": [
+          null,
+          null,
+          null
+        ],
+        "envelope": {
+          "attackMilliseconds": 8.0,
+          "decayMilliseconds": 110.0,
+          "releaseMilliseconds": 180.0,
+          "sustain": 0.7200000286102295
+        },
+        "instrument": {
+          "assetReferences": [],
+          "capabilityId": "instrument.braids",
+          "values": [
+            {
+              "parameterId": "braids.model",
+              "value": {
+                "kind": "choice",
+                "value": "braids.model.struck-drum"
+              }
+            },
+            {
+              "parameterId": "braids.timbre",
+              "value": {
+                "kind": "continuous",
+                "value": 0.30000001192092896
+              }
+            },
+            {
+              "parameterId": "braids.color",
+              "value": {
+                "kind": "continuous",
+                "value": 0.5
+              }
+            }
+          ]
+        },
+        "name": "Wood pulse",
+        "version": 1,
+        "voiceLimit": 16
+      }
+    }
+  ],
+  "resources": []
+}

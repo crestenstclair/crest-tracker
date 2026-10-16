@@ -6,6 +6,8 @@ Updated 15 October 2026. This consolidates the user's decisions, including corre
 
 Crest Tracker is a separate sequencing library integrated with Crest Synth by the host application. Tracker emits MIDI; Synth owns sound generation, instruments, patches, samples, SoundFonts, mixer and audio FX. Synth must remain independently usable and must not acquire concepts such as phrase, chain, cursor, tracker FX or controller navigation. Existing Synth functionality remains intact.
 
+The user explicitly requires Crest Synth as the working base, with all existing Synth functionality available in this application, especially its UI and audio rendering. Use a source dependency with direct local co-development of both repositories. Preserve the hard synth/sequencer boundary: the pure Tracker library never imports Synth; the host connects public contracts; Synth's existing UI continues to use its own reducers and renderer. Do not replace working Synth features with a partial reimplementation.
+
 The frontend renders the authoritative application state through projections. Editing dispatches commands; widgets do not keep competing copies of song or phrase content. Start with video game controllers for editing and external MIDI/MPE input for Piano Roll recording. Performance input has a separate timestamped capture boundary; MIDI control-surface mappings use the semantic command boundary. Explicit state plus pure transitions and an event loop is the architectural direction; it does not imply that playback has no state.
 
 ## Musical hierarchy and reuse
@@ -121,7 +123,7 @@ The effects browser opens as an **Edit + Up popover**, with fast Up/Down navigat
 
 The later instruction “Shift Down from any other view opens Quick Jump” supersedes the earlier direct Settings→Song shortcut. The direct-return behavior remains worth a final navigation review; do not implement both conflicting bindings silently. Semantic buttons are the contract; physical gamepad mapping is configurable and platform-specific.
 
-The top-level menu has **Tracker, Instruments, Chord Bank, Mixer, Sends, Settings**. “Tracker” returns to the song workflow. The current Synth instruments/mixer/sends/settings pages are brought into the host, by reuse where possible or by presentation reimplementation if necessary.
+The top-level menu has **Tracker, Instruments, Chord Bank, Mixer, Sends, Settings**. “Tracker” returns to the song workflow. Bring the actual Synth workspace into the host, preserving its renderer, components, instruments/mixer/sends/settings pages and all associated workflows. Add Tracker views through a narrow hosting seam; keep Synth presentation and behavior owned by Synth.
 
 ## Settings and Song files
 

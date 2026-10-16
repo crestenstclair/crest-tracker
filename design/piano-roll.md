@@ -1,6 +1,6 @@
 # Piano Roll — recording and controller editing
 
-15 October 2026. Piano Roll is the fifth phrase type, alongside Tracker, Drum Machine, Euclidean and Randomizer. This is a design/implementation contract; this repository has no Tracker runtime. Recording external MIDI/MPE performances while the Song plays is the primary outcome. The user confirmed that priority, routing to channels/instruments, gamepad editing, nudging and grid quantize. Defaults and bindings below are proposed Crest behavior, ready for implementation review.
+15 October 2026. Piano Roll is the fifth phrase type, alongside Tracker, Drum Machine, Euclidean and Randomizer. This is the design/implementation contract. The repository now contains the pure capture/playback core and native Tracker host; README.md records implemented behavior and remaining native/hardware gates. Recording external MIDI/MPE performances while the Song plays is the primary outcome. The user confirmed that priority, routing to channels/instruments, gamepad editing, nudging and grid quantize. Defaults and bindings below are proposed Crest behavior, ready for implementation review.
 
 ## Record a performance
 
@@ -31,6 +31,8 @@ Sustain does not overwrite key-release time. Store the physical release and peda
 ## Roll and editing
 
 The main screen puts **Arm / Record / End take**, source, target, monitor, recording status and loop length above the roll. Show separate edit cursor and playhead. Notes use pitch names, velocity shading and a visible target label on selection. A continuation mark identifies notes crossing the loop edge. Scale shading is guidance; captured pitches are never scale-corrected. A lower lane switches between Velocity, Bend, Pressure, Timbre, Sustain and other captured controls. MPE lanes follow the selected note; shared-channel/master controls visibly identify their wider scope.
+
+The implemented time viewport shows up to 16 beats at 100% zoom in bounded 64-beat sections that overlap by 32 beats. Previous/Next Beats and exact Go To Beat are also controller actions. Cursor movement and Follow reveal the appropriate section; zoom and explicit cursor movement pause Follow. This is presentation only: long phrases retain every note and exact timestamp. Sustained notes and held expression remain visible after their attacks move offscreen.
 
 Every operation is available from a controller-navigable contextual menu. Shortcuts accelerate the same commands; no mouse-only controls. Keep a visible focus ring, selected-note count, readable recording status beyond color, and shortcut help. Overlapping notes are individually reachable through Next/Previous note and a stacked-note chooser. Endpoint/instrument pickers and errors must also be reachable without a keyboard.
 

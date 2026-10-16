@@ -1,0 +1,104 @@
+//! Test output replaces only the device. The supplied callback is the production renderer.
+use super::*;
+use crest_synth::shell::audio_output::*;
+use std::alloc::{GlobalAlloc, Layout, System};
+use std::cell::Cell;
+
+thread_local! {
+    static MEASURING: Cell<bool> = const { Cell::new(false) };
+    static MEMORY: Cell<(u64, u64)> = const { Cell::new((0, 0)) };
+}
+struct CountingAllocator;
+#[global_allocator]
+static ALLOCATOR: CountingAllocator = CountingAllocator;
+fn count(allocated: u64, freed: u64) {
+    let _ = MEASURING.try_with(|active| {
+        if active.get() {
+            MEMORY.with(|memory| {
+                let (a, f) = memory.get();
+                memory.set((a + allocated, f + freed));
+            });
+        }
+    });
+}
+unsafe impl GlobalAlloc for CountingAllocator {
+    unsafe fn alloc(&self, layout: Layout) -> *mut u8 {
+        count(1, 0);
+        unsafe { System.alloc(layout) }
+    }
+    unsafe fn alloc_zeroed(&self, layout: Layout) -> *mut u8 {
+        count(1, 0);
+        unsafe { System.alloc_zeroed(layout) }
+    }
+    unsafe fn dealloc(&self, pointer: *mut u8, layout: Layout) {
+        count(0, 1);
+        unsafe { System.dealloc(pointer, layout) }
+    }
+    unsafe fn realloc(&self, pointer: *mut u8, layout: Layout, size: usize) -> *mut u8 {
+        count(1, 1);
+        unsafe { System.realloc(pointer, layout, size) }
+    }
+}
+
+#[derive(Clone)]
+pub(super) struct Output {
+    pub callback: Rc<RefCell<Option<AudioRenderCallback>>>,
+    writer: Rc<RefCell<AudioFrameClockWriter>>,
+    reader: AudioFrameClockReader,
+    frames: Rc<Cell<u64>>,
+}
+impl Default for Output {
+    fn default() -> Self {
+        let (writer, reader) = AudioFrameClockBoundary::create_pair();
+        Self {
+            callback: Rc::default(),
+            writer: Rc::new(RefCell::new(writer)),
+            reader,
+            frames: Rc::default(),
+        }
+    }
+}
+impl AudioOutput for Output {
+    type Negotiated = Self;
+    fn negotiate(self) -> Result<Self, AudioOutputError> {
+        Ok(self)
+    }
+}
+impl NegotiatedAudioOutput for Output {
+    fn config(&self) -> AudioDeviceConfig {
+        AudioDeviceConfig::new(48_000.0, 2, AudioSampleFormat::F32, FRAMES).unwrap()
+    }
+    fn start(
+        self,
+        render: AudioRenderCallback,
+        _on_error: AudioDeviceStatusCallback,
+    ) -> Result<AudioStream, AudioOutputError> {
+        *self.callback.borrow_mut() = Some(render);
+        Ok(AudioStream::with_clock((), self.reader))
+    }
+}
+impl Output {
+    pub(super) fn render(&self, buffer: &mut [f32]) -> (u64, (u64, u64)) {
+        let mut callback = self.callback.borrow_mut();
+        MEMORY.with(|memory| memory.set((0, 0)));
+        MEASURING.with(|active| active.set(true));
+        let start = std::time::Instant::now();
+        callback.as_mut().expect("production callback started")(buffer);
+        let elapsed = start.elapsed().as_nanos() as u64;
+        MEASURING.with(|active| active.set(false));
+        let frame = self.frames.get();
+        let micros = 1_000_000 + frame * 1_000_000 / 48_000;
+        self.writer.borrow_mut().publish_from_callback(
+            AudioFrameClock::new(
+                frame,
+                micros,
+                micros,
+                48_000,
+                AudioClockDomain::CoreAudioHost,
+            )
+            .unwrap(),
+        );
+        self.frames.set(frame + FRAMES as u64);
+        (elapsed, MEMORY.with(Cell::get))
+    }
+}
