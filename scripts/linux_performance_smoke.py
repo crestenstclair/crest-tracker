@@ -5,6 +5,7 @@ import json
 import os
 from pathlib import Path
 import subprocess
+import shutil
 import sys
 import tarfile
 import tempfile
@@ -188,6 +189,7 @@ def main():
             archive.extractall(temporary, filter='data')
         binaries = list(Path(temporary).glob('*/bin/crest-tracker-app'))
         assert len(binaries) == 1, 'Archive must contain exactly one shipping app'
+        shutil.copy2(binaries[0].parent.parent / 'build-info.json', root / 'package-build-info.json')
         smoke(binaries[0], root)
 
 
