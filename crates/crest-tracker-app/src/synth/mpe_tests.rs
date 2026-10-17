@@ -556,10 +556,12 @@ fn playback_action(runtime: &mut Runtime, event: &TimedEvent, attack: bool) -> M
         .unwrap()
 }
 
-fn send_playback_batch(runtime: &mut Runtime, at: Beat, actions: Vec<MpeOutputAction>) {
+fn send_playback_batch(runtime: &mut Runtime, actions: Vec<MpeOutputAction>) {
     let mut batches = BTreeMap::from([(EXTERNAL_ENDPOINT.into(), actions)]);
+    // This capture driver owns no physical transport or OS clock. Exercise the
+    // production queue/lease boundary with an explicit test deadline.
     runtime
-        .flush_external_expression(at, &mut batches, clock())
+        .enqueue_external_expression(&mut batches, std::time::Instant::now())
         .unwrap();
     assert!(batches.is_empty());
 }
@@ -600,7 +602,7 @@ fn runtime_external_sources_and_occurrences_keep_distinct_leases_through_monitor
     assert_eq!(monitored.group, playback_owner.group);
     assert_ne!(monitored.source, playback_owner.source);
     assert_eq!(action_owner(&attacks[1]).group, playback_owner.group);
-    send_playback_batch(&mut runtime, Beat::ZERO, attacks);
+    send_playback_batch(&mut runtime, attacks);
     flush_driver(&mut driver);
     let notes: Vec<_> = driver
         .packets()
@@ -641,7 +643,7 @@ fn runtime_external_sources_and_occurrences_keep_distinct_leases_through_monitor
     );
     let attack = playback_action(&mut runtime, &next, true);
     assert_ne!(action_owner(&attack).group, playback_owner.group);
-    send_playback_batch(&mut runtime, Beat::ONE, vec![attack]);
+    send_playback_batch(&mut runtime, vec![attack]);
     flush_driver(&mut driver);
     assert!(driver.packets().contains(&vec![0x91, 72, 103]));
 
@@ -657,7 +659,7 @@ fn runtime_external_sources_and_occurrences_keep_distinct_leases_through_monitor
         event.message = Message::EndExpression;
         end_actions.push(playback_action(&mut runtime, event, false));
     }
-    send_playback_batch(&mut runtime, Beat::integer(2), end_actions);
+    send_playback_batch(&mut runtime, end_actions);
     flush_driver(&mut driver);
     let releases: Vec<_> = driver
         .packets()
@@ -676,5 +678,40 @@ fn runtime_external_sources_and_occurrences_keep_distinct_leases_through_monitor
     assert!(!runtime.external_expression.contains(&first.owner));
     assert!(!runtime.external_expression.contains(&second.owner));
     assert!(!runtime.external_expression.contains(&next.owner));
+    assert_eq!(runtime.outputs.snapshot().pending, 0);
+}
+
+#[cfg(not(target_os = "macos"))]
+#[test]
+fn unsupported_output_clock_rejects_before_consuming_queued_expression() {
+    let (mut runtime, mut driver) = external_capture();
+    let event = playback_event(
+        &runtime,
+        201,
+        0,
+        Beat::ZERO,
+        Message::NoteOn {
+            pitch: 67,
+            velocity: 100,
+        },
+    );
+    let attack = playback_action(&mut runtime, &event, true);
+    let expected_owner = action_owner(&attack);
+    let mut batches = BTreeMap::from([(EXTERNAL_ENDPOINT.into(), vec![attack])]);
+    let before = driver.packets();
+    assert_eq!(
+        runtime
+            .flush_external_expression(Beat::ZERO, &mut batches, clock())
+            .unwrap_err(),
+        "External output clock correlation is not implemented on this platform"
+    );
+    assert_eq!(batches.len(), 1);
+    assert!(matches!(
+        batches[EXTERNAL_ENDPOINT].as_slice(),
+        [MpeOutputAction::Attack { owner, pitch: 67, velocity: 100, member, master }]
+            if *owner == expected_owner && member.is_empty() && master.is_empty()
+    ));
+    flush_driver(&mut driver);
+    assert_eq!(driver.packets(), before);
     assert_eq!(runtime.outputs.snapshot().pending, 0);
 }

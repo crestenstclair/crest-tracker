@@ -158,6 +158,16 @@ impl Runtime {
         clock: HostClock,
     ) -> Result<(), String> {
         let deadline = deadline_for_frame(clock, self.frame_at_beat(at, clock)?)?;
+        self.enqueue_external_expression(batches, deadline)
+    }
+
+    /// The scheduler supplies a correlated deadline; output ownership and
+    /// channel allocation do not depend on how the host establishes that clock.
+    pub(super) fn enqueue_external_expression(
+        &mut self,
+        batches: &mut BTreeMap<String, Vec<MpeOutputAction>>,
+        deadline: std::time::Instant,
+    ) -> Result<(), String> {
         for (endpoint, actions) in std::mem::take(batches) {
             let profile = self
                 .sync
