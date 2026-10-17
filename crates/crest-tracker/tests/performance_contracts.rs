@@ -366,3 +366,91 @@ fn overdub_retains_closing_expression_and_zero_duration_notes_across_project_reo
         Some(original)
     );
 }
+
+#[test]
+fn shortened_note_releases_before_zero_duration_attack_after_project_reopen() {
+    let mut tracker = adapter();
+    tracker.command(Command::BeginRecord { slot: 0 }).unwrap();
+    for (tick, bytes) in [
+        (0, &[0x91, 60, 96][..]),
+        (100, &[0xd1, 50]),
+        (200, &[0x92, 64, 90, 0xd2, 80, 0x82, 64, 8]),
+        (300, &[0x81, 60, 7]),
+    ] {
+        tracker
+            .accept_midi(performance::tracker_time(BeatTime(tick)).unwrap(), bytes)
+            .unwrap();
+        tracker.drain_output().for_each(drop);
+    }
+    tracker
+        .advance(performance::tracker_time(BeatTime(400)).unwrap())
+        .unwrap();
+    tracker.command(Command::FinishRecord).unwrap();
+    let original = tracker.document().unwrap().session.slots[0]
+        .clip
+        .clone()
+        .unwrap();
+    let notes = original.notes().unwrap();
+    let held = notes.iter().find(|note| note.key == 60).unwrap();
+    tracker
+        .command(Command::EditNote {
+            slot: 0,
+            note: held.id,
+            edit: library::NoteEdit {
+                start: BeatTime(0),
+                duration: BeatTime(200),
+                key: 60,
+            },
+        })
+        .unwrap();
+    let saved = tracker.document().unwrap();
+    let edited = saved.session.slots[0].clip.as_ref().unwrap();
+    assert_eq!(edited.events[2].gesture, Gesture::Off { velocity: 7 });
+    assert!(matches!(
+        edited.events[3].gesture,
+        Gesture::On { key: 64, .. }
+    ));
+    assert_eq!(edited.notes().unwrap()[1], notes[1]);
+    tracker.command(Command::Undo).unwrap();
+    assert_eq!(
+        tracker.document().unwrap().session.slots[0].clip.as_ref(),
+        Some(&original)
+    );
+    let reopened: Document = serde_json::from_slice(&serde_json::to_vec(&saved).unwrap()).unwrap();
+    let mut playback = Performance::new(
+        reopened,
+        Geometry::Pads200,
+        Limits {
+            voices: 1,
+            output_events: 16,
+            recorded_events: 16,
+        },
+    )
+    .unwrap();
+    playback
+        .command(Command::Launch {
+            slot: 0,
+            quantum: BeatTime(0),
+        })
+        .unwrap();
+    playback
+        .advance(performance::tracker_time(BeatTime(799)).unwrap())
+        .unwrap();
+    let events: Vec<_> = playback.drain_output().collect();
+    assert_eq!(events.len(), 12);
+    assert_eq!(
+        events
+            .iter()
+            .filter(|event| matches!(event.gesture, Gesture::On { .. }))
+            .count(),
+        4
+    );
+    assert_eq!(
+        events
+            .iter()
+            .filter(|event| matches!(event.gesture, Gesture::Off { .. }))
+            .count(),
+        4
+    );
+    assert_eq!(playback.snapshot().active_voices, 0);
+}
