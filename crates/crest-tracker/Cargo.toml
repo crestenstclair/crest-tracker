@@ -7,6 +7,9 @@ publish.workspace = true
 [dependencies]
 serde.workspace = true
 thiserror.workspace = true
+crest-performance-core.workspace = true
+crest-linnstrument.workspace = true
 
 [dev-dependencies]
 serde_json.workspace = true
+crest-performance-testkit.workspace = true

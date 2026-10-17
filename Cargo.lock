@@ -912,6 +912,39 @@ dependencies = [
 ]
 
 [[package]]
+name = "crest-linnstrument"
+version = "0.1.0"
+source = "git+https://github.com/crestenstclair/crest-linnstrument?tag=v0.1.0#8f676784f0bdb611e7b8a4bae0b6f5969525fac6"
+dependencies = [
+ "crest-performance-core",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.21",
+]
+
+[[package]]
+name = "crest-performance-core"
+version = "0.1.0"
+source = "git+https://github.com/crestenstclair/crest-linnstrument?tag=v0.1.0#8f676784f0bdb611e7b8a4bae0b6f5969525fac6"
+dependencies = [
+ "serde",
+ "serde_json",
+ "thiserror 2.0.21",
+]
+
+[[package]]
+name = "crest-performance-testkit"
+version = "0.1.0"
+source = "git+https://github.com/crestenstclair/crest-linnstrument?tag=v0.1.0#8f676784f0bdb611e7b8a4bae0b6f5969525fac6"
+dependencies = [
+ "crest-linnstrument",
+ "crest-performance-core",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.21",
+]
+
+[[package]]
 name = "crest-synth"
 version = "0.0.1"
 dependencies = [
@@ -947,6 +980,9 @@ dependencies = [
 name = "crest-tracker"
 version = "0.1.0"
 dependencies = [
+ "crest-linnstrument",
+ "crest-performance-core",
+ "crest-performance-testkit",
  "serde",
  "serde_json",
  "thiserror 2.0.21",

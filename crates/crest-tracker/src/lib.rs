@@ -4,6 +4,7 @@ pub mod composition;
 pub mod editing;
 pub mod harmony;
 pub mod mpe;
+pub mod performance;
 pub mod playback;
 pub mod recording;
 pub mod time;

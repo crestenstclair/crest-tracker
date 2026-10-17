@@ -16,6 +16,14 @@ A fresh checkout needs Rust, the native build prerequisites from [Synth's DESIGN
 - `crates/crest-tracker`: pure sequencing, editing, recording and musical data. No Synth or platform dependency.
 - `crates/crest-tracker-app`: composes both through `HostedSynthControl`; owns the Song file and Tracker workspace state.
 
+The independent [Crest Performance v0.1.0](https://github.com/crestenstclair/crest-linnstrument/releases/tag/v0.1.0)
+library is consumed by its Git tag and lockfile, without a sibling checkout. The Tracker-owned
+`performance` adapter provides exact rational/fixed-point time conversion, instrument bindings,
+public commands, timestamped MIDI input, versioned state and separate LED feedback. Shared
+contract fixtures verify expressive record/reopen/playback equivalence. Application scheduling,
+project embedding and the performance workspace are still being connected; this adapter alone
+does not establish audible Synth or Steam Deck qualification.
+
 Edit both packages in this checkout. One diff and commit can contain a cross-boundary change. The original sibling Synth checkout remains untouched. [FORK.json](crates/crest-synth/FORK.json) records the imported working-tree source and hashes, including the uncommitted fixes present at import.
 
 ## Current application
