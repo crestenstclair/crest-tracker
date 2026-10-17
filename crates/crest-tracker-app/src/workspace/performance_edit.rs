@@ -33,6 +33,20 @@ pub(super) fn rows(app: &App) -> Vec<WorkspaceRow> {
             ),
         ]);
     }
+    rows.extend(commands(&[
+        (
+            "performance_quantize_quarter",
+            "Quantize clip attacks · nearest 1/4 beat",
+        ),
+        (
+            "performance_quantize_half",
+            "Quantize clip attacks · nearest 1/2 beat",
+        ),
+        (
+            "performance_quantize_beat",
+            "Quantize clip attacks · nearest beat",
+        ),
+    ]));
     rows.extend([
         row(
             "performance_undo_edit",
@@ -64,6 +78,19 @@ pub(super) fn activate(app: &mut App, id: &str) -> bool {
         "performance_undo_edit" => app.requests.push(Request::PerformanceUndo {
             token: editor.token,
         }),
+        "performance_quantize_quarter"
+        | "performance_quantize_half"
+        | "performance_quantize_beat" => {
+            let divisor = match id {
+                "performance_quantize_quarter" => 4,
+                "performance_quantize_half" => 2,
+                _ => 1,
+            };
+            app.requests.push(Request::PerformanceQuantize {
+                token: editor.token,
+                quantum: BeatTime(TICKS_PER_BEAT / divisor),
+            });
+        }
         "performance_editor_launch" => app
             .requests
             .push(Request::PerformanceAudition { slot: editor.slot }),
@@ -395,6 +422,25 @@ mod tests {
         assert!(submit(&mut app, "performance_value:9:performance_start", "1/7").is_err());
         assert_eq!(app.performance_editor.as_ref().unwrap().notes, original);
     }
+    #[test]
+    fn quantization_requires_explicit_activation_and_keeps_editor_token() {
+        let mut app = fixture();
+        let original = app.performance_editor.as_ref().unwrap().notes.clone();
+        for (id, ticks) in [
+            ("performance_quantize_quarter", 240_000),
+            ("performance_quantize_half", 480_000),
+            ("performance_quantize_beat", 960_000),
+        ] {
+            app.requests.clear();
+            assert!(rows(&app).iter().any(|row| row.id == id));
+            assert!(app.requests.is_empty());
+            event(&mut app, WorkspaceEvent::Activate { id: id.into() });
+            assert!(matches!(app.requests.as_slice(),
+                [Request::PerformanceQuantize { token: 9, quantum }] if quantum.0 == ticks));
+            assert_eq!(app.performance_editor.as_ref().unwrap().notes, original);
+        }
+    }
+
     #[test]
     fn tracker_view_preserves_polyphony_exact_times_and_selection_without_song_mutation() {
         let mut app = fixture();

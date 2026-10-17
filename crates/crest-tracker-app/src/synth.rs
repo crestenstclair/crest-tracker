@@ -816,6 +816,9 @@ impl Runtime {
                 duration,
             } => self.edit_performance_note(token, note, key, start, duration),
             Request::PerformanceUndo { token } => self.undo_performance_edit(token),
+            Request::PerformanceQuantize { token, quantum } => {
+                self.quantize_performance_clip(token, quantum)
+            }
             Request::PerformanceInput => self.enable_performance_input(sound, clock),
             Request::PerformanceRecord { slot } => self.record_performance(sound, clock, slot),
             Request::PerformanceCaptureRecent { slot } => {

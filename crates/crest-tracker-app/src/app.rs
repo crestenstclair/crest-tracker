@@ -157,6 +157,10 @@ pub enum Request {
     PerformanceUndo {
         token: u64,
     },
+    PerformanceQuantize {
+        token: u64,
+        quantum: crest_performance_core::BeatTime,
+    },
     PerformanceInput,
     PerformanceClips {
         endpoint: String,
@@ -1161,6 +1165,7 @@ impl App {
             | Request::PerformanceEdit { .. }
             | Request::PerformanceNote { .. }
             | Request::PerformanceUndo { .. }
+            | Request::PerformanceQuantize { .. }
             | Request::PerformanceInput
             | Request::PerformanceRecord { .. }
             | Request::PerformanceCaptureRecent { .. }

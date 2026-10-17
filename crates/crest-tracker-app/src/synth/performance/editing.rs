@@ -155,6 +155,34 @@ impl Runtime {
         self.performance_edit_committed("CLIP EDIT UNDONE · Original performance restored")
     }
 
+    pub(in crate::synth) fn quantize_performance_clip(
+        &mut self,
+        token: u64,
+        quantum: BeatTime,
+    ) -> Result<(), String> {
+        let (slot, selected, _) = self.require_performance_editor(token)?;
+        self.performance_edit_token
+            .checked_add(1)
+            .ok_or("Performance editor revision exhausted")?;
+        let engine = self
+            .performance
+            .as_mut()
+            .ok_or("Performance session unavailable")?;
+        let original = engine.clip(slot).map_err(|e| e.to_string())?.cloned();
+        engine
+            .command(PerformanceCommand::QuantizeClip { slot, quantum })
+            .map_err(|e| e.to_string())?;
+        if engine.clip(slot).map_err(|e| e.to_string())? == original.as_ref() {
+            // A no-op must preserve both the editor revision and earlier Undo.
+            self.app.borrow_mut().status = "CLIP UNCHANGED · Attacks already on grid".into();
+            return Ok(());
+        }
+        self.refresh_performance_editor(slot, selected, true)?;
+        self.performance_edit_committed(
+            "ATTACKS QUANTIZED · Durations and expression retained · Undo restores free timing",
+        )
+    }
+
     pub(super) fn performance_edit_committed(&mut self, status: &str) -> Result<(), String> {
         self.checkpoint_dirty |= self.performance_recovery.is_some();
         let dirty = self.performance_document()? != self.saved_performance;
@@ -230,6 +258,76 @@ mod tests {
         assert_eq!(runtime.performance_document().unwrap(), Some(document));
         runtime.undo_performance_edit(edited.token).unwrap();
         assert_eq!(runtime.performance_document().unwrap(), original);
+        assert!(!runtime.app.borrow().performance_dirty);
+    }
+
+    #[test]
+    fn quantization_moves_whole_polyphonic_lifetimes_and_undo_survives_noop() {
+        let mut runtime = fixture();
+        let original = runtime.performance_document().unwrap().unwrap();
+        let view = runtime.app.borrow().performance_editor.clone().unwrap();
+        assert_eq!(
+            view.notes
+                .iter()
+                .map(|note| note.start.0)
+                .collect::<Vec<_>>(),
+            [5_970, 15_370, 24_730]
+        );
+        runtime
+            .quantize_performance_clip(view.token, BeatTime(240_000))
+            .unwrap();
+        let edited = runtime.app.borrow().performance_editor.clone().unwrap();
+        assert_eq!(edited.selected, view.selected);
+        assert_eq!(edited.view, view.view);
+        assert_eq!(edited.length, view.length);
+        let mut expected_notes = view.notes.clone();
+        for note in &mut expected_notes {
+            note.start = BeatTime(0);
+        }
+        // Exact equality includes identity, attack/release velocities, duration
+        // and every expression offset/value. Simultaneous attacks stay polyphonic.
+        assert_eq!(edited.notes, expected_notes);
+        assert!(edited.can_undo);
+        assert!(runtime.app.borrow().performance_dirty);
+        let quantized = runtime.performance_document().unwrap().unwrap();
+        let mut expected_metadata = original.clone();
+        expected_metadata.session.slots[0]
+            .clip
+            .as_mut()
+            .unwrap()
+            .events = quantized.session.slots[0]
+            .clip
+            .as_ref()
+            .unwrap()
+            .events
+            .clone();
+        assert_eq!(quantized, expected_metadata);
+        let reopened: crest_tracker::performance::Document =
+            serde_json::from_slice(&serde_json::to_vec(&quantized).unwrap()).unwrap();
+        let reopened = Performance::new(reopened, Geometry::Pads200, Limits::default()).unwrap();
+        assert_eq!(
+            reopened.clip(0).unwrap().unwrap().notes().unwrap(),
+            expected_notes
+        );
+
+        assert!(runtime
+            .quantize_performance_clip(view.token, BeatTime(480_000))
+            .is_err());
+        assert!(runtime
+            .quantize_performance_clip(edited.token, BeatTime(0))
+            .is_err());
+        assert_eq!(
+            runtime.performance_document().unwrap(),
+            Some(quantized.clone())
+        );
+        runtime
+            .quantize_performance_clip(edited.token, BeatTime(240_000))
+            .unwrap();
+        let unchanged = runtime.app.borrow().performance_editor.clone().unwrap();
+        assert_eq!(unchanged.token, edited.token);
+        assert!(unchanged.can_undo);
+        runtime.undo_performance_edit(unchanged.token).unwrap();
+        assert_eq!(runtime.performance_document().unwrap(), Some(original));
         assert!(!runtime.app.borrow().performance_dirty);
     }
 

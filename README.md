@@ -297,6 +297,13 @@ edit** restores the complete prior clip. Editing stops that clip first, and play
 reject edits until stopped. The editor uses stable note identities, rejects stale commands
 and saves through the existing project lifecycle. It currently edits existing notes;
 adding/removing notes, expression-curve tools and conversion into Song phrases remain work.
+**Quantize clip attacks** explicitly moves whole note lifetimes to the nearest 1/4 beat,
+1/2 beat or beat using the pinned library command. Durations, velocity, expression offsets,
+polyphony and loop length stay exact; the library chooses an earlier feasible grid point
+when moving later would cross the loop end. Undo restores the original performance.
+Applying the same grid again preserves the previous Undo when no notes move. Desktop
+verification quantized the expressive Sample fixture, checked the saved event offsets,
+restored free timing with Undo, and rejected quantization during playback.
 The clip's Tracker view does not import, quantize or replace the Song's arrangement.
 Native Sample witnesses cover exact movement, Undo, repitching, save/reopen and audible replay.
 Desktop verification exercised keyboard editing, unchanged expression counts, playback
