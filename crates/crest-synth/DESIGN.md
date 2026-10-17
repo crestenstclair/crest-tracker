@@ -1338,6 +1338,10 @@ as its macOS bundle, extracts the archive to a new directory, validates checksum
 the production inventory outside the checkout. Removing the extracted SoundFont must fail
 while the checkout asset remains available. The native Linux integration workflow exercises
 app and embedded-engine contracts and this packaging path; its first run is pending.
+Tracker also exercises the extracted app on the existing isolated Xvfb/PulseAudio desktop:
+native mouse/keyboard launch/stop of its Sample clip and complete project save/reopen.
+The two application witnesses share native input, window observation and audio capture
+helpers; each owns its own product workflow. This new Tracker desktop gate is pending.
 This does not establish live Linux MIDI/audio clock correlation or Steam Deck qualification.
 `scripts/build_release_macos.sh` builds native Apple Silicon or Intel macOS app
 and DMG bundles with the SoundFont, MIDI fixture, font/audio notices, and Eigen

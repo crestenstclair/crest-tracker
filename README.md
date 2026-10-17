@@ -19,6 +19,11 @@ together. A missing packaged SoundFont must fail even if the source checkout is 
 available. System GTK3, WebKitGTK 4.1, ALSA and SDL platform libraries remain dependencies.
 This development package's first CI run is pending. It does not qualify Steam Deck hardware,
 physical controls/audio or live Linux MIDI/audio clock correlation.
+The Linux desktop gate extracts that archive again and uses real XTest mouse/keyboard input
+to load the expressive Sample example, launch/stop its clip, save, create a new project,
+reopen and replay. PulseAudio monitor captures prove audible output and silence after stop;
+the saved project must retain every source expression event and round-trip exactly. This
+Xvfb workflow is under verification and does not use physical audio/MIDI devices.
 
 ## Ownership
 
