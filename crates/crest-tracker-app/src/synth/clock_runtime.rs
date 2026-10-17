@@ -625,6 +625,7 @@ mod tests {
         let mut clock = super::super::tests::clock();
         clock.audio_clock = AudioFrameClock::new(
             0,
+            256,
             playback_micros - 10_000,
             playback_micros,
             48_000,
@@ -911,7 +912,7 @@ mod tests {
         let now = host_micros().unwrap();
         let mut clock = super::super::tests::clock();
         clock.audio_clock =
-            AudioFrameClock::new(0, now, now, 48_000, AudioClockDomain::CoreAudioHost);
+            AudioFrameClock::new(0, 256, now, now, 48_000, AudioClockDomain::CoreAudioHost);
         runtime.start_clock_output(clock).unwrap();
         runtime.send_clock_output(beat(129, 8), clock).unwrap();
         assert_eq!(

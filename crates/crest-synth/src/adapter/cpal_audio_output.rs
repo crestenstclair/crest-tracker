@@ -138,6 +138,7 @@ impl CpalFrameClock {
             .and_then(|(callback, playback)| {
                 AudioFrameClock::new(
                     self.frame_start,
+                    frame_count as u64,
                     callback,
                     playback,
                     self.sample_rate,
@@ -511,6 +512,8 @@ mod tests {
         clock.publish_buffer(timestamp(1_000_000, 1_010_000), 128);
         let first = reader.read_latest_on_control().unwrap();
         assert_eq!(first.frame_start(), 0);
+        assert_eq!(first.buffer_frames(), 128);
+        assert_eq!(first.frame_end(), 128);
         assert_eq!(first.callback_micros(), 1_000_000);
         assert_eq!(first.playback_micros(), 1_010_000);
         assert_eq!(first.sample_rate(), 48_000);
@@ -519,7 +522,10 @@ mod tests {
         // It still has only one backend timestamp, marking its first frame.
         let large_buffer_frames = STEREO_SCRATCH_SAMPLES / 2 * 3 + 7;
         clock.publish_buffer(timestamp(1_002_666, 1_012_666), large_buffer_frames);
-        assert_eq!(reader.read_latest_on_control().unwrap().frame_start(), 128);
+        let large = reader.read_latest_on_control().unwrap();
+        assert_eq!(large.frame_start(), 128);
+        assert_eq!(large.buffer_frames(), large_buffer_frames as u64);
+        assert_eq!(large.frame_end(), 128 + large_buffer_frames as u64);
         clock.publish_buffer(timestamp(2_000_000, 2_010_000), 256);
         assert_eq!(
             reader.read_latest_on_control().unwrap().frame_start(),

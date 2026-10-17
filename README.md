@@ -146,9 +146,11 @@ retaining the take. This acceptance therefore covers the optimized bundle, not a
 control-thread stalls or the debug build. Deadline failures remain visible; notes are never
 silently retimed to hide them. Deck and Linux clock correlation remain separate qualification.
 
-Each player uses a disposable clip snapshot, the Song's tempo at start, at least 50 ms scheduling
-lead and the existing 100 ms scheduling window. Additional launches begin after already-published
-lookahead, so immediate launch latency may approach 100 ms. Events merge chronologically on the
+Each player uses a disposable clip snapshot and the Song's tempo at start. Song and clip
+playback share device-buffer-aware timing: publication starts beyond the callback's reserved
+end, covers another whole device buffer, then adds a 50 ms launch or 100 ms scheduling margin.
+Large audio buffers increase launch latency and lookahead; event positions remain exact.
+Additional launches begin after already-published lookahead. Events merge chronologically on the
 control thread, with stable slot order at equal timestamps and native voice identities unique
 across all players and live input. Independent cancellation removes queued attacks and sustained
 voices together without restarting another clip. The Synth's configurable voice-group and event

@@ -12,10 +12,26 @@ fn activate(runtime: &Runtime, id: &str) {
 #[test]
 #[ignore = "production DSP witness; run explicitly in release mode"]
 fn released_performance_clip_loops_through_native_owned_expression_and_stops() {
-    let root = scenarios::temp_root("performance");
+    assert_clip_loops(FRAMES);
+}
+
+#[test]
+#[ignore = "production DSP witness; run explicitly in release mode"]
+fn performance_clip_covers_large_native_buffers_without_late_events() {
+    assert_clip_loops(8192);
+}
+
+#[test]
+#[ignore = "production DSP witness; run explicitly in release mode"]
+fn performance_clock_also_schedules_tracker_sample_notes_with_large_buffers() {
+    scenarios::sample_song_with_buffer(8192);
+}
+
+fn assert_clip_loops(block_frames: usize) {
+    let root = scenarios::temp_root(&format!("performance-buffer-{block_frames}"));
     let mut stage = 0;
     let mut started = 0;
-    let evidence = run(
+    let evidence = run_with_output(
         &root,
         Box::new(move |runtime, audio, evidence| {
             match stage {
@@ -55,6 +71,9 @@ fn released_performance_clip_loops_through_native_owned_expression_and_stops() {
             false
         }),
         Duration::from_secs(45),
+        crest_synth::adapter::braids_capability::BRAIDS_CAPABILITY_ID,
+        false,
+        audio::Output::with_block_frames(block_frames),
     );
     evidence.check_cleanup();
     assert_eq!(evidence.peak_voices, 3);

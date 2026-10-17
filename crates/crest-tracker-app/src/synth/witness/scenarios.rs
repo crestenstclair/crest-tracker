@@ -40,10 +40,14 @@ pub(super) fn temp_root(name: &str) -> PathBuf {
 #[test]
 #[ignore = "integrated production workers and sample DSP; run explicitly with --test-threads=1"]
 fn empty_song_sample_notes_render_through_the_production_host() {
+    sample_song_with_buffer(FRAMES);
+}
+
+pub(super) fn sample_song_with_buffer(block_frames: usize) {
     let root = temp_root("empty-sample-song");
     let mut stage = 0;
     let mut started = 0;
-    let evidence = run_with_instrument(
+    let evidence = run_with_output(
         &root,
         Box::new(move |runtime, audio, evidence| {
             match stage {
@@ -87,12 +91,19 @@ fn empty_song_sample_notes_render_through_the_production_host() {
                 }
                 3 if audio.rendered_frames() > started + 48_000 * 3 => {
                     assert!(
+                        runtime.app.borrow().playback_fault.is_none(),
+                        "{}",
+                        runtime.app.borrow().status
+                    );
+                    assert!(
                         evidence.audible_tracks[0],
                         "sample notes must render audible audio"
                     );
+                    // These short notes may start and finish inside one large
+                    // callback; its final active-note count can correctly be zero.
                     assert!(
-                        evidence.peak_voices > 0,
-                        "sample attacks must reach the renderer"
+                        evidence.scheduled_queue_high_water > 0,
+                        "sample notes must use the production scheduled lane"
                     );
                     queue(runtime, Request::Stop);
                     stage = 4;
@@ -104,6 +115,8 @@ fn empty_song_sample_notes_render_through_the_production_host() {
         }),
         Duration::from_secs(60),
         crest_synth::adapter::sample_capability::SAMPLE_CAPABILITY_ID,
+        false,
+        audio::Output::with_block_frames(block_frames),
     );
     evidence.check_cleanup();
     std::fs::remove_dir_all(root).unwrap();

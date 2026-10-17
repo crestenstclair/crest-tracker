@@ -11,6 +11,7 @@ mod fixture_authoring;
 mod inventory;
 mod midi_controls;
 mod performance;
+mod playback_timing;
 use performance::PendingOpen;
 #[cfg(test)]
 mod mpe_tests;
@@ -468,6 +469,7 @@ impl Runtime {
         if self.sync.external() {
             return Err("External clock selected; send Start or Continue from that input".into());
         }
+        let anchor = playback_timing::launch_frame(clock)?;
         let app = self.app.borrow();
         expression::validate_song(sound, &app, &self.sync.preferences.mpe_outputs)?;
         let snapshot = selection
@@ -497,10 +499,7 @@ impl Runtime {
         self.phrase_loop = phrase_loop;
         self.tempo = tempo;
         self.playback = Some(playback);
-        self.anchor = clock
-            .audio
-            .rendered_frames()
-            .saturating_add(u64::from(clock.sample_rate) / 20);
+        self.anchor = anchor;
         self.last_scheduled_frame = self.anchor;
         self.graph_revision = sound.active_graph_revision().value();
         let mut app = self.app.borrow_mut();
@@ -574,12 +573,7 @@ impl Runtime {
                 .0
                 .max(playback.horizon())
         } else {
-            let horizon_frame = self.musical_frame(
-                clock
-                    .audio
-                    .rendered_frames()
-                    .saturating_add(u64::from(clock.sample_rate) / 10),
-            )?;
+            let horizon_frame = self.musical_frame(playback_timing::horizon_frame(clock)?)?;
             self.tempo
                 .beat_at_frame(horizon_frame, clock.sample_rate)
                 .map_err(|e| e.to_string())?
@@ -3346,6 +3340,7 @@ mod tests {
             audio: Default::default(),
             audio_clock: AudioFrameClock::new(
                 0,
+                256,
                 1_000_000,
                 1_010_000,
                 48000,
@@ -3360,6 +3355,7 @@ mod tests {
         let mut clock = clock();
         clock.audio_clock = AudioFrameClock::new(
             0,
+            256,
             now,
             now + 10_000,
             48_000,

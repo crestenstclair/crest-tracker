@@ -410,7 +410,13 @@ capacity failure is visible and requires cancellation; Stop and graph replacemen
 clear leases without touching saved sends or killing return-effect tails.
 
 CPAL publishes a bounded atomic audio clock correlated to callback and playback
-host timestamps. Physical capture retains original MIDI bytes, polyphonic key
+host timestamps. The same coherent publication includes the actual whole device buffer's
+frame count and exclusive reserved end, before format conversion or rendering. Tracker's
+Song and performance-clip schedulers start beyond that reserved buffer and cover another
+whole callback plus their existing control margins (50 ms for launch, 100 ms for publication).
+Large device buffers therefore increase lookahead without retiming musical events or
+relaxing missed-deadline cleanup. Frame-based playback does not require a shared MIDI epoch.
+Physical capture retains original MIDI bytes, polyphonic key
 pressure, backend timestamp and connection revision before default monitoring.
 On macOS, the host can map CoreMIDI timestamps against CoreAudio playback time;
 unknown clock domains reject correlation. Allocation audits and native rendering

@@ -28,6 +28,7 @@ pub enum AudioClockDomain {
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct AudioFrameClock {
     frame_start: u64,
+    buffer_frames: u64,
     callback_micros: u64,
     playback_micros: u64,
     sample_rate: u32,
@@ -37,16 +38,22 @@ pub struct AudioFrameClock {
 impl AudioFrameClock {
     pub const fn new(
         frame_start: u64,
+        buffer_frames: u64,
         callback_micros: u64,
         playback_micros: u64,
         sample_rate: u32,
         domain: AudioClockDomain,
     ) -> Option<Self> {
-        if sample_rate == 0 || playback_micros < callback_micros {
+        if sample_rate == 0
+            || playback_micros < callback_micros
+            || buffer_frames == 0
+            || frame_start.checked_add(buffer_frames).is_none()
+        {
             return None;
         }
         Some(Self {
             frame_start,
+            buffer_frames,
             callback_micros,
             playback_micros,
             sample_rate,
@@ -56,6 +63,14 @@ impl AudioFrameClock {
 
     pub const fn frame_start(self) -> u64 {
         self.frame_start
+    }
+    /// Whole device buffer, including all format-conversion/render chunks.
+    pub const fn buffer_frames(self) -> u64 {
+        self.buffer_frames
+    }
+    /// Exclusive end reserved by this callback, published before rendering.
+    pub const fn frame_end(self) -> u64 {
+        self.frame_start + self.buffer_frames
     }
     pub const fn callback_micros(self) -> u64 {
         self.callback_micros
@@ -93,6 +108,7 @@ impl AudioFrameClockBoundary {
         let shared = Arc::new(AudioFrameClockFields {
             version: AtomicU64::new(0),
             frame_start: AtomicU64::new(0),
+            buffer_frames: AtomicU64::new(0),
             callback_micros: AtomicU64::new(0),
             playback_micros: AtomicU64::new(0),
             sample_rate: AtomicU32::new(0),
@@ -110,6 +126,7 @@ impl AudioFrameClockBoundary {
 struct AudioFrameClockFields {
     version: AtomicU64,
     frame_start: AtomicU64,
+    buffer_frames: AtomicU64,
     callback_micros: AtomicU64,
     playback_micros: AtomicU64,
     sample_rate: AtomicU32,
@@ -140,6 +157,10 @@ impl AudioFrameClockWriter {
         fence(Ordering::Release);
         fields.frame_start.store(
             clock.map_or(0, |value| value.frame_start),
+            Ordering::Relaxed,
+        );
+        fields.buffer_frames.store(
+            clock.map_or(0, |value| value.buffer_frames),
             Ordering::Relaxed,
         );
         fields.callback_micros.store(
@@ -180,6 +201,7 @@ impl AudioFrameClockReader {
                 continue;
             }
             let frame_start = fields.frame_start.load(Ordering::Relaxed);
+            let buffer_frames = fields.buffer_frames.load(Ordering::Relaxed);
             let callback_micros = fields.callback_micros.load(Ordering::Relaxed);
             let playback_micros = fields.playback_micros.load(Ordering::Relaxed);
             let sample_rate = fields.sample_rate.load(Ordering::Relaxed);
@@ -195,6 +217,7 @@ impl AudioFrameClockReader {
             };
             return AudioFrameClock::new(
                 frame_start,
+                buffer_frames,
                 callback_micros,
                 playback_micros,
                 sample_rate,
@@ -474,6 +497,7 @@ mod tests {
     fn midi_timestamp_follows_playback_time_independent_of_control_receipt() {
         let clock = AudioFrameClock::new(
             48_000,
+            256,
             2_000_000,
             2_010_000,
             48_000,
@@ -491,8 +515,15 @@ mod tests {
 
     #[test]
     fn midi_timestamp_rounds_to_nearest_frame_in_both_directions() {
-        let clock = AudioFrameClock::new(100, 1_000, 1_000, 1_000, AudioClockDomain::CoreAudioHost)
-            .unwrap();
+        let clock = AudioFrameClock::new(
+            100,
+            256,
+            1_000,
+            1_000,
+            1_000,
+            AudioClockDomain::CoreAudioHost,
+        )
+        .unwrap();
 
         assert_eq!(clock.frame_at_midi_timestamp(1_499), Some(100));
         assert_eq!(clock.frame_at_midi_timestamp(1_500), Some(101));
@@ -502,14 +533,28 @@ mod tests {
 
     #[test]
     fn missing_clock_domain_or_unrepresentable_frame_cannot_correlate() {
-        let unknown = AudioFrameClock::new(0, 1, 1, 48_000, AudioClockDomain::Unknown).unwrap();
+        let unknown =
+            AudioFrameClock::new(0, 256, 1, 1, 48_000, AudioClockDomain::Unknown).unwrap();
         assert_eq!(unknown.frame_at_midi_timestamp(1), None);
-        assert!(AudioFrameClock::new(0, 1, 1, 0, AudioClockDomain::CoreAudioHost).is_none());
-        assert!(AudioFrameClock::new(0, 2, 1, 48_000, AudioClockDomain::CoreAudioHost).is_none());
+        assert!(AudioFrameClock::new(0, 256, 1, 1, 0, AudioClockDomain::CoreAudioHost).is_none());
+        assert!(
+            AudioFrameClock::new(0, 256, 2, 1, 48_000, AudioClockDomain::CoreAudioHost).is_none()
+        );
 
-        let last_frame =
-            AudioFrameClock::new(u64::MAX, 0, 0, 48_000, AudioClockDomain::CoreAudioHost).unwrap();
-        assert_eq!(last_frame.frame_at_midi_timestamp(0), Some(u64::MAX));
+        assert!(AudioFrameClock::new(0, 0, 1, 1, 48_000, AudioClockDomain::Unknown).is_none());
+        assert!(
+            AudioFrameClock::new(u64::MAX, 1, 1, 1, 48_000, AudioClockDomain::Unknown).is_none()
+        );
+        let last_frame = AudioFrameClock::new(
+            u64::MAX - 256,
+            256,
+            0,
+            0,
+            48_000,
+            AudioClockDomain::CoreAudioHost,
+        )
+        .unwrap();
+        assert_eq!(last_frame.frame_at_midi_timestamp(0), Some(u64::MAX - 256));
         assert_eq!(last_frame.frame_at_midi_timestamp(1_000_000), None);
         assert_eq!(last_frame.frame_at_midi_timestamp(u64::MAX), None);
     }
@@ -522,7 +567,8 @@ mod tests {
         let first_reader = stream.clock_reader().unwrap();
         let second_reader = stream.clock_reader().unwrap();
         let clock =
-            AudioFrameClock::new(128, 100, 200, 48_000, AudioClockDomain::CoreAudioHost).unwrap();
+            AudioFrameClock::new(128, 256, 100, 200, 48_000, AudioClockDomain::CoreAudioHost)
+                .unwrap();
 
         writer.publish_from_callback(clock);
         assert_eq!(first_reader.read_latest_on_control(), Some(clock));
@@ -542,6 +588,7 @@ mod tests {
             for index in 1..=50_000_u64 {
                 let clock = AudioFrameClock::new(
                     index * 128,
+                    index + 1,
                     index * 1_000,
                     index * 1_000 + 400,
                     if index % 2 == 0 { 48_000 } else { 44_100 },
@@ -556,6 +603,8 @@ mod tests {
             if let Some(clock) = reader.read_latest_on_control() {
                 let index = clock.frame_start() / 128;
                 assert_eq!(clock.frame_start(), index * 128);
+                assert_eq!(clock.buffer_frames(), index + 1);
+                assert_eq!(clock.frame_end(), index * 128 + index + 1);
                 assert_eq!(clock.callback_micros(), index * 1_000);
                 assert_eq!(clock.playback_micros(), index * 1_000 + 400);
                 assert_eq!(

@@ -155,8 +155,8 @@ impl AppWindow for Window {
         _paint: FrameObservationCallback,
     ) -> Result<(), WindowError> {
         let start = Instant::now();
-        let mut buffer = [0.0_f32; FRAMES * 2];
-        let elapsed = Duration::from_secs_f64(FRAMES as f64 / 48_000.0);
+        let mut buffer = vec![0.0_f32; self.output.block_frames * 2];
+        let elapsed = Duration::from_secs_f64(self.output.block_frames as f64 / 48_000.0);
         loop {
             assert!(
                 start.elapsed() < self.wall_limit,
@@ -272,7 +272,11 @@ fn run_with_output_and_host_step(
         evidence: evidence.clone(),
         wall_limit,
     };
-    let config = ApplicationConfig::new(48_000.0, FRAMES, GlobalParameters::new(-12.0).unwrap());
+    let config = ApplicationConfig::new(
+        48_000.0,
+        output.block_frames,
+        GlobalParameters::new(-12.0).unwrap(),
+    );
     let parameters =
         ParameterSnapshot::new(0, config.global_parameters(), MixerState::default(), &[]).unwrap();
     let boundary = LockFreeAudioBoundary::new(4096, parameters);

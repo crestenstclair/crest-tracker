@@ -41,11 +41,7 @@ impl Playback {
         let destinations = Outputs::new(&document, app, sound, ScheduledLane::Playback)?;
         let mut engine = Performance::new(document, Geometry::Pads200, Limits::default())
             .map_err(|e| e.to_string())?;
-        let earliest = clock
-            .audio
-            .rendered_frames()
-            .checked_add(u64::from(clock.sample_rate) / 20)
-            .ok_or("Audio clock overflow")?
+        let earliest = playback_timing::launch_frame(clock)?
             .max(after_frame.checked_add(1).ok_or("Audio clock overflow")?);
         let tempo = TempoMap::new(app.editor.song().tempo);
         // All players share audio-frame zero. A common tick horizon prevents
@@ -102,9 +98,7 @@ impl Playback {
         if now > self.horizon {
             return Err("Performance audition missed its audio deadline; stopped safely".into());
         }
-        let horizon = now
-            .checked_add(u64::from(self.rate) / 10)
-            .ok_or("Audio clock overflow")?;
+        let horizon = playback_timing::horizon_frame(clock)?;
         let beat = self
             .tempo
             .beat_at_frame(horizon, self.rate)

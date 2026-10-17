@@ -42,6 +42,7 @@ unsafe impl GlobalAlloc for CountingAllocator {
 
 #[derive(Clone)]
 pub(super) struct Output {
+    pub block_frames: usize,
     pub callback: Rc<RefCell<Option<AudioRenderCallback>>>,
     writer: Rc<RefCell<AudioFrameClockWriter>>,
     reader: AudioFrameClockReader,
@@ -52,6 +53,7 @@ impl Default for Output {
     fn default() -> Self {
         let (writer, reader) = AudioFrameClockBoundary::create_pair();
         Self {
+            block_frames: FRAMES,
             callback: Rc::default(),
             writer: Rc::new(RefCell::new(writer)),
             reader,
@@ -68,7 +70,7 @@ impl AudioOutput for Output {
 }
 impl NegotiatedAudioOutput for Output {
     fn config(&self) -> AudioDeviceConfig {
-        AudioDeviceConfig::new(48_000.0, 2, AudioSampleFormat::F32, FRAMES).unwrap()
+        AudioDeviceConfig::new(48_000.0, 2, AudioSampleFormat::F32, self.block_frames).unwrap()
     }
     fn start(
         self,
@@ -80,6 +82,12 @@ impl NegotiatedAudioOutput for Output {
     }
 }
 impl Output {
+    pub(super) fn with_block_frames(block_frames: usize) -> Self {
+        Self {
+            block_frames,
+            ..Self::default()
+        }
+    }
     pub(super) fn record(&self) {
         *self.recording.borrow_mut() = Some(Vec::new());
     }
@@ -103,6 +111,7 @@ impl Output {
         self.writer.borrow_mut().publish_from_callback(
             AudioFrameClock::new(
                 frame,
+                (buffer.len() / 2) as u64,
                 micros,
                 micros,
                 48_000,
@@ -110,7 +119,7 @@ impl Output {
             )
             .unwrap(),
         );
-        self.frames.set(frame + FRAMES as u64);
+        self.frames.set(frame + (buffer.len() / 2) as u64);
         (elapsed, MEMORY.with(Cell::get))
     }
 }
