@@ -40,9 +40,25 @@ Audition uses a disposable clip snapshot, the Song's tempo at start, a 50 ms sta
 existing 100 ms scheduling window. Tempo, graph or sample-rate changes stop it explicitly.
 The first output profile is lower-zone MPE with 15 members and a ±48-semitone range per destination;
 only engines advertising proven owned-expression support are admitted (currently Braids and Sample).
-This does not enable integrated live capture, virtual-pad launch/LED feedback or
-Steam Deck qualification. Those remain integration work; the standalone application retains
-its complete firmware-driven record-and-launch workflow.
+With a selected LinnStrument input, **Enable LinnStrument MPE input** uses the released
+adapter to monitor independently alongside a running clip. **Record clip** arms the
+selected slot; the first member note starts capture. **Finish take and stop input**
+commits the expressive take without stopping clip playback. Stop and Save also finish
+the take. Discard leaves the previous committed clip intact. Relaunch a recorded slot
+to hear its new take; an already running clip retains its original playback snapshot.
+
+Input recording follows correlated source timestamps, with conversion error below one
+library tick, and never follows the clip scheduling horizon. Monitoring uses a separate
+ordered audio lane with a fixed 50 ms lead, not a measured latency claim. Late input,
+reordered timestamps, disconnects, overflow, tempo or sound changes stop input explicitly
+and retain a take through its last accepted gesture. Input takeover releases default
+channel-monitor voices first. The initial native path requires the existing CoreMIDI/
+CoreAudio clock correlation on macOS; Linux input correlation remains qualification work.
+Native Sample witnesses cover six concurrent voices, capture, project serialization,
+reopened playback with live input and interrupted-take retention. This input path has no
+crash checkpoint for an uncommitted library take yet; explicit Finish/Save persists it.
+Virtual-pad launch/LED return, production clip editing and Steam Deck qualification remain
+integration work. The standalone application retains its complete firmware-driven workflow.
 
 Edit both packages in this checkout. One diff and commit can contain a cross-boundary change. The original sibling Synth checkout remains untouched. [FORK.json](crates/crest-synth/FORK.json) records the imported working-tree source and hashes, including the uncommitted fixes present at import.
 

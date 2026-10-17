@@ -1,9 +1,12 @@
 //! Tracker owns project lifecycle and sound bindings around the released library.
+mod live;
+mod output;
 mod playback;
 use super::*;
 use crest_linnstrument::Geometry;
 use crest_performance_core::Limits;
 use crest_tracker::performance::Performance;
+pub(super) use live::Live;
 pub(super) use playback::Playback;
 
 pub(super) struct PendingOpen {
@@ -32,6 +35,127 @@ impl PendingOpen {
 }
 
 impl Runtime {
+    pub(super) fn enable_performance_input(
+        &mut self,
+        sound: &mut Sound<'_>,
+        clock: HostClock,
+    ) -> Result<(), String> {
+        if self.performance_live.is_some() {
+            return Ok(());
+        }
+        if self.capture_baseline.is_some()
+            || self.pending_open.is_some()
+            || self.loading.is_some()
+            || self.sync.external()
+        {
+            return Err(
+                "Finish the current document/take operation and select the local clock first"
+                    .into(),
+            );
+        }
+        let revision = sound
+            .active_midi_input_identity()
+            .ok_or("Select the LinnStrument MIDI input in Settings first")?
+            .revision()
+            .value();
+        let overflow = sound
+            .midi_activity()
+            .map_or(0, |input| input.overflow_epoch());
+        let document = self
+            .performance_document()?
+            .ok_or("Open a performance session first")?;
+        let live = Live::new(
+            document,
+            &self.app.borrow(),
+            sound,
+            clock,
+            revision,
+            overflow,
+        )?;
+        sound.release_default_input().map_err(|e| e.to_string())?;
+        sound.cancel_monitor_schedule().map_err(|e| e.to_string())?;
+        self.performance_live = Some(live);
+        self.performance = None;
+        self.app.borrow_mut().status =
+            "LINNSTRUMENT · MPE input enabled · 50 ms monitor lead".into();
+        Ok(())
+    }
+
+    pub(super) fn record_performance(
+        &mut self,
+        sound: &mut Sound<'_>,
+        clock: HostClock,
+        slot: usize,
+    ) -> Result<(), String> {
+        self.enable_performance_input(sound, clock)?;
+        let live = self
+            .performance_live
+            .as_mut()
+            .ok_or("Performance input unavailable")?;
+        if live.fault.is_some() {
+            return Err("Finish or discard the interrupted take first".into());
+        }
+        live.engine.arm_recording(slot).map_err(|e| e.to_string())?;
+        self.app.borrow_mut().status =
+            format!("ARMED · Clip {} · Play the first note to record", slot + 1);
+        Ok(())
+    }
+
+    pub(super) fn finish_performance_input(
+        &mut self,
+        sound: &mut Sound<'_>,
+        discard: bool,
+    ) -> Result<(), String> {
+        let Some(mut live) = self.performance_live.take() else {
+            return Ok(());
+        };
+        let canceled = sound.cancel_monitor_schedule().map_err(|e| e.to_string());
+        let frame = if live.fault.is_some() {
+            None
+        } else {
+            self.last_clock.map(|clock| clock.audio.rendered_frames())
+        };
+        if let Err(error) = live.finish(frame, discard) {
+            live.fault = Some(error.clone());
+            self.performance_live = Some(live);
+            return Err(error);
+        }
+        self.performance = Some(live.engine);
+        self.app.borrow_mut().performance_dirty =
+            self.performance_document()? != self.saved_performance;
+        self.app.borrow_mut().status = if discard {
+            "TAKE DISCARDED"
+        } else {
+            "INPUT STOPPED · Take retained"
+        }
+        .into();
+        canceled.map(|_| ())
+    }
+
+    pub(super) fn performance_midi_input(
+        &mut self,
+        event: crest_synth::control::PhysicalMidiEvent,
+        clock: HostClock,
+    ) -> bool {
+        let Some(live) = &mut self.performance_live else {
+            return false;
+        };
+        self.last_clock = Some(clock);
+        let armed = live.engine.armed_slot();
+        if let Err(error) = live.accept(event, clock) {
+            live.fault = Some(error.clone());
+            self.app.borrow_mut().status = error;
+        }
+        if live.recording() {
+            let mut app = self.app.borrow_mut();
+            app.performance_dirty = true;
+            if let Some(slot) = armed.filter(|_| live.fault.is_none()) {
+                app.status = format!("RECORDING · Clip {} · Source timing retained", slot + 1);
+            }
+        }
+        true
+    }
+
     pub(super) fn audition_performance(
         &mut self,
         sound: &mut Sound<'_>,
@@ -68,24 +192,47 @@ impl Runtime {
         sound: &mut Sound<'_>,
         clock: HostClock,
     ) -> Result<(), String> {
+        if let Some(live) = &mut self.performance_live {
+            if let Some(error) = &live.fault {
+                return Err(error.clone());
+            }
+            if let Err(error) = live.validate_source(sound).and_then(|()| {
+                live.advance(
+                    sound,
+                    clock,
+                    self.app.borrow().editor.song().tempo,
+                    &mut self.voices,
+                )
+            }) {
+                live.fault = Some(error.clone());
+                return Err(error);
+            }
+        }
         if let Some(playback) = &mut self.performance_playback {
             if playback.tempo_at_start != self.app.borrow().editor.song().tempo {
                 return Err("Tempo changed; restart performance audition at the new tempo".into());
             }
             playback.advance(sound, clock, &mut self.voices)?;
         }
+        Ok(())
+    }
+    pub(super) fn project_performance(&self) {
         self.app.borrow_mut().performance = serde_json::json!({
-            "session":self.performance.as_ref().map(Performance::snapshot),
+            "session":self.performance_live.as_ref().map(|live| live.engine.snapshot()).or_else(|| self.performance.as_ref().map(Performance::snapshot)),
+            "input":self.performance_live.is_some(),
+            "armed_slot":self.performance_live.as_ref().and_then(|live| live.engine.armed_slot()),
+            "input_fault":self.performance_live.as_ref().and_then(|live| live.fault.as_deref()),
             "auditioning":self.performance_playback.is_some(),
             "playing_slot":self.performance_playback.as_ref().map(|playback| playback.slot),
         });
-        Ok(())
     }
     pub(super) fn performance_document(
         &self,
     ) -> Result<Option<crest_tracker::performance::Document>, String> {
-        self.performance
+        self.performance_live
             .as_ref()
+            .map(|live| &live.engine)
+            .or(self.performance.as_ref())
             .map(Performance::document)
             .transpose()
             .map_err(|e| e.to_string())
@@ -216,7 +363,7 @@ pub(super) fn sample_example_document() -> Result<Document, String> {
 }
 
 #[cfg(test)]
-mod tests {
+mod persistence_tests {
     use super::*;
     use crest_performance_core::{
         self as library, BeatTime, Command, DestinationId, Engine, Session,

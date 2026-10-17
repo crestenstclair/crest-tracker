@@ -110,6 +110,7 @@ pub struct Performance {
     geometry: Geometry,
     leds: LedRenderer,
     mode: SurfaceMode,
+    armed_slot: Option<usize>,
     pub launch_quantum: BeatTime,
 }
 impl Performance {
@@ -129,6 +130,7 @@ impl Performance {
             geometry,
             leds: LedRenderer::new(geometry),
             mode: SurfaceMode::Play,
+            armed_slot: None,
             launch_quantum: BeatTime(0),
         })
     }
@@ -141,6 +143,40 @@ impl Performance {
     }
     pub fn snapshot(&self) -> PerformanceSnapshot {
         self.engine.snapshot()
+    }
+    /// Start capture at the next accepted member attack, preserving source time.
+    /// Idle UI ticks need not advance the input engine to establish a record boundary.
+    pub fn arm_recording(&mut self, slot: usize) -> Result<()> {
+        let snapshot = self.engine.snapshot();
+        if self.mode == SurfaceMode::Clips
+            || snapshot.active_voices != 0
+            || snapshot
+                .slots
+                .iter()
+                .any(|state| matches!(state, SlotState::Recording | SlotState::Overdubbing))
+        {
+            return Err(Error::Binding(
+                "release notes and finish the current take before arming",
+            ));
+        }
+        let input_track = self.engine.session().tracks[0].id;
+        if self
+            .engine
+            .session()
+            .slots
+            .get(slot)
+            .is_none_or(|slot| slot.track != input_track)
+        {
+            return Err(Error::Binding("record slot must belong to the input track"));
+        }
+        if matches!(snapshot.slots[slot], SlotState::Playing | SlotState::Queued) {
+            return Err(Error::Binding("stop the selected slot before arming"));
+        }
+        self.armed_slot = Some(slot);
+        Ok(())
+    }
+    pub fn armed_slot(&self) -> Option<usize> {
+        self.armed_slot
     }
     pub fn instrument(&self, destination: DestinationId) -> Result<InstrumentId> {
         self.routes
@@ -173,6 +209,12 @@ impl Performance {
             }
         } else {
             for event in self.input.accept(at, message)? {
+                if matches!(event.gesture, library::Gesture::On { .. }) {
+                    if let Some(slot) = self.armed_slot {
+                        self.engine.command(Command::BeginRecord { slot })?;
+                        self.armed_slot = None;
+                    }
+                }
                 self.engine.input(*event)?;
             }
         }
@@ -195,6 +237,16 @@ impl Performance {
     /// Returned mode configuration must be sent to the controller separately.
     pub fn command(&mut self, command: Command) -> Result<Vec<MidiMessage>> {
         self.engine.command(command)?;
+        if matches!(
+            command,
+            Command::Stop
+                | Command::SetMode(_)
+                | Command::BeginRecord { .. }
+                | Command::FinishRecord
+                | Command::CancelRecord
+        ) {
+            self.armed_slot = None;
+        }
         if matches!(command, Command::Stop | Command::SetMode(_)) {
             self.input.reset();
             self.parser = MidiParser::default();

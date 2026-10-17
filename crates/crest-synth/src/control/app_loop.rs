@@ -1304,6 +1304,12 @@ where
         self.boundary.scheduled_epoch_for(lane)
     }
 
+    /// Transfers live-input ownership to a host without leaving default voices
+    /// held. Uses the same reserved recovery path as device replacement.
+    pub fn release_default_input(&mut self) -> Result<(), crate::real_time::BoundaryFull> {
+        self.boundary.push_input_recovery_command()
+    }
+
     pub fn cancel_scheduled_lane(
         &mut self,
         lane: crate::real_time::scheduled_event::ScheduledLane,

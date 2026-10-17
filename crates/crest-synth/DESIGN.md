@@ -432,7 +432,9 @@ reducer acknowledgement. Switch, disconnect, loss, ingress overflow, audio
 command saturation, and shutdown disable/discard ingress before recovery.
 Input changes release Immediate voices; whole-subsystem shutdown uses global
 all-notes-off. The audio command ring reserves one slot for the coalesced
-recovery command. Backend handles move to the device worker for
+recovery command. Hosted input takeover uses that same ordered reserve to clear
+default Immediate voices before consuming future physical packets itself; timed
+playback and host Monitor ownership remain independent. Backend handles move to the device worker for
 consuming close/destruction, including shutdown-owned and stale prepared
 handles.
 

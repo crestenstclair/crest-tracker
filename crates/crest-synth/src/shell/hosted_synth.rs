@@ -570,6 +570,12 @@ impl<'a, Boundary: ControlAudioBoundary> HostedSynthControl<'a, Boundary> {
         Ok(self.app.cancel_scheduled_lane(ScheduledLane::Monitor)?)
     }
 
+    /// Call before taking over physical input from default channel monitoring.
+    /// Reserved recovery releases Immediate voices while playback survives.
+    pub fn release_default_input(&mut self) -> Result<(), HostedSynthError> {
+        Ok(self.app.release_default_input()?)
+    }
+
     /// Delivers host monitoring MIDI with ownership separate from live input and playback.
     pub fn send_monitor_midi(
         &mut self,

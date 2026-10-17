@@ -5,6 +5,7 @@ mod controller;
 mod corridors;
 mod live;
 mod performance;
+mod performance_live;
 mod recording_edits;
 mod replacement;
 mod scenarios;
@@ -97,10 +98,14 @@ impl Evidence {
     }
 }
 
-struct Host(Rc<RefCell<Runtime>>);
+type HostStep = Box<dyn FnMut(&mut Runtime, &mut Sound<'_>, HostClock)>;
+struct Host(Rc<RefCell<Runtime>>, Option<HostStep>);
 impl ApplicationHost<LockFreeControlHandle> for Host {
     fn tick(&mut self, sound: &mut Sound<'_>, clock: HostClock) {
         self.0.borrow_mut().tick(sound, clock);
+        if let Some(step) = &mut self.1 {
+            step(&mut self.0.borrow_mut(), sound, clock);
+        }
     }
     fn document(&self) -> SessionDocumentProjection {
         self.0.borrow().document()
@@ -228,6 +233,26 @@ fn run_with_output(
     system_devices: bool,
     output: audio::Output,
 ) -> Evidence {
+    run_with_output_and_host_step(
+        root,
+        step,
+        wall_limit,
+        capability,
+        system_devices,
+        output,
+        None,
+    )
+}
+
+fn run_with_output_and_host_step(
+    root: &std::path::Path,
+    step: Step,
+    wall_limit: Duration,
+    capability: &str,
+    system_devices: bool,
+    output: audio::Output,
+    host_step: Option<HostStep>,
+) -> Evidence {
     let app = Rc::new(RefCell::new(App::new()));
     let runtime = Rc::new(RefCell::new(
         Runtime::with_data_directory(app, root.join("machine")).unwrap(),
@@ -272,7 +297,7 @@ fn run_with_output(
     } else {
         application
     };
-    application.run_with_host(Host(runtime)).unwrap();
+    application.run_with_host(Host(runtime, host_step)).unwrap();
     // Retire the callback and its graph outside the measured region.
     output.callback.borrow_mut().take();
     Rc::try_unwrap(evidence).ok().unwrap().into_inner()

@@ -59,6 +59,12 @@ pub enum TransportScope {
 #[derive(Clone, Debug, Deserialize)]
 #[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
 pub enum Request {
+    PerformanceInput,
+    PerformanceRecord {
+        slot: usize,
+    },
+    PerformanceFinish,
+    PerformanceCancel,
     PerformanceAudition {
         slot: usize,
     },
@@ -1031,6 +1037,10 @@ impl App {
                 source,
             } => self.apply_chord(revision, occurrence, event, slot, root, source)?,
             Request::PerformanceAudition { .. }
+            | Request::PerformanceInput
+            | Request::PerformanceRecord { .. }
+            | Request::PerformanceFinish
+            | Request::PerformanceCancel
             | Request::Play
             | Request::Example
             | Request::StartAt { .. }

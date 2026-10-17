@@ -25,6 +25,49 @@ fn adapter() -> Performance {
 }
 
 #[test]
+fn first_note_arming_preserves_packet_time_and_initial_expression() {
+    let mut tracker = adapter();
+    tracker.arm_recording(0).unwrap();
+    for bytes in [
+        &[0x90, 48, 100][..],
+        &[0xe1, 0, 65],
+        &[0xd1, 96],
+        &[0x91, 60],
+    ] {
+        tracker.accept_midi(Beat::integer(3), bytes).unwrap();
+    }
+    assert_eq!(tracker.armed_slot(), Some(0));
+    // Realtime may interleave with the split attack. Only its completion starts recording.
+    tracker.accept_midi(Beat::integer(4), &[0xf8, 100]).unwrap();
+    assert_eq!(tracker.armed_slot(), None);
+    assert_eq!(tracker.snapshot().slots[0], SlotState::Recording);
+    assert!(tracker.arm_recording(1).is_err());
+    tracker
+        .accept_midi(Beat::new(9, 2).unwrap(), &[0xe1, 0, 66, 0x81, 60, 0])
+        .unwrap();
+    tracker.advance(Beat::integer(5)).unwrap();
+    tracker.command(Command::FinishRecord).unwrap();
+    let document = tracker.document().unwrap();
+    let clip = document.session.slots[0].clip.as_ref().unwrap();
+    assert_eq!(clip.length, BeatTime(library::TICKS_PER_BEAT));
+    assert_eq!(clip.events[0].at, BeatTime(0));
+    assert!(
+        matches!(clip.events[0].gesture, Gesture::On { expression, .. }
+        if expression.pitch == 750_000 && expression.pressure == 49_538)
+    );
+    assert_eq!(clip.events[1].at, BeatTime(library::TICKS_PER_BEAT / 2));
+    assert!(
+        matches!(clip.events[1].gesture, Gesture::Expression { expression }
+        if expression.pitch == 1_500_000)
+    );
+    assert!(matches!(clip.events[2].gesture, Gesture::Off { .. }));
+    tracker.arm_recording(1).unwrap();
+    tracker.command(Command::Stop).unwrap();
+    assert_eq!(tracker.armed_slot(), None);
+    assert_eq!(tracker.document().unwrap(), document);
+}
+
+#[test]
 fn tracker_time_conversion_is_exact_and_rejects_unrepresentable_edits() {
     for ticks in [0, 1, 240_001, 730_011, library::TICKS_PER_BEAT, u64::MAX] {
         let beat = performance::tracker_time(BeatTime(ticks)).unwrap();

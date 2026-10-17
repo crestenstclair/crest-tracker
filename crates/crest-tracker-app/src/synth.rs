@@ -204,6 +204,7 @@ struct Runtime {
     performance: Option<crest_tracker::performance::Performance>,
     saved_performance: Option<crest_tracker::performance::Document>,
     performance_playback: Option<performance::Playback>,
+    performance_live: Option<performance::Live>,
     loading: Option<(LoadWorker, PathBuf)>,
     resource_candidate: Option<resources::repair::Candidate>,
     repairing_resource: Option<std::sync::mpsc::Receiver<Result<Document, String>>>,
@@ -303,6 +304,7 @@ impl Runtime {
             performance: None,
             saved_performance: None,
             performance_playback: None,
+            performance_live: None,
             loading: None,
             resource_candidate: None,
             repairing_resource: None,
@@ -390,6 +392,7 @@ impl Runtime {
         result
     }
     fn stop_outputs(&mut self, sound: &mut Sound<'_>, reason: &str) -> Result<(), String> {
+        let performance_result = self.finish_performance_input(sound, false);
         let sound_result = sound.cancel_scheduled().map_err(|v| v.to_string());
         let output_result = self.outputs.cancel().map_err(|v| v.to_string());
         let capture_result = self.interrupt_capture(reason);
@@ -414,6 +417,7 @@ impl Runtime {
         app.playback_pending = false;
         sound_result?;
         output_result?;
+        performance_result?;
         capture_result
     }
     fn interrupt_capture(&mut self, reason: &str) -> Result<(), String> {
@@ -787,6 +791,10 @@ impl Runtime {
             return Err("Finish or cancel asset repair before changing the Song".into());
         }
         match request {
+            Request::PerformanceInput => self.enable_performance_input(sound, clock),
+            Request::PerformanceRecord { slot } => self.record_performance(sound, clock, slot),
+            Request::PerformanceFinish => self.finish_performance_input(sound, false),
+            Request::PerformanceCancel => self.finish_performance_input(sound, true),
             Request::PerformanceAudition { slot } => self.audition_performance(sound, clock, slot),
             Request::FileBrowse { token, directory } => self.file_browse(token, directory),
             Request::FileChoose {
@@ -916,7 +924,15 @@ impl Runtime {
                 };
                 self.arm(sound, clock, target, monitor, unique, mpe)
             }
-            Request::Capture { action } => self.capture_action(sound, clock, action),
+            Request::Capture { action } => {
+                if self.performance_live.is_some() {
+                    return Err(
+                        "Stop LinnStrument performance input before Tracker phrase recording"
+                            .into(),
+                    );
+                }
+                self.capture_action(sound, clock, action)
+            }
             Request::File { action } => {
                 self.close_requested |= self.file(sound, action)?;
                 Ok(())
@@ -1341,6 +1357,7 @@ impl Runtime {
             .map_err(|e| e.to_string())
     }
     fn finalize_capture_for_save(&mut self, sound: &mut Sound<'_>) -> Result<(), String> {
+        self.finish_performance_input(sound, false)?;
         if self.capture_baseline.is_none() {
             return Ok(());
         }
@@ -2650,6 +2667,7 @@ impl ApplicationHost<LockFreeControlHandle> for Runtime {
             }
             app.status = error;
         }
+        self.project_performance();
     }
     fn midi_transport(
         &mut self,
@@ -2664,6 +2682,9 @@ impl ApplicationHost<LockFreeControlHandle> for Runtime {
         event: crest_synth::control::PhysicalMidiEvent,
         clock: HostClock,
     ) -> bool {
+        if self.performance_midi_input(event, clock) {
+            return true;
+        }
         if self.control_midi_input(event) {
             return true;
         }

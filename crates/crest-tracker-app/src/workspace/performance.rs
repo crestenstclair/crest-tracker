@@ -9,6 +9,24 @@ pub(super) fn rows(app: &App) -> Vec<WorkspaceRow> {
             "Open expressive Sample example",
         ),
     ]);
+    rows.extend(commands(&[
+        ("performance_input", "Enable LinnStrument MPE input"),
+        ("performance_finish", "Finish take and stop input"),
+        ("performance_cancel", "Discard take and stop input"),
+    ]));
+    rows.push(row(
+        "performance_input_status",
+        "LinnStrument input",
+        if app.performance["input_fault"].is_string() {
+            "INTERRUPTED"
+        } else if app.performance["armed_slot"].is_number() {
+            "ARMED · First note starts capture"
+        } else if app.performance["input"].as_bool() == Some(true) {
+            "LIVE · MPE · 50 ms monitor lead"
+        } else {
+            "OFF"
+        },
+    ));
     if let Some(slots) = app.performance["session"]["slots"].as_array() {
         rows.extend(slots.iter().enumerate().map(|(slot, state)| {
             let playing = app.performance["playing_slot"].as_u64() == Some(slot as u64);
@@ -23,6 +41,17 @@ pub(super) fn rows(app: &App) -> Vec<WorkspaceRow> {
             );
             clip.playing = playing;
             clip
+        }));
+        rows.extend(slots.iter().enumerate().map(|(slot, state)| {
+            row(
+                format!("performance_record:{slot}"),
+                format!("Record clip {}", slot + 1),
+                if app.performance["armed_slot"].as_u64() == Some(slot as u64) {
+                    "ARMED".into()
+                } else {
+                    state.as_str().unwrap_or("unavailable").to_uppercase()
+                },
+            )
         }));
     }
     rows.push(row(
@@ -42,7 +71,24 @@ pub(super) fn activate(app: &mut App, id: &str) -> bool {
     if app.workspace.panel != Some(Panel::Performance) {
         return false;
     }
-    let request = if id == "performance_example" {
+    let request = if id == "performance_input" {
+        Request::PerformanceInput
+    } else if id == "performance_finish" {
+        Request::PerformanceFinish
+    } else if id == "performance_cancel" {
+        Request::PerformanceCancel
+    } else if let Some(slot) = id
+        .strip_prefix("performance_record:")
+        .and_then(|s| s.parse::<usize>().ok())
+    {
+        if app.performance["session"]["slots"]
+            .as_array()
+            .is_none_or(|slots| slot >= slots.len())
+        {
+            return true;
+        }
+        Request::PerformanceRecord { slot }
+    } else if id == "performance_example" {
         Request::File {
             action: FileAction::PerformanceExample,
         }
