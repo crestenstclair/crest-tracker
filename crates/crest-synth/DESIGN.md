@@ -445,6 +445,12 @@ unavailable rather than assigning callback receipt time to original gestures.
 Enabling it requires explicit backend clock-origin/type information and a
 measured correlation bound, including queue/stream restart and suspend recovery.
 Changing `AudioClockDomain` alone cannot establish that contract.
+The hardware-free `scripts/linux_midi_clock_probe.py` opens private ALSA ports
+and verifies cross-client queue inspection, kernel event timestamps across a
+delayed read, and queue restart. It records the observed offset/query ranges;
+an isolated Linux hrtimer run already shows sub-millisecond offset variation,
+so a single connection-time offset is insufficient. This probe does not enable
+capture or qualify the audio clock, suspend recovery, or physical hardware.
 
 Graph-status and audio-observation snapshots have one callback writer. Their
 versioned atomic payloads use a release fence after marking a write in progress

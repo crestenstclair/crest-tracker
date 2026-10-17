@@ -384,6 +384,13 @@ Recording setup and its physical input/monitoring acceptance are deferred at the
 Tracker uses the shared shell with full-width grids, eight-track Song windows, contextual chord/FX popovers, interval-keyboard editing and continuous Piano Roll duration bars. Event tests cover the reviewed navigation, repeats, OFF ownership, chord selection and generator paths. Hardware acceptance and full-screen Figma parity require native comparison; passing reducer tests alone is not visual acceptance.
 ## Verification
 
+On Linux, `python3 scripts/linux_midi_clock_probe.py` measures ALSA queue timing
+using private virtual ports. It needs a C compiler, `libasound2-dev`, loaded
+`snd-seq`/`snd-hrtimer` modules and access to `/dev/snd/seq`. The separate Linux
+MIDI clock feasibility workflow runs the same probe. Its retained trace checks
+delayed reads and queue restart; a passing probe does not qualify live MIDI/audio
+correlation or physical hardware.
+
 ```sh
 make test                      # Pure sequencing + application contracts, packaging checks
 make test-synth                # Inherited Synth library suite

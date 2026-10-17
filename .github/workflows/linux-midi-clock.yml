@@ -1,0 +1,30 @@
+name: Linux MIDI clock feasibility
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - '.github/workflows/linux-midi-clock.yml'
+      - 'scripts/linux/alsa_clock_probe.c'
+      - 'scripts/linux_midi_clock_probe.py'
+permissions:
+  contents: read
+jobs:
+  probe:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install ALSA probe dependencies
+        run: sudo apt-get update && sudo apt-get install -y build-essential libasound2-dev acl
+      - name: Enable virtual sequencer and high-resolution timer
+        run: |
+          sudo modprobe snd-seq
+          sudo modprobe snd-hrtimer
+          sudo setfacl -m "u:$(id -un):rw" /dev/snd/seq /dev/snd/timer
+          cat /proc/asound/timers
+      - name: Measure queue time and verify delayed receipt and restart
+        run: python3 scripts/linux_midi_clock_probe.py
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: Crest-Linux-MIDI-clock-evidence
+          path: target/linux-midi-clock-evidence/
