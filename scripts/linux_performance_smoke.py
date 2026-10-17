@@ -24,7 +24,8 @@ def descendants(node):
 
 
 def normalized(value):
-    return ''.join(value.lstrip('› ').split())
+    # WebKitGTK exposes CSS text-transform in accessibility names.
+    return ''.join(value.lstrip('› ').split()).casefold()
 
 
 class Desktop:
@@ -70,9 +71,9 @@ class Desktop:
 
     def status(self, label):
         frame = self.frame()
-        return frame is not None and any(
-            normalized(node.name) in (normalized(label), normalized('UNSAVED · ' + label))
-            for node in descendants(frame))
+        # The GTK document title includes the actual host status. WebKitGTK's
+        # accessibility tree omits the non-interactive workspace status span.
+        return frame is not None and normalized(frame.name).endswith(normalized('— ' + label))
 
     def enter_path(self, label, field, path):
         self.click(label)

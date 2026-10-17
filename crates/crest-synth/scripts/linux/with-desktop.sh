@@ -65,6 +65,11 @@ cleanup() {
     kill "$window_manager" 2>/dev/null || true
     wait "$window_manager" 2>/dev/null || true
   fi
+  # The session's document portal mounts a FUSE view inside this owned runtime
+  # directory. Detach it before removal; the private D-Bus session exits next.
+  if mountpoint -q "$runtime/doc"; then
+    fusermount3 -u "$runtime/doc" || fusermount3 -uz "$runtime/doc"
+  fi
   rm -rf "$runtime"
 }
 trap cleanup EXIT
