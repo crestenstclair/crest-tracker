@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 """Exercise a relocated Linux Tracker through native UI and monitored Sample audio."""
 import argparse
+import copy
+import hashlib
 import json
 import os
 from pathlib import Path
@@ -38,6 +40,27 @@ def describe(node):
     if node.getRole() == pyatspi.ROLE_ENTRY:
         label += f' value={node.queryText().getText(0, -1)!r}'
     return label
+
+
+def expected_sample_import(original):
+    """Opening freezes this fixture's verified sample into its hashed library path.
+
+    Only the active reference and its manifest alias change. This expectation
+    comes from the source WAV, not from the document produced by reopening.
+    """
+    source = (ROOT / 'crates/crest-synth/assets/sample-test.wav').read_bytes()
+    digest = hashlib.sha256(source).hexdigest()
+    reference = {'kind': 'sample', 'locator': 'Test Tone.wav'}
+    assert original['resources'] == [{'reference': reference, 'sha256': digest,
+                                     'bytes': len(source), 'file': None, 'installed': None}]
+    asset = original['synth']['patches'][0]['instrument']['assetReferences'][0]
+    assert asset == {'parameterId': 'sample.asset', 'reference': reference}
+    imported = {'kind': 'sample', 'locator': f'Imported/{digest}.wav'}
+    expected = copy.deepcopy(original)
+    expected['resources'][0]['reference'] = imported
+    expected['resources'][0]['installed'] = imported
+    expected['synth']['patches'][0]['instrument']['assetReferences'][0]['reference'] = imported
+    return expected
 
 
 class Desktop:
@@ -156,6 +179,7 @@ def exercise(desktop, root):
     desktop.enter_path('Save to filename', 'Save to filename', path)
     desktop.wait(lambda: path.exists() and desktop.status('SAVED'), 'saved project')
     original = json.loads(path.read_text())
+    shutil.copy2(path, root / 'before-reopen.crest-song')
     clip = original['performance']['session']['slots'][0]['clip']
     fixture = json.loads((ROOT / 'assets/performance-phrase.json').read_text())['slots'][0]['clip']
     assert clip['events'] == fixture['events'], 'Save must retain every source note and X/Y/Z event'
@@ -182,7 +206,8 @@ def exercise(desktop, root):
     key('ctrl+s')
     desktop.wait(lambda: path.stat().st_mtime_ns != changed and desktop.status('SAVED'),
                  'reopened project saved')
-    assert json.loads(path.read_text()) == original, 'Save/reopen must preserve the entire project'
+    assert json.loads(path.read_text()) == expected_sample_import(original), \
+        'Save/reopen may only relink the verified sample; all other project data must remain exact'
     desktop.snapshot('reopened')
     key('ctrl+w')
     assert desktop.process.wait(timeout=15) == 0, 'Owned shutdown must succeed'

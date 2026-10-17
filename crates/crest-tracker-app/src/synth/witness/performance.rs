@@ -386,6 +386,7 @@ struct SampleJourney {
     started: u64,
     path: PathBuf,
     performance: Option<crest_tracker::performance::Document>,
+    saved: Option<Value>,
 }
 
 impl SampleJourney {
@@ -438,6 +439,9 @@ impl SampleJourney {
             5 if choose(runtime, &self.path) => self.stage = 6,
             6 if !runtime.saving && runtime.app.borrow().path.as_ref() == Some(&self.path) => {
                 let saved = Document::read(&self.path).unwrap();
+                self.saved = Some(expected_sample_import(
+                    serde_json::from_slice(&std::fs::read(&self.path).unwrap()).unwrap(),
+                ));
                 assert_eq!(saved.performance, self.performance);
                 assert_eq!(
                     saved.synth["patches"][0]["instrument"]["capabilityId"],
@@ -550,7 +554,25 @@ impl SampleJourney {
                 queue(runtime, Request::Stop);
                 self.stage = 12;
             }
-            12 if !runtime.app.borrow().playing && audio.active_notes() == 0 => return true,
+            12 if !runtime.app.borrow().playing && audio.active_notes() == 0 => {
+                queue(
+                    runtime,
+                    Request::File {
+                        action: FileAction::Save,
+                    },
+                );
+                self.stage = 17;
+            }
+            17 if !runtime.saving && runtime.app.borrow().status == "SAVED" => {
+                let reopened: Value =
+                    serde_json::from_slice(&std::fs::read(&self.path).unwrap()).unwrap();
+                assert!(
+                    Some(reopened) == self.saved,
+                    "project changed after reopen: {}",
+                    self.path.display()
+                );
+                return true;
+            }
             _ => {}
         }
         false
@@ -574,6 +596,30 @@ fn submit_clip_value(runtime: &Runtime, field: &str, value: &str) {
     );
 }
 
+/// The source WAV independently specifies the only allowed changes at import.
+/// All musical data, sound settings, pins and unrelated resources stay exact.
+fn expected_sample_import(mut original: Value) -> Value {
+    use sha2::{Digest, Sha256};
+    let bytes = include_bytes!("../../../../crest-synth/assets/sample-test.wav");
+    let hash = format!("{:x}", Sha256::digest(bytes));
+    let source = serde_json::json!({"kind":"sample", "locator":"Test Tone.wav"});
+    assert_eq!(
+        original["resources"],
+        serde_json::json!([{
+            "reference":source, "sha256":hash, "bytes":bytes.len(), "file":null, "installed":null,
+        }])
+    );
+    assert_eq!(
+        original["synth"]["patches"][0]["instrument"]["assetReferences"],
+        serde_json::json!([{"parameterId":"sample.asset", "reference":source}])
+    );
+    let imported = serde_json::json!({"kind":"sample", "locator":format!("Imported/{hash}.wav")});
+    original["resources"][0]["reference"] = imported.clone();
+    original["resources"][0]["installed"] = imported.clone();
+    original["synth"]["patches"][0]["instrument"]["assetReferences"][0]["reference"] = imported;
+    original
+}
+
 #[test]
 #[ignore = "production sample DSP, public library and project lifecycle witness"]
 fn firmware_phrase_edits_undo_and_sample_playback_survive_project_save_reopen() {
@@ -583,6 +629,7 @@ fn firmware_phrase_edits_undo_and_sample_playback_survive_project_save_reopen() 
         started: 0,
         path: root.join("sample.crest-song"),
         performance: None,
+        saved: None,
     };
     let evidence = run(
         &root,
