@@ -159,23 +159,12 @@ impl Surface {
         &mut self,
         outputs: &MidiOutputService,
         slots: &[SlotState],
-        playing: Option<usize>,
+        playing: Option<(usize, SlotState)>,
     ) -> Result<(), String> {
         if self.restoring.is_some() || self.fault.is_some() {
             return Ok(());
         }
-        let mut frame = [[0; 8]; 26];
-        for (index, state) in slots
-            .iter()
-            .take(usize::from(self.geometry.columns() - 1))
-            .enumerate()
-        {
-            frame[index + 1][0] = crest_linnstrument::slot_color(if playing == Some(index) {
-                SlotState::Playing
-            } else {
-                *state
-            });
-        }
+        let frame = clip_frame(self.geometry, slots, playing);
         if self.frame == Some(frame) {
             return Ok(());
         }
@@ -186,6 +175,26 @@ impl Surface {
         }
         Ok(())
     }
+}
+
+fn clip_frame(
+    geometry: Geometry,
+    slots: &[SlotState],
+    playback: Option<(usize, SlotState)>,
+) -> [[u8; 8]; 26] {
+    let mut frame = [[0; 8]; 26];
+    for (index, state) in slots
+        .iter()
+        .take(usize::from(geometry.columns() - 1))
+        .enumerate()
+    {
+        frame[index + 1][0] = crest_linnstrument::slot_color(
+            playback
+                .filter(|(slot, _)| *slot == index)
+                .map_or(*state, |(_, state)| state),
+        );
+    }
+    frame
 }
 
 impl Runtime {
@@ -237,7 +246,7 @@ impl Runtime {
         surface.display(
             &self.outputs,
             &slots,
-            self.performance_playback.as_ref().map(|p| p.slot),
+            self.performance_playback.as_ref().map(Playback::slot_state),
         )?;
         self.performance_surface = Some(surface);
         self.app.borrow_mut().status =
@@ -341,7 +350,7 @@ impl Runtime {
         surface.display(
             &self.outputs,
             &slots,
-            self.performance_playback.as_ref().map(|p| p.slot),
+            self.performance_playback.as_ref().map(Playback::slot_state),
         )
     }
 
@@ -379,6 +388,18 @@ impl Runtime {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn queued_and_playing_feedback_use_audio_boundary_state_and_leave_other_clips_alone() {
+        let slots = [SlotState::Recorded, SlotState::Recorded, SlotState::Empty];
+        for geometry in [Geometry::Pads128, Geometry::Pads200] {
+            let queued = clip_frame(geometry, &slots, Some((1, SlotState::Queued)));
+            assert_eq!((queued[1][0], queued[2][0], queued[3][0]), (5, 2, 0));
+            let playing = clip_frame(geometry, &slots, Some((1, SlotState::Playing)));
+            assert_eq!((playing[1][0], playing[2][0], playing[3][0]), (5, 3, 0));
+            assert_eq!(clip_frame(geometry, &slots, None)[2][0], 5);
+            assert_eq!(playing[0], [0; 8], "control column belongs to firmware");
+        }
+    }
 
     fn fixture() -> (Surface, MidiOutputService) {
         let (outputs, _driver) = MidiOutputService::recording_for_test("feedback", 8);

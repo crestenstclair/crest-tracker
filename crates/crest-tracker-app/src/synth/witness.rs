@@ -6,6 +6,7 @@ mod corridors;
 mod live;
 mod performance;
 mod performance_live;
+mod performance_quantized;
 mod performance_recovery;
 mod recording_edits;
 mod replacement;

@@ -204,6 +204,7 @@ struct Runtime {
     performance: Option<crest_tracker::performance::Performance>,
     saved_performance: Option<crest_tracker::performance::Document>,
     performance_playback: Option<performance::Playback>,
+    performance_launch_grid: crate::app::PerformanceLaunchGrid,
     performance_live: Option<performance::Live>,
     performance_surface: Option<performance::Surface>,
     performance_edit_token: u64,
@@ -308,6 +309,7 @@ impl Runtime {
             performance: None,
             saved_performance: None,
             performance_playback: None,
+            performance_launch_grid: crate::app::PerformanceLaunchGrid::default(),
             performance_live: None,
             performance_surface: None,
             performance_edit_token: 0,
@@ -799,6 +801,10 @@ impl Runtime {
             return Err("Finish or cancel asset repair before changing the Song".into());
         }
         match request {
+            Request::PerformanceLaunchGrid { grid } => {
+                self.performance_launch_grid = grid;
+                Ok(())
+            }
             Request::PerformanceClips { endpoint, pads } => {
                 self.enter_performance_clips(sound, endpoint, pads)
             }

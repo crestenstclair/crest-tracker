@@ -17,10 +17,11 @@ A fresh checkout needs the pinned Rust 1.96.0 toolchain, the native build prereq
 - `crates/crest-tracker-app`: composes both through `HostedSynthControl`; owns the Song file and Tracker workspace state.
 
 The independent [Crest Performance v0.1.0](https://github.com/crestenstclair/crest-linnstrument/releases/tag/v0.1.0)
-baseline is consumed at pinned patch commit `bbb8504213f154dc5f44c2f6b6f3a7eb741653ac`
+baseline is consumed at pinned patch commit `5bd4a032c0cd6ff2375706009c671c6ffc64e838`
 and its lockfile, without a sibling checkout. This deliberate upgrade preserves release-time
 expression and unedited zero-duration notes during clip edits, and adds stopped recovery snapshots
-with an explicit host-clock cutoff. API and session versions are unchanged. The Tracker-owned
+with an explicit host-clock cutoff and observable accepted launch boundaries. API and
+session versions are unchanged. The Tracker-owned
 `performance` adapter provides exact rational/fixed-point time conversion, instrument bindings,
 public commands, timestamped MIDI input, versioned state and separate LED feedback. Shared
 contract fixtures verify expressive record/reopen/playback equivalence. Song format 2 embeds
@@ -39,8 +40,23 @@ pitch, timbre and pressure in Braids and actual resident sfizz audio. Integratio
 cover Sample playback and project save/reopen, deadline recovery and unsupported-engine
 rejection; native heap/lock checks cover callback expression and voice reuse.
 
-Audition uses a disposable clip snapshot, the Song's tempo at start, a 50 ms start lead and the
-existing 100 ms scheduling window. Tempo, graph or sample-rate changes stop it explicitly.
+Audition uses a disposable clip snapshot, the Song's tempo at start, at least 50 ms scheduling
+lead and the existing 100 ms scheduling window. **Launch grid** cycles through immediate,
+one beat and four beats, for workspace and virtual/physical pad launches alike. Quantized
+launches align to a stable local grid whose beat zero is audio-stream frame zero; this is
+not Song-arrangement synchronization. The library chooses the first grid point at or after
+the safe scheduling time. Queued status follows the rendered audio boundary even when the
+scheduler has already prepared future events. Changing the preference affects future
+launches only. Stop or pressing the same queued pad cancels pending audio. The preference
+is live application state, not persisted clip/project content. Tempo, graph or sample-rate
+changes stop playback explicitly.
+Desktop acceptance on macOS exercised the Sample example, immediate/one/four-beat
+selection, queued-to-looping state and Stop. A virtual sensor pad launched the same
+clip through stock firmware and CoreMIDI; decoded firmware output showed blue when
+recorded, yellow while queued and green during playback, returning blue on pad stop.
+The native scheduler witness also cancels a launch after future events are prepared,
+proves silence past its former boundary, then relaunches three audible Sample voices
+with zero late events and zero callback allocations/deallocations.
 The first output profile is lower-zone MPE with 15 members and a ±48-semitone range per destination;
 only engines advertising proven owned-expression support are admitted (currently Braids and Sample).
 With a selected LinnStrument input, **Enable LinnStrument MPE input** uses the released
@@ -85,10 +101,10 @@ is accepted. A once-per-second mode query detects firmware resets; three seconds
 a report interrupts control input and starts restoration. The bottom playable row launches recorded clips, and pressing the playing
 clip stops it. This uses the same host launch path as the workspace. Switching to Clips
 finishes an active take and releases live monitor voices. The first bank uses one active
-clip; launch quantization and multiple simultaneous clip tracks remain integration work.
+clip; multiple simultaneous clip tracks remain integration work.
 
 LED intent travels through the output worker and the firmware input parser. Blue means
-recorded, green means playing; the simulator renders decoded firmware SPI output. Complete
+recorded, yellow means queued, green means playing; the simulator renders decoded firmware SPI output. Complete
 cell updates are coalesced, with at most eight cells every 34 ms after due musical output.
 A claimed feedback port rejects musical routing until released. Stop retains clip controls;
 **Return LinnStrument to Play**, document replacement, input loss, output disconnect and

@@ -56,9 +56,31 @@ pub enum TransportScope {
     Chain,
     Phrase,
 }
+/// Live host preference. It is not clip quantization or saved project content.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum PerformanceLaunchGrid {
+    #[default]
+    Immediate,
+    Beat,
+    FourBeats,
+}
+impl PerformanceLaunchGrid {
+    pub fn quantum(self) -> crest_performance_core::BeatTime {
+        use crest_performance_core::{BeatTime, TICKS_PER_BEAT};
+        BeatTime(match self {
+            Self::Immediate => 0,
+            Self::Beat => TICKS_PER_BEAT,
+            Self::FourBeats => 4 * TICKS_PER_BEAT,
+        })
+    }
+}
 #[derive(Clone, Debug, Deserialize)]
 #[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
 pub enum Request {
+    PerformanceLaunchGrid {
+        grid: PerformanceLaunchGrid,
+    },
     PerformanceEdit {
         slot: usize,
     },
@@ -1062,6 +1084,7 @@ impl App {
                 source,
             } => self.apply_chord(revision, occurrence, event, slot, root, source)?,
             Request::PerformanceAudition { .. }
+            | Request::PerformanceLaunchGrid { .. }
             | Request::PerformanceClips { .. }
             | Request::PerformancePlay
             | Request::PerformancePad { .. }

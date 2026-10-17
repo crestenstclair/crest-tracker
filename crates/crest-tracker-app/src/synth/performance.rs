@@ -191,7 +191,14 @@ impl Runtime {
         let document = self
             .performance_document()?
             .ok_or("Open a Song containing a performance session first")?;
-        let mut playback = Playback::new(document, slot, &self.app.borrow(), sound, clock)?;
+        let mut playback = Playback::new(
+            document,
+            slot,
+            &self.app.borrow(),
+            sound,
+            clock,
+            self.performance_launch_grid,
+        )?;
         self.stop(sound)?;
         if let Err(error) = playback.advance(sound, clock, &mut self.voices) {
             let _ = self.stop(sound);
@@ -242,6 +249,8 @@ impl Runtime {
             "input_fault":self.performance_live.as_ref().and_then(|live| live.fault.as_deref()),
             "auditioning":self.performance_playback.is_some(),
             "playing_slot":self.performance_playback.as_ref().map(|playback| playback.slot),
+            "playback_state":self.performance_playback.as_ref().map(|playback| playback.slot_state().1),
+            "launch_grid":self.performance_launch_grid,
         });
     }
     pub(super) fn performance_document(

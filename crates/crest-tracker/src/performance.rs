@@ -162,6 +162,10 @@ impl Performance {
     pub fn snapshot(&self) -> PerformanceSnapshot {
         self.engine.snapshot()
     }
+    /// Initial accepted launch boundary, independent of the scheduler horizon.
+    pub fn slot_launch_time(&self, slot: usize) -> Result<Option<BeatTime>> {
+        Ok(self.engine.slot_launch_time(slot)?)
+    }
     /// Read the authoritative clip without converting its expression or timing.
     /// Hosts project notes only when opening or changing an editor, off the clock path.
     pub fn clip(&self, slot: usize) -> Result<Option<&library::Clip>> {

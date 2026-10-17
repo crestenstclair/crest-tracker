@@ -10,6 +10,15 @@ pub(super) fn rows(app: &App) -> Vec<WorkspaceRow> {
         ),
     ]);
     rows.extend(surface_rows(app));
+    rows.push(row(
+        "performance_launch_grid",
+        "Launch grid · press to cycle",
+        match app.performance["launch_grid"].as_str() {
+            Some("beat") => "1 BEAT · AUDIO CLOCK",
+            Some("four_beats") => "4 BEATS · AUDIO CLOCK",
+            _ => "OFF · IMMEDIATE",
+        },
+    ));
     rows.extend(commands(&[
         ("performance_input", "Enable LinnStrument MPE input"),
         ("performance_finish", "Finish take and stop input"),
@@ -30,11 +39,15 @@ pub(super) fn rows(app: &App) -> Vec<WorkspaceRow> {
     ));
     if let Some(slots) = app.performance["session"]["slots"].as_array() {
         rows.extend(slots.iter().enumerate().map(|(slot, state)| {
-            let playing = app.performance["playing_slot"].as_u64() == Some(slot as u64);
+            let active = app.performance["playing_slot"].as_u64() == Some(slot as u64);
+            let queued = active && app.performance["playback_state"] == "queued";
+            let playing = active && !queued;
             let mut clip = row(
                 format!("performance_audition:{slot}"),
                 format!("Audition clip {}", slot + 1),
-                if playing {
+                if queued {
+                    "QUEUED".into()
+                } else if playing {
                     "LOOPING".into()
                 } else {
                     state.as_str().unwrap_or("unavailable").to_uppercase()
@@ -71,7 +84,9 @@ pub(super) fn rows(app: &App) -> Vec<WorkspaceRow> {
     rows.push(row(
         "performance_status",
         "Playback",
-        if app.performance["auditioning"].as_bool() == Some(true) {
+        if app.performance["playback_state"] == "queued" {
+            "QUEUED"
+        } else if app.performance["auditioning"].as_bool() == Some(true) {
             "LOOPING"
         } else {
             "STOPPED"
@@ -138,7 +153,16 @@ pub(super) fn activate(app: &mut App, id: &str) -> bool {
     if app.workspace.panel != Some(Panel::Performance) {
         return false;
     }
-    let request = if let Some(slot) = id
+    let request = if id == "performance_launch_grid" {
+        use crate::app::PerformanceLaunchGrid;
+        Request::PerformanceLaunchGrid {
+            grid: match app.performance["launch_grid"].as_str() {
+                Some("beat") => PerformanceLaunchGrid::FourBeats,
+                Some("four_beats") => PerformanceLaunchGrid::Immediate,
+                _ => PerformanceLaunchGrid::Beat,
+            },
+        }
+    } else if let Some(slot) = id
         .strip_prefix("performance_edit:")
         .and_then(|s| s.parse::<usize>().ok())
     {
@@ -221,6 +245,43 @@ pub(super) fn transport(app: &App) -> Request {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn launch_grid_cycles_semantically_and_queued_feedback_is_not_looping() {
+        use crate::app::PerformanceLaunchGrid;
+        let mut app = App::new();
+        app.workspace.panel = Some(Panel::Performance);
+        for (shown, next) in [
+            ("immediate", PerformanceLaunchGrid::Beat),
+            ("beat", PerformanceLaunchGrid::FourBeats),
+            ("four_beats", PerformanceLaunchGrid::Immediate),
+        ] {
+            app.performance["launch_grid"] = shown.into();
+            assert!(activate(&mut app, "performance_launch_grid"));
+            assert!(
+                matches!(app.requests.last(), Some(Request::PerformanceLaunchGrid { grid }) if *grid == next)
+            );
+        }
+        app.performance = serde_json::json!({"session":{"slots":["recorded"]},"playing_slot":0,"playback_state":"queued","auditioning":true});
+        let projected = rows(&app);
+        let clip = projected
+            .iter()
+            .find(|r| r.id == "performance_audition:0")
+            .unwrap();
+        assert_eq!(clip.value, "QUEUED");
+        assert!(!clip.playing);
+        assert_eq!(
+            projected
+                .iter()
+                .find(|r| r.id == "performance_status")
+                .unwrap()
+                .value,
+            "QUEUED"
+        );
+        assert!(serde_json::from_str::<Request>(
+            r#"{"kind":"performance_launch_grid","grid":"unsupported"}"#
+        )
+        .is_err());
+    }
     #[test]
     fn feedback_selection_preserves_opaque_endpoint_and_geometry() {
         let mut app = App::new();
