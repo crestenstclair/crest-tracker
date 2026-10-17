@@ -751,9 +751,20 @@ impl AppWindow for TauriWebviewWindow {
             ],
         )
         .map_err(|error| WindowError::new(format!("File menu creation failed: {error}")))?;
-        let menu = tauri::menu::Menu::with_items(&app, &[&file_menu]).map_err(|error| {
-            WindowError::new(format!("application menu creation failed: {error}"))
-        })?;
+        // WKWebView relies on AppKit's responder-chain menu commands for
+        // Command+A/C/X/V. A File-only menu leaves text shortcuts unavailable.
+        let edit_menu = tauri::menu::SubmenuBuilder::new(&app, "Edit")
+            .cut()
+            .copy()
+            .paste()
+            .separator()
+            .select_all()
+            .build()
+            .map_err(|error| WindowError::new(format!("Edit menu creation failed: {error}")))?;
+        let menu =
+            tauri::menu::Menu::with_items(&app, &[&file_menu, &edit_menu]).map_err(|error| {
+                WindowError::new(format!("application menu creation failed: {error}"))
+            })?;
         app.set_menu(menu).map_err(|error| {
             WindowError::new(format!("application menu install failed: {error}"))
         })?;

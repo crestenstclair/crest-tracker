@@ -252,7 +252,10 @@ The code is organized around hexagonal boundaries:
 `HostedSynthControl::set_browser_start` delivers a typed `SetBrowserStart` event for Sample or SoundFont browsing. Browser state remembers the last successful folder per asset kind and falls back to its configured starting directory or the existing default. Starting folders are shared machine preferences in `browser-starts.json` beside the Synth controller/MIDI configuration, not sound/session data. Interactive Synth loads them at startup; Tracker imports legacy local paths only when the shared file is absent and writes folder changes there atomically. Isolated event scenes omit this production preference load. The filesystem adapter exposes an opaque `@root` location on Unix; hosts validate accessible directories before persisting machine paths.
 
 A host may provide a typed `WorkspaceProjection` containing rows, top tabs, a grid with selected/playing cell states and compact spacing, focus identity, text entry and hints. Lists scroll within the bounded content region; host hints reflect the current workspace and editing target. The existing page paints those through its shared shell bands, Patch rows, typography and tokens. The host cannot inject a second page, script, stylesheet or keyboard adapter. `WorkspaceEvent` admits only focus, activation, text-draft changes and submission; its owner validates visible identities and operation tokens. Text editors carry a host replacement
-revision as an exact string. Browser draft echoes retain that revision, so delayed projections
+revision as an exact string. The native Edit menu supplies platform Cut, Copy, Paste and
+Select All commands through the focused responder; the page owns no shortcut or clipboard
+implementation. A real macOS Tracker filename editor verified Command+A replacement and
+native paste followed by Save. Browser draft echoes retain that revision, so delayed projections
 cannot overwrite newer keystrokes or collapse a selection. Opening an editor or changing its
 value through controller actions issues a new revision; stale edits and submits reject at the
 host boundary, including after reopening the same field. Native Synth projections and paint acknowledgments resume when the host workspace closes. Hidden Synth frames never produce painted evidence. Host-consumed semantic actions may replace their matching native footer hints through `HostView::action_overrides`; local Synth action hints remain intact. The host owns panel history and restoration of row identity, so sidebar operations do not replace the active editing target.
@@ -1347,11 +1350,16 @@ Tracker's `scripts/package_linux.py` assembles this layout from the same resourc
 as its macOS bundle, extracts the archive to a new directory, validates checksums and runs
 the production inventory outside the checkout. Removing the extracted SoundFont must fail
 while the checkout asset remains available. The native Linux integration workflow exercises
-app and embedded-engine contracts and this packaging path; its first run is pending.
+app and embedded-engine contracts and this packaging path. Tracker source `52d9cfa` passed
+those gates; its extracted archive passed the separate
+[desktop witness](https://github.com/crestenstclair/crest-tracker/actions/runs/39044273974)
+using witness source `440c733`.
 Tracker also exercises the extracted app on the existing isolated Xvfb/PulseAudio desktop:
 native mouse/keyboard launch/stop of its Sample clip and complete project save/reopen.
 The two application witnesses share native input, window observation and audio capture
-helpers; each owns its own product workflow. This new Tracker desktop gate is pending.
+helpers; each owns its own product workflow. Exact expression survives reopening; the
+only permitted document changes are independently specified content-hash sample references.
+Audible loop captures, zero samples after Stop, rapid filename typing and owned shutdown pass.
 This does not establish live Linux MIDI/audio clock correlation or Steam Deck qualification.
 `scripts/build_release_macos.sh` builds native Apple Silicon or Intel macOS app
 and DMG bundles with the SoundFont, MIDI fixture, font/audio notices, and Eigen

@@ -17,13 +17,20 @@ new directory, verifies checksums and loads the production engine inventory outs
 checkout. The layout is `bin/crest-tracker-app` plus `share/crest-tracker-app/`; keep both
 together. A missing packaged SoundFont must fail even if the source checkout is still
 available. System GTK3, WebKitGTK 4.1, ALSA and SDL platform libraries remain dependencies.
-This development package's first CI run is pending. It does not qualify Steam Deck hardware,
-physical controls/audio or live Linux MIDI/audio clock correlation.
+Native contracts and packaging passed at `52d9cfaf1612d00b384d86b40e1f16197b1e3ccb`.
+Its SHA-256 is `ccfce17ae6af17d6a138a58607b6f35ef7cd49895b909e49db1ee7536e29123d`.
+It does not qualify Steam Deck hardware, physical controls/audio or live Linux MIDI/audio
+clock correlation.
 The Linux desktop gate extracts that archive again and uses real XTest mouse/keyboard input
 to load the expressive Sample example, launch/stop its clip, save, create a new project,
 reopen and replay. PulseAudio monitor captures prove audible output and silence after stop;
-the saved project must retain every source expression event and round-trip exactly. This
-Xvfb workflow is under verification and does not use physical audio/MIDI devices.
+the saved project must retain every source expression event. Reopening freezes the verified
+sample into its content-hash library path; the test specifies exactly those reference changes
+from the source WAV and compares every other project field exactly.
+[Desktop run 39044273974](https://github.com/crestenstclair/crest-tracker/actions/runs/39044273974)
+passed that package using witness `440c733`. Both loop captures had RMS 0.00587008; stopped
+output was exactly zero. Rapid path entry, New clearing the bank and owned shutdown also
+passed. This Xvfb workflow uses virtual audio and input, not physical devices.
 
 ## Ownership
 
