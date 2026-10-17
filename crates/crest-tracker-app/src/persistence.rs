@@ -83,8 +83,9 @@ impl Document {
         }
         Ok(())
     }
-    /// Version 1 had no performance state. Upgrade in memory; the source file
-    /// remains untouched until an explicit save. Older readers reject version 2.
+    /// Upgrade the Song envelope and embedded library schema in memory. The
+    /// source stays untouched until explicit save. Older readers reject newer
+    /// embedded library data even when the Song envelope itself is unchanged.
     pub fn into_current(mut self) -> Result<Self, String> {
         self.performance = self
             .performance

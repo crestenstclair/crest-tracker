@@ -538,6 +538,58 @@ mod persistence_tests {
     }
 
     #[test]
+    fn schema2_project_read_migrates_in_memory_without_rewriting_source() {
+        let mut raw = serde_json::to_value(document()).unwrap();
+        raw["performance"]["session"] = serde_json::from_str(include_str!(
+            "../../../crest-tracker/tests/fixtures/performance-schema2.json"
+        ))
+        .unwrap();
+        let root =
+            std::env::temp_dir().join(format!("crest-schema-upgrade-{}", uuid::Uuid::new_v4()));
+        std::fs::create_dir(&root).unwrap();
+        let source = root.join("original.crest-song");
+        let bytes = serde_json::to_vec_pretty(&raw).unwrap();
+        std::fs::write(&source, &bytes).unwrap();
+        let mut migrated = Document::read(&source).unwrap();
+        assert_eq!(std::fs::read(&source).unwrap(), bytes);
+        assert_eq!(
+            migrated.performance.as_ref().unwrap().session.version,
+            library::SESSION_VERSION
+        );
+        assert_eq!(
+            serde_json::to_value(migrated.clone().into_current().unwrap()).unwrap(),
+            serde_json::to_value(&migrated).unwrap()
+        );
+        resources::prepare_save(&mut migrated, Some(&source)).unwrap();
+        let saved = root.join("upgraded.crest-song");
+        let worker = SaveWorker::new();
+        worker
+            .submit(saved.clone(), migrated.clone(), SaveMode::Normal)
+            .unwrap();
+        let deadline = std::time::Instant::now() + std::time::Duration::from_secs(5);
+        loop {
+            if let Some(result) = worker.poll() {
+                result.unwrap().result.unwrap();
+                break;
+            }
+            assert!(
+                std::time::Instant::now() < deadline,
+                "save worker timed out"
+            );
+            std::thread::sleep(std::time::Duration::from_millis(2));
+        }
+        assert_eq!(
+            serde_json::to_value(Document::read(&saved).unwrap()).unwrap(),
+            serde_json::to_value(&migrated).unwrap()
+        );
+        assert_eq!(std::fs::read(&source).unwrap(), bytes);
+        let saved_json: serde_json::Value =
+            serde_json::from_slice(&std::fs::read(&saved).unwrap()).unwrap();
+        assert_eq!(saved_json["performance"]["session"]["version"], 8);
+        std::fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
     fn invalid_performance_is_rejected_before_replacement_can_be_staged() {
         let mut empty = document();
         let session = &mut empty.performance.as_mut().unwrap().session;

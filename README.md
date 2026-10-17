@@ -16,15 +16,19 @@ A fresh checkout needs the pinned Rust 1.96.0 toolchain, the native build prereq
 - `crates/crest-tracker`: pure sequencing, editing, recording and musical data. No Synth or platform dependency.
 - `crates/crest-tracker-app`: composes both through `HostedSynthControl`; owns the Song file and Tracker workspace state.
 
-The independent [Crest Performance v0.1.0](https://github.com/crestenstclair/crest-linnstrument/releases/tag/v0.1.0)
-baseline is consumed at pinned patch commit `0288b407e6b59ccd789d7b8ef6c4699a689ec50c`
-and its lockfile, without a sibling checkout. This deliberate upgrade preserves release-time
-expression and unedited zero-duration notes during clip edits and overdubs, and adds stopped recovery snapshots
-with explicit host-clock recovery/capture cutoffs and observable accepted launch boundaries. API and
-session versions are unchanged. Edited held-note releases now precede untouched
-zero-duration attacks at the same tick, so those boundaries replay within a single-voice
-budget instead of failing allocation. The adapter fixture checks raw MIDI recording,
-editing, exact Undo and project reopen for this boundary. The Tracker-owned
+The independent [Crest Performance library](https://github.com/crestenstclair/crest-linnstrument)
+is consumed at tested development commit `6c37aa5e695dd6968d69b693137f0f9bee16b67f`
+(API 10, library session schema 8), with its lockfile and no sibling checkout. That pin passed
+standalone source and extracted-package acceptance; it is not a new stable library release.
+This deliberate upgrade retains the M3 recording/playback contract and admits the library's
+later harmony, generation, conditions and edit data without copying its implementation.
+Public adapter fixtures compare schema-2 playback with the previous API-2 Git consumer's exact
+ordered trace. Old sessions migrate in memory, including original free timing and expression;
+reading never rewrites the file. Explicit save writes schema 8. API-2 applications reject those
+new files, so keep the original project for rollback instead of relabeling new data as schema 2.
+The current library's new controls are exposed deliberately through Tracker's semantic UI;
+sharing a library version alone does not establish integration of every feature.
+The Tracker-owned
 `performance` adapter provides exact rational/fixed-point time conversion, instrument bindings,
 public commands, timestamped MIDI input, versioned state and separate LED feedback. Shared
 contract fixtures verify expressive record/reopen/playback equivalence. Song format 2 embeds

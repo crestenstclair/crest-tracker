@@ -14,9 +14,9 @@ serde_json = "1.0"
 thiserror = "2.0"
 crest-tracker = { path = "crates/crest-tracker" }
 crest-synth = { path = "crates/crest-synth" }
-crest-performance-core = { git = "https://github.com/crestenstclair/crest-linnstrument", rev = "0288b407e6b59ccd789d7b8ef6c4699a689ec50c" }
-crest-linnstrument = { git = "https://github.com/crestenstclair/crest-linnstrument", rev = "0288b407e6b59ccd789d7b8ef6c4699a689ec50c" }
-crest-performance-testkit = { git = "https://github.com/crestenstclair/crest-linnstrument", rev = "0288b407e6b59ccd789d7b8ef6c4699a689ec50c" }
+crest-performance-core = { git = "https://github.com/crestenstclair/crest-linnstrument", rev = "6c37aa5e695dd6968d69b693137f0f9bee16b67f" }
+crest-linnstrument = { git = "https://github.com/crestenstclair/crest-linnstrument", rev = "6c37aa5e695dd6968d69b693137f0f9bee16b67f" }
+crest-performance-testkit = { git = "https://github.com/crestenstclair/crest-linnstrument", rev = "6c37aa5e695dd6968d69b693137f0f9bee16b67f" }
 
 [profile.dev]
 debug = "line-tables-only"

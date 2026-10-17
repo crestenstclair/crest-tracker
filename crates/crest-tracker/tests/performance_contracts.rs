@@ -25,6 +25,40 @@ fn adapter() -> Performance {
 }
 
 #[test]
+fn schema2_fixture_migrates_losslessly_and_keeps_accepted_playback_trace() {
+    // This fixture and its playback came from the previous independent API-2
+    // Git consumer, not the implementation performing this migration.
+    let legacy: Session =
+        serde_json::from_str(include_str!("fixtures/performance-schema2.json")).unwrap();
+    let expected: Vec<library::OutputEvent> =
+        serde_json::from_str(include_str!("fixtures/performance-schema2-playback.json")).unwrap();
+    assert_eq!(legacy.version, 2);
+    let mut document = document();
+    document.session = legacy.clone();
+    let mut performance = Performance::new(document, Geometry::Pads200, Limits::default()).unwrap();
+    let migrated = performance.document().unwrap();
+    assert_eq!(migrated.session.version, library::SESSION_VERSION);
+    assert_eq!(migrated.session.tracks, legacy.tracks);
+    assert_eq!(migrated.session.slots, legacy.slots);
+    assert_eq!(migrated.session.harmony, legacy.harmony);
+    assert_eq!(migrated.clone().migrate().unwrap(), migrated);
+    let length = migrated.session.slots[0].clip.as_ref().unwrap().length;
+    performance
+        .command(Command::Launch {
+            slot: 0,
+            quantum: BeatTime(0),
+        })
+        .unwrap();
+    performance
+        .advance(performance::tracker_time(BeatTime(length.0 * 2 - 1)).unwrap())
+        .unwrap();
+    performance.command(Command::Stop).unwrap();
+    let actual: Vec<_> = performance.drain_output().collect();
+    assert_eq!(actual, expected);
+    assert_eq!(performance.snapshot().active_voices, 0);
+}
+
+#[test]
 fn playback_copy_keeps_unfinished_recording_and_live_ownership_untouched() {
     let mut performance = adapter();
     performance
