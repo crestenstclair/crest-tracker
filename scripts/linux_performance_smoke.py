@@ -33,6 +33,13 @@ def normalized(value):
     return ''.join(value.lstrip('› ').split()).casefold()
 
 
+def describe(node):
+    label = f'{node.getRoleName()}: {node.name}'
+    if node.getRole() == pyatspi.ROLE_ENTRY:
+        label += f' value={node.queryText().getText(0, -1)!r}'
+    return label
+
+
 class Desktop:
     """Observe the owned app; all activation and text input goes through XTest."""
     def __init__(self, process, evidence):
@@ -62,7 +69,8 @@ class Desktop:
                 # WebKit can retire an accessibility object during a tree read.
                 # Retry observation/reveal only; never repeat input activation.
                 # A real process exit remains an immediate failure above.
-                if error.domain != 'atspi_error' or error.code != 0:
+                if error.domain != 'atspi_error' or not (error.code == 0 or
+                        error.code == 1 and error.message.startswith('No such interface')):
                     raise
                 result = None
             if result:
@@ -116,7 +124,7 @@ class Desktop:
         try:
             frame = self.frame()
             report = '' if frame is None else '\n'.join(
-                f'{node.getRoleName()}: {node.name}' for node in descendants(frame))
+                describe(node) for node in descendants(frame))
         except GLib.Error as error:
             report = f'Accessibility snapshot unavailable: {error}'
         (self.evidence / f'{label}-accessibility.txt').write_text(report)
