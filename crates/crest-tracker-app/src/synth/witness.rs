@@ -9,6 +9,7 @@ mod performance_articulation;
 mod performance_bank;
 mod performance_harmony;
 mod performance_live;
+mod performance_parameters;
 mod performance_quantized;
 mod performance_recovery;
 mod performance_retrospective;

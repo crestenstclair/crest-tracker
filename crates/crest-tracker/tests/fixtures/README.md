@@ -9,7 +9,7 @@ The consumer creates the old engine, saves its migrated schema-2 session, launch
 immediately, advances to `clip.length * 2 - 1` ticks, then stops and drains output. The 32
 ordered output events are a compatibility baseline, not a replacement for the independently
 specified pitch/expression and lifecycle assertions in `performance_contracts.rs` and the
-native audio witnesses. The API-10 adapter must preserve the session's tracks, clips, raw
+native audio witnesses. The current adapter must preserve the session's tracks, clips, raw
 event times and expression and produce exactly this accepted trace. Tests do not regenerate
 or accept the expected output from the new implementation.
 
@@ -17,3 +17,21 @@ The same separate old consumer was run against API-10/schema-8 output: it reject
 harmony fields, produced no output files, and left the source bytes unchanged. New project
 files remain deliberately incompatible with that old reader; original project files provide
 the rollback path.
+
+## API-10 to v0.3 compatibility
+
+`performance-schema8.json` and `performance-schema8-playback.json` were produced by an
+independent Cargo consumer pinned to `6c37aa5e695dd6968d69b693137f0f9bee16b67f`
+(API 10, schema 8), before the Tracker upgrade. Input was that commit's unchanged
+`examples/performance-showcase.json`. The old consumer saves the session, enables Fill,
+launches slots 0–2 immediately in order, advances to `4 * TICKS_PER_BEAT - 1`, stops,
+and drains the complete output. The baseline contains 164 events, 49 attacks and 49 releases
+across three destinations. Current tests preserve every session field except its explicitly
+migrated version and compare the complete ordered trace; they never regenerate expected data.
+
+An independent API-10 consumer also rejected the actual firmware-recorded schema-10 parameter
+session saved by the standalone v0.3 host. It rejected both the original parameter-bearing
+session and a separate copy with new parameter fields omitted but version 10 retained. Both
+source files remained byte-identical. Old readers therefore cannot silently discard new data
+or accept a future schema merely because a particular session uses no new features. Original
+schema-8 projects remain the rollback path; forward migration performs no destructive rewrite.

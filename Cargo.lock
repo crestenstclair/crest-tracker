@@ -913,8 +913,8 @@ dependencies = [
 
 [[package]]
 name = "crest-linnstrument"
-version = "0.3.0-dev.1"
-source = "git+https://github.com/crestenstclair/crest-linnstrument?rev=6c37aa5e695dd6968d69b693137f0f9bee16b67f#6c37aa5e695dd6968d69b693137f0f9bee16b67f"
+version = "0.3.0"
+source = "git+https://github.com/crestenstclair/crest-linnstrument?rev=a05f8dfcb56f27498fb42693d4c8930f10d8e621#a05f8dfcb56f27498fb42693d4c8930f10d8e621"
 dependencies = [
  "crest-performance-core",
  "serde",
@@ -924,8 +924,8 @@ dependencies = [
 
 [[package]]
 name = "crest-performance-core"
-version = "0.3.0-dev.1"
-source = "git+https://github.com/crestenstclair/crest-linnstrument?rev=6c37aa5e695dd6968d69b693137f0f9bee16b67f#6c37aa5e695dd6968d69b693137f0f9bee16b67f"
+version = "0.3.0"
+source = "git+https://github.com/crestenstclair/crest-linnstrument?rev=a05f8dfcb56f27498fb42693d4c8930f10d8e621#a05f8dfcb56f27498fb42693d4c8930f10d8e621"
 dependencies = [
  "serde",
  "serde_json",
@@ -934,8 +934,8 @@ dependencies = [
 
 [[package]]
 name = "crest-performance-testkit"
-version = "0.3.0-dev.1"
-source = "git+https://github.com/crestenstclair/crest-linnstrument?rev=6c37aa5e695dd6968d69b693137f0f9bee16b67f#6c37aa5e695dd6968d69b693137f0f9bee16b67f"
+version = "0.3.0"
+source = "git+https://github.com/crestenstclair/crest-linnstrument?rev=a05f8dfcb56f27498fb42693d4c8930f10d8e621#a05f8dfcb56f27498fb42693d4c8930f10d8e621"
 dependencies = [
  "crest-linnstrument",
  "crest-performance-core",

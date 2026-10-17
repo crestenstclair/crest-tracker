@@ -17,15 +17,35 @@ A fresh checkout needs the pinned Rust 1.96.0 toolchain, the native build prereq
 - `crates/crest-tracker-app`: composes both through `HostedSynthControl`; owns the Song file and Tracker workspace state.
 
 The independent [Crest Performance library](https://github.com/crestenstclair/crest-linnstrument)
-is consumed at tested development commit `6c37aa5e695dd6968d69b693137f0f9bee16b67f`
-(API 10, library session schema 8), with its lockfile and no sibling checkout. That pin passed
-standalone source and extracted-package acceptance; it is not a new stable library release.
-This deliberate upgrade retains the M3 recording/playback contract and admits the library's
-later harmony, generation, conditions and edit data without copying its implementation.
-Public adapter fixtures compare schema-2 playback with the previous API-2 Git consumer's exact
-ordered trace. Old sessions migrate in memory, including original free timing and expression;
-reading never rewrites the file. Explicit save writes schema 8. API-2 applications reject those
-new files, so keep the original project for rollback instead of relabeling new data as schema 2.
+is consumed at the immutable [v0.3.0 release](https://github.com/crestenstclair/crest-linnstrument/releases/tag/v0.3.0),
+commit `a05f8dfcb56f27498fb42693d4c8930f10d8e621` (API 12, library session schema 10),
+with its lockfile and no sibling checkout. The release passed independent source and
+extracted-package acceptance before this upgrade. This pin retains the M3 recording/playback
+contract and the later harmony, generation, conditions and edit data without copying the
+library implementation.
+Public adapter fixtures compare schema-2 and schema-8 playback with the previous API-2 and
+API-10 Git consumers' exact ordered traces. Old sessions migrate in memory, including original
+free timing and expression; reading never rewrites the file. Explicit save writes schema 10.
+Older API-2/API-10 applications reject these files. Keep the original project for rollback;
+do not relabel new data with an older schema version.
+
+Scene endpoints and per-note parameter locks survive project save/reopen, including values
+unsupported by the current sound backend. Tracker does not yet advertise native parameter
+mappings. A locked clip is rejected before launch, including from User Firmware Mode pads;
+no early unlocked notes play and other running clips remain intact. Unlocked clips remain
+playable when the same session contains locks or scene endpoints. Scene-morph commands reject
+unsupported parameters without silently converting them to MIDI controllers. Remove locks
+in the standalone host to play that clip in this version of Tracker.
+Upgrade validation passed the core suite, 270 app tests, 17 native performance witnesses,
+scoped lint and the verified release bundle. The native rejection witness keeps an unrelated
+Braids clip audible while refusing a locked clip, with no late events or callback allocations.
+A real macOS desktop opened the prior firmware-recorded Sample/arpeggio project, looped clips
+1 and 3 together, stopped, saved a separate schema-10 copy and reopened it. Every performance
+field remained equal except the explicit schema version. The source file retained its prior
+SHA-256; the saved copy's SHA-256 is
+`b4615d7c1d7e232d8c7d886e7bd284c92649368e8483feaa5acb1e40c4d5b2a5`.
+The actual API-10 Git reader rejects that new desktop save without modifying it.
+
 The current library's new controls are exposed deliberately through Tracker's semantic UI;
 sharing a library version alone does not establish integration of every feature.
 The Tracker-owned

@@ -611,7 +611,74 @@ mod persistence_tests {
         assert_eq!(std::fs::read(&source).unwrap(), bytes);
         let saved_json: serde_json::Value =
             serde_json::from_slice(&std::fs::read(&saved).unwrap()).unwrap();
-        assert_eq!(saved_json["performance"]["session"]["version"], 8);
+        assert_eq!(
+            saved_json["performance"]["session"]["version"],
+            library::SESSION_VERSION
+        );
+        std::fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn project_worker_preserves_unsupported_scene_and_note_parameters() {
+        use library::{MorphParameter, ParameterAddress};
+        let mut document = document();
+        let session = &mut document.performance.as_mut().unwrap().session;
+        let clip = session.slots[0].clip.as_ref().unwrap();
+        let note = clip.notes().unwrap()[0].id;
+        session.slots[0].clip = Some(clip.with_note_parameter(note, 4, Some(54_321)).unwrap());
+        session.scene_morph = Some(
+            vec![MorphParameter {
+                address: ParameterAddress {
+                    destination: DestinationId(1),
+                    parameter: 7,
+                },
+                a: 0,
+                b: u16::MAX,
+            }]
+            .try_into()
+            .unwrap(),
+        );
+        resources::prepare_save(&mut document, None).unwrap();
+        let root =
+            std::env::temp_dir().join(format!("crest-parameter-save-{}", uuid::Uuid::new_v4()));
+        std::fs::create_dir(&root).unwrap();
+        let path = root.join("parameters.crest-song");
+        let worker = SaveWorker::new();
+        worker
+            .submit(path.clone(), document.clone(), SaveMode::Normal)
+            .unwrap();
+        let deadline = std::time::Instant::now() + std::time::Duration::from_secs(5);
+        loop {
+            if let Some(result) = worker.poll() {
+                result.unwrap().result.unwrap();
+                break;
+            }
+            assert!(
+                std::time::Instant::now() < deadline,
+                "save worker timed out"
+            );
+            std::thread::sleep(std::time::Duration::from_millis(2));
+        }
+        let bytes = std::fs::read(&path).unwrap();
+        let restored = Document::read(&path).unwrap();
+        assert_eq!(std::fs::read(&path).unwrap(), bytes);
+        assert_eq!(
+            serde_json::to_value(&restored).unwrap(),
+            serde_json::to_value(&document).unwrap()
+        );
+        let mut engine = PendingOpen::prepare(restored, Some(path))
+            .unwrap()
+            .performance
+            .unwrap();
+        assert_eq!(engine.document().unwrap(), document.performance.unwrap());
+        assert!(engine
+            .command(Command::Launch {
+                slot: 0,
+                quantum: BeatTime(0)
+            })
+            .is_err());
+        assert_eq!(engine.snapshot().active_voices, 0);
+        assert_eq!(engine.drain_output().count(), 0);
         std::fs::remove_dir_all(root).unwrap();
     }
 

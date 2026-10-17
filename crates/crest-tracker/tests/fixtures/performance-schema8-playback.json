@@ -1,0 +1,2200 @@
+[
+  {
+    "at": 0,
+    "destination": 2,
+    "track": 2,
+    "voice": 1,
+    "gesture": {
+      "type": "on",
+      "key": 52,
+      "velocity": 90,
+      "expression": {
+        "pitch": 0,
+        "pressure": 0,
+        "timbre": 32768
+      }
+    }
+  },
+  {
+    "at": 2528,
+    "destination": 3,
+    "track": 3,
+    "voice": 2,
+    "gesture": {
+      "type": "on",
+      "key": 64,
+      "velocity": 67,
+      "expression": {
+        "pitch": 0,
+        "pressure": 0,
+        "timbre": 32768
+      }
+    }
+  },
+  {
+    "at": 16785,
+    "destination": 1,
+    "track": 1,
+    "voice": 3,
+    "gesture": {
+      "type": "on",
+      "key": 77,
+      "velocity": 120,
+      "expression": {
+        "pitch": 0,
+        "pressure": 0,
+        "timbre": 32509
+      }
+    }
+  },
+  {
+    "at": 31150,
+    "destination": 1,
+    "track": 1,
+    "voice": 3,
+    "gesture": {
+      "type": "expression",
+      "expression": {
+        "pitch": 0,
+        "pressure": 47990,
+        "timbre": 32509
+      }
+    }
+  },
+  {
+    "at": 38099,
+    "destination": 1,
+    "track": 1,
+    "voice": 4,
+    "gesture": {
+      "type": "on",
+      "key": 76,
+      "velocity": 126,
+      "expression": {
+        "pitch": 0,
+        "pressure": 61406,
+        "timbre": 32509
+      }
+    }
+  },
+  {
+    "at": 41432,
+    "destination": 1,
+    "track": 1,
+    "voice": 5,
+    "gesture": {
+      "type": "on",
+      "key": 72,
+      "velocity": 127,
+      "expression": {
+        "pitch": 0,
+        "pressure": 61406,
+        "timbre": 32509
+      }
+    }
+  },
+  {
+    "at": 47705,
+    "destination": 1,
+    "track": 1,
+    "voice": 6,
+    "gesture": {
+      "type": "on",
+      "key": 67,
+      "velocity": 117,
+      "expression": {
+        "pitch": 0,
+        "pressure": 57794,
+        "timbre": 32509
+      }
+    }
+  },
+  {
+    "at": 47793,
+    "destination": 1,
+    "track": 1,
+    "voice": 7,
+    "gesture": {
+      "type": "on",
+      "key": 74,
+      "velocity": 117,
+      "expression": {
+        "pitch": 0,
+        "pressure": 47990,
+        "timbre": 32509
+      }
+    }
+  },
+  {
+    "at": 49066,
+    "destination": 1,
+    "track": 1,
+    "voice": 8,
+    "gesture": {
+      "type": "on",
+      "key": 71,
+      "velocity": 121,
+      "expression": {
+        "pitch": 0,
+        "pressure": 57794,
+        "timbre": 32509
+      }
+    }
+  },
+  {
+    "at": 54991,
+    "destination": 1,
+    "track": 1,
+    "voice": 9,
+    "gesture": {
+      "type": "on",
+      "key": 69,
+      "velocity": 127,
+      "expression": {
+        "pitch": 0,
+        "pressure": 61406,
+        "timbre": 32509
+      }
+    }
+  },
+  {
+    "at": 57258,
+    "destination": 1,
+    "track": 1,
+    "voice": 10,
+    "gesture": {
+      "type": "on",
+      "key": 64,
+      "velocity": 119,
+      "expression": {
+        "pitch": 0,
+        "pressure": 57794,
+        "timbre": 32509
+      }
+    }
+  },
+  {
+    "at": 70826,
+    "destination": 1,
+    "track": 1,
+    "voice": 11,
+    "gesture": {
+      "type": "on",
+      "key": 71,
+      "velocity": 124,
+      "expression": {
+        "pitch": 0,
+        "pressure": 47990,
+        "timbre": 32509
+      }
+    }
+  },
+  {
+    "at": 120000,
+    "destination": 2,
+    "track": 2,
+    "voice": 1,
+    "gesture": {
+      "type": "off",
+      "velocity": 0
+    }
+  },
+  {
+    "at": 122528,
+    "destination": 3,
+    "track": 3,
+    "voice": 2,
+    "gesture": {
+      "type": "off",
+      "velocity": 0
+    }
+  },
+  {
+    "at": 243730,
+    "destination": 3,
+    "track": 3,
+    "voice": 12,
+    "gesture": {
+      "type": "on",
+      "key": 76,
+      "velocity": 73,
+      "expression": {
+        "pitch": 0,
+        "pressure": 0,
+        "timbre": 32768
+      }
+    }
+  },
+  {
+    "at": 363730,
+    "destination": 3,
+    "track": 3,
+    "voice": 12,
+    "gesture": {
+      "type": "off",
+      "velocity": 0
+    }
+  },
+  {
+    "at": 487416,
+    "destination": 3,
+    "track": 3,
+    "voice": 13,
+    "gesture": {
+      "type": "on",
+      "key": 67,
+      "velocity": 72,
+      "expression": {
+        "pitch": 0,
+        "pressure": 0,
+        "timbre": 32768
+      }
+    }
+  },
+  {
+    "at": 577433,
+    "destination": 1,
+    "track": 1,
+    "voice": 11,
+    "gesture": {
+      "type": "expression",
+      "expression": {
+        "pitch": 246093,
+        "pressure": 47990,
+        "timbre": 32509
+      }
+    }
+  },
+  {
+    "at": 577433,
+    "destination": 1,
+    "track": 1,
+    "voice": 7,
+    "gesture": {
+      "type": "expression",
+      "expression": {
+        "pitch": 246093,
+        "pressure": 47990,
+        "timbre": 32509
+      }
+    }
+  },
+  {
+    "at": 577433,
+    "destination": 1,
+    "track": 1,
+    "voice": 3,
+    "gesture": {
+      "type": "expression",
+      "expression": {
+        "pitch": 246093,
+        "pressure": 47990,
+        "timbre": 32509
+      }
+    }
+  },
+  {
+    "at": 578834,
+    "destination": 1,
+    "track": 1,
+    "voice": 10,
+    "gesture": {
+      "type": "expression",
+      "expression": {
+        "pitch": 0,
+        "pressure": 57794,
+        "timbre": 52118
+      }
+    }
+  },
+  {
+    "at": 578834,
+    "destination": 1,
+    "track": 1,
+    "voice": 6,
+    "gesture": {
+      "type": "expression",
+      "expression": {
+        "pitch": 0,
+        "pressure": 57794,
+        "timbre": 52118
+      }
+    }
+  },
+  {
+    "at": 578834,
+    "destination": 1,
+    "track": 1,
+    "voice": 8,
+    "gesture": {
+      "type": "expression",
+      "expression": {
+        "pitch": 0,
+        "pressure": 57794,
+        "timbre": 52118
+      }
+    }
+  },
+  {
+    "at": 580069,
+    "destination": 1,
+    "track": 1,
+    "voice": 9,
+    "gesture": {
+      "type": "expression",
+      "expression": {
+        "pitch": 0,
+        "pressure": 63470,
+        "timbre": 32509
+      }
+    }
+  },
+  {
+    "at": 580069,
+    "destination": 1,
+    "track": 1,
+    "voice": 5,
+    "gesture": {
+      "type": "expression",
+      "expression": {
+        "pitch": 0,
+        "pressure": 63470,
+        "timbre": 32509
+      }
+    }
+  },
+  {
+    "at": 580069,
+    "destination": 1,
+    "track": 1,
+    "voice": 4,
+    "gesture": {
+      "type": "expression",
+      "expression": {
+        "pitch": 0,
+        "pressure": 63470,
+        "timbre": 32509
+      }
+    }
+  },
+  {
+    "at": 596886,
+    "destination": 1,
+    "track": 1,
+    "voice": 9,
+    "gesture": {
+      "type": "expression",
+      "expression": {
+        "pitch": 0,
+        "pressure": 65535,
+        "timbre": 32509
+      }
+    }
+  },
+  {
+    "at": 596886,
+    "destination": 1,
+    "track": 1,
+    "voice": 5,
+    "gesture": {
+      "type": "expression",
+      "expression": {
+        "pitch": 0,
+        "pressure": 65535,
+        "timbre": 32509
+      }
+    }
+  },
+  {
+    "at": 596886,
+    "destination": 1,
+    "track": 1,
+    "voice": 4,
+    "gesture": {
+      "type": "expression",
+      "expression": {
+        "pitch": 0,
+        "pressure": 65535,
+        "timbre": 32509
+      }
+    }
+  },
+  {
+    "at": 607416,
+    "destination": 3,
+    "track": 3,
+    "voice": 13,
+    "gesture": {
+      "type": "off",
+      "velocity": 0
+    }
+  },
+  {
+    "at": 720000,
+    "destination": 2,
+    "track": 2,
+    "voice": 14,
+    "gesture": {
+      "type": "on",
+      "key": 52,
+      "velocity": 90,
+      "expression": {
+        "pitch": 0,
+        "pressure": 0,
+        "timbre": 32768
+      }
+    }
+  },
+  {
+    "at": 723240,
+    "destination": 3,
+    "track": 3,
+    "voice": 15,
+    "gesture": {
+      "type": "on",
+      "key": 71,
+      "velocity": 75,
+      "expression": {
+        "pitch": 0,
+        "pressure": 0,
+        "timbre": 32768
+      }
+    }
+  },
+  {
+    "at": 840000,
+    "destination": 2,
+    "track": 2,
+    "voice": 14,
+    "gesture": {
+      "type": "off",
+      "velocity": 0
+    }
+  },
+  {
+    "at": 843240,
+    "destination": 3,
+    "track": 3,
+    "voice": 15,
+    "gesture": {
+      "type": "off",
+      "velocity": 0
+    }
+  },
+  {
+    "at": 962528,
+    "destination": 3,
+    "track": 3,
+    "voice": 16,
+    "gesture": {
+      "type": "on",
+      "key": 64,
+      "velocity": 67,
+      "expression": {
+        "pitch": 0,
+        "pressure": 0,
+        "timbre": 32768
+      }
+    }
+  },
+  {
+    "at": 962564,
+    "destination": 1,
+    "track": 1,
+    "voice": 11,
+    "gesture": {
+      "type": "expression",
+      "expression": {
+        "pitch": 246093,
+        "pressure": 0,
+        "timbre": 32509
+      }
+    }
+  },
+  {
+    "at": 962564,
+    "destination": 1,
+    "track": 1,
+    "voice": 7,
+    "gesture": {
+      "type": "expression",
+      "expression": {
+        "pitch": 246093,
+        "pressure": 0,
+        "timbre": 32509
+      }
+    }
+  },
+  {
+    "at": 962564,
+    "destination": 1,
+    "track": 1,
+    "voice": 3,
+    "gesture": {
+      "type": "expression",
+      "expression": {
+        "pitch": 246093,
+        "pressure": 0,
+        "timbre": 32509
+      }
+    }
+  },
+  {
+    "at": 967976,
+    "destination": 1,
+    "track": 1,
+    "voice": 11,
+    "gesture": {
+      "type": "off",
+      "velocity": 127
+    }
+  },
+  {
+    "at": 967976,
+    "destination": 1,
+    "track": 1,
+    "voice": 7,
+    "gesture": {
+      "type": "off",
+      "velocity": 127
+    }
+  },
+  {
+    "at": 967976,
+    "destination": 1,
+    "track": 1,
+    "voice": 3,
+    "gesture": {
+      "type": "off",
+      "velocity": 127
+    }
+  },
+  {
+    "at": 973043,
+    "destination": 1,
+    "track": 1,
+    "voice": 10,
+    "gesture": {
+      "type": "expression",
+      "expression": {
+        "pitch": 0,
+        "pressure": 0,
+        "timbre": 52118
+      }
+    }
+  },
+  {
+    "at": 973043,
+    "destination": 1,
+    "track": 1,
+    "voice": 6,
+    "gesture": {
+      "type": "expression",
+      "expression": {
+        "pitch": 0,
+        "pressure": 0,
+        "timbre": 52118
+      }
+    }
+  },
+  {
+    "at": 973043,
+    "destination": 1,
+    "track": 1,
+    "voice": 8,
+    "gesture": {
+      "type": "expression",
+      "expression": {
+        "pitch": 0,
+        "pressure": 0,
+        "timbre": 52118
+      }
+    }
+  },
+  {
+    "at": 978463,
+    "destination": 1,
+    "track": 1,
+    "voice": 10,
+    "gesture": {
+      "type": "off",
+      "velocity": 127
+    }
+  },
+  {
+    "at": 978463,
+    "destination": 1,
+    "track": 1,
+    "voice": 6,
+    "gesture": {
+      "type": "off",
+      "velocity": 127
+    }
+  },
+  {
+    "at": 978463,
+    "destination": 1,
+    "track": 1,
+    "voice": 8,
+    "gesture": {
+      "type": "off",
+      "velocity": 127
+    }
+  },
+  {
+    "at": 983534,
+    "destination": 1,
+    "track": 1,
+    "voice": 9,
+    "gesture": {
+      "type": "expression",
+      "expression": {
+        "pitch": 0,
+        "pressure": 0,
+        "timbre": 32509
+      }
+    }
+  },
+  {
+    "at": 983534,
+    "destination": 1,
+    "track": 1,
+    "voice": 5,
+    "gesture": {
+      "type": "expression",
+      "expression": {
+        "pitch": 0,
+        "pressure": 0,
+        "timbre": 32509
+      }
+    }
+  },
+  {
+    "at": 983534,
+    "destination": 1,
+    "track": 1,
+    "voice": 4,
+    "gesture": {
+      "type": "expression",
+      "expression": {
+        "pitch": 0,
+        "pressure": 0,
+        "timbre": 32509
+      }
+    }
+  },
+  {
+    "at": 988954,
+    "destination": 1,
+    "track": 1,
+    "voice": 9,
+    "gesture": {
+      "type": "off",
+      "velocity": 127
+    }
+  },
+  {
+    "at": 988954,
+    "destination": 1,
+    "track": 1,
+    "voice": 5,
+    "gesture": {
+      "type": "off",
+      "velocity": 127
+    }
+  },
+  {
+    "at": 988954,
+    "destination": 1,
+    "track": 1,
+    "voice": 4,
+    "gesture": {
+      "type": "off",
+      "velocity": 127
+    }
+  },
+  {
+    "at": 1082528,
+    "destination": 3,
+    "track": 3,
+    "voice": 16,
+    "gesture": {
+      "type": "off",
+      "velocity": 0
+    }
+  },
+  {
+    "at": 1203730,
+    "destination": 3,
+    "track": 3,
+    "voice": 17,
+    "gesture": {
+      "type": "on",
+      "key": 76,
+      "velocity": 73,
+      "expression": {
+        "pitch": 0,
+        "pressure": 0,
+        "timbre": 32768
+      }
+    }
+  },
+  {
+    "at": 1323730,
+    "destination": 3,
+    "track": 3,
+    "voice": 17,
+    "gesture": {
+      "type": "off",
+      "velocity": 0
+    }
+  },
+  {
+    "at": 1360803,
+    "destination": 1,
+    "track": 1,
+    "voice": 18,
+    "gesture": {
+      "type": "on",
+      "key": 77,
+      "velocity": 120,
+      "expression": {
+        "pitch": 0,
+        "pressure": 0,
+        "timbre": 32509
+      }
+    }
+  },
+  {
+    "at": 1375168,
+    "destination": 1,
+    "track": 1,
+    "voice": 18,
+    "gesture": {
+      "type": "expression",
+      "expression": {
+        "pitch": 0,
+        "pressure": 47990,
+        "timbre": 32509
+      }
+    }
+  },
+  {
+    "at": 1382117,
+    "destination": 1,
+    "track": 1,
+    "voice": 19,
+    "gesture": {
+      "type": "on",
+      "key": 76,
+      "velocity": 126,
+      "expression": {
+        "pitch": 0,
+        "pressure": 61406,
+        "timbre": 32509
+      }
+    }
+  },
+  {
+    "at": 1385450,
+    "destination": 1,
+    "track": 1,
+    "voice": 20,
+    "gesture": {
+      "type": "on",
+      "key": 72,
+      "velocity": 127,
+      "expression": {
+        "pitch": 0,
+        "pressure": 61406,
+        "timbre": 32509
+      }
+    }
+  },
+  {
+    "at": 1391723,
+    "destination": 1,
+    "track": 1,
+    "voice": 21,
+    "gesture": {
+      "type": "on",
+      "key": 67,
+      "velocity": 117,
+      "expression": {
+        "pitch": 0,
+        "pressure": 57794,
+        "timbre": 32509
+      }
+    }
+  },
+  {
+    "at": 1391811,
+    "destination": 1,
+    "track": 1,
+    "voice": 22,
+    "gesture": {
+      "type": "on",
+      "key": 74,
+      "velocity": 117,
+      "expression": {
+        "pitch": 0,
+        "pressure": 47990,
+        "timbre": 32509
+      }
+    }
+  },
+  {
+    "at": 1393084,
+    "destination": 1,
+    "track": 1,
+    "voice": 23,
+    "gesture": {
+      "type": "on",
+      "key": 71,
+      "velocity": 121,
+      "expression": {
+        "pitch": 0,
+        "pressure": 57794,
+        "timbre": 32509
+      }
+    }
+  },
+  {
+    "at": 1399009,
+    "destination": 1,
+    "track": 1,
+    "voice": 24,
+    "gesture": {
+      "type": "on",
+      "key": 69,
+      "velocity": 127,
+      "expression": {
+        "pitch": 0,
+        "pressure": 61406,
+        "timbre": 32509
+      }
+    }
+  },
+  {
+    "at": 1401276,
+    "destination": 1,
+    "track": 1,
+    "voice": 25,
+    "gesture": {
+      "type": "on",
+      "key": 64,
+      "velocity": 119,
+      "expression": {
+        "pitch": 0,
+        "pressure": 57794,
+        "timbre": 32509
+      }
+    }
+  },
+  {
+    "at": 1414844,
+    "destination": 1,
+    "track": 1,
+    "voice": 26,
+    "gesture": {
+      "type": "on",
+      "key": 71,
+      "velocity": 124,
+      "expression": {
+        "pitch": 0,
+        "pressure": 47990,
+        "timbre": 32509
+      }
+    }
+  },
+  {
+    "at": 1440000,
+    "destination": 2,
+    "track": 2,
+    "voice": 27,
+    "gesture": {
+      "type": "on",
+      "key": 52,
+      "velocity": 90,
+      "expression": {
+        "pitch": 0,
+        "pressure": 0,
+        "timbre": 32768
+      }
+    }
+  },
+  {
+    "at": 1447416,
+    "destination": 3,
+    "track": 3,
+    "voice": 28,
+    "gesture": {
+      "type": "on",
+      "key": 67,
+      "velocity": 72,
+      "expression": {
+        "pitch": 0,
+        "pressure": 0,
+        "timbre": 32768
+      }
+    }
+  },
+  {
+    "at": 1560000,
+    "destination": 2,
+    "track": 2,
+    "voice": 27,
+    "gesture": {
+      "type": "off",
+      "velocity": 0
+    }
+  },
+  {
+    "at": 1567416,
+    "destination": 3,
+    "track": 3,
+    "voice": 28,
+    "gesture": {
+      "type": "off",
+      "velocity": 0
+    }
+  },
+  {
+    "at": 1683240,
+    "destination": 3,
+    "track": 3,
+    "voice": 29,
+    "gesture": {
+      "type": "on",
+      "key": 71,
+      "velocity": 75,
+      "expression": {
+        "pitch": 0,
+        "pressure": 0,
+        "timbre": 32768
+      }
+    }
+  },
+  {
+    "at": 1803240,
+    "destination": 3,
+    "track": 3,
+    "voice": 29,
+    "gesture": {
+      "type": "off",
+      "velocity": 0
+    }
+  },
+  {
+    "at": 1920000,
+    "destination": 2,
+    "track": 2,
+    "voice": 30,
+    "gesture": {
+      "type": "on",
+      "key": 52,
+      "velocity": 90,
+      "expression": {
+        "pitch": 0,
+        "pressure": 0,
+        "timbre": 32768
+      }
+    }
+  },
+  {
+    "at": 1921451,
+    "destination": 1,
+    "track": 1,
+    "voice": 26,
+    "gesture": {
+      "type": "expression",
+      "expression": {
+        "pitch": 246093,
+        "pressure": 47990,
+        "timbre": 32509
+      }
+    }
+  },
+  {
+    "at": 1921451,
+    "destination": 1,
+    "track": 1,
+    "voice": 22,
+    "gesture": {
+      "type": "expression",
+      "expression": {
+        "pitch": 246093,
+        "pressure": 47990,
+        "timbre": 32509
+      }
+    }
+  },
+  {
+    "at": 1921451,
+    "destination": 1,
+    "track": 1,
+    "voice": 18,
+    "gesture": {
+      "type": "expression",
+      "expression": {
+        "pitch": 246093,
+        "pressure": 47990,
+        "timbre": 32509
+      }
+    }
+  },
+  {
+    "at": 1922528,
+    "destination": 3,
+    "track": 3,
+    "voice": 31,
+    "gesture": {
+      "type": "on",
+      "key": 64,
+      "velocity": 67,
+      "expression": {
+        "pitch": 0,
+        "pressure": 0,
+        "timbre": 32768
+      }
+    }
+  },
+  {
+    "at": 1922852,
+    "destination": 1,
+    "track": 1,
+    "voice": 25,
+    "gesture": {
+      "type": "expression",
+      "expression": {
+        "pitch": 0,
+        "pressure": 57794,
+        "timbre": 52118
+      }
+    }
+  },
+  {
+    "at": 1922852,
+    "destination": 1,
+    "track": 1,
+    "voice": 21,
+    "gesture": {
+      "type": "expression",
+      "expression": {
+        "pitch": 0,
+        "pressure": 57794,
+        "timbre": 52118
+      }
+    }
+  },
+  {
+    "at": 1922852,
+    "destination": 1,
+    "track": 1,
+    "voice": 23,
+    "gesture": {
+      "type": "expression",
+      "expression": {
+        "pitch": 0,
+        "pressure": 57794,
+        "timbre": 52118
+      }
+    }
+  },
+  {
+    "at": 1924087,
+    "destination": 1,
+    "track": 1,
+    "voice": 24,
+    "gesture": {
+      "type": "expression",
+      "expression": {
+        "pitch": 0,
+        "pressure": 63470,
+        "timbre": 32509
+      }
+    }
+  },
+  {
+    "at": 1924087,
+    "destination": 1,
+    "track": 1,
+    "voice": 20,
+    "gesture": {
+      "type": "expression",
+      "expression": {
+        "pitch": 0,
+        "pressure": 63470,
+        "timbre": 32509
+      }
+    }
+  },
+  {
+    "at": 1924087,
+    "destination": 1,
+    "track": 1,
+    "voice": 19,
+    "gesture": {
+      "type": "expression",
+      "expression": {
+        "pitch": 0,
+        "pressure": 63470,
+        "timbre": 32509
+      }
+    }
+  },
+  {
+    "at": 1940904,
+    "destination": 1,
+    "track": 1,
+    "voice": 24,
+    "gesture": {
+      "type": "expression",
+      "expression": {
+        "pitch": 0,
+        "pressure": 65535,
+        "timbre": 32509
+      }
+    }
+  },
+  {
+    "at": 1940904,
+    "destination": 1,
+    "track": 1,
+    "voice": 20,
+    "gesture": {
+      "type": "expression",
+      "expression": {
+        "pitch": 0,
+        "pressure": 65535,
+        "timbre": 32509
+      }
+    }
+  },
+  {
+    "at": 1940904,
+    "destination": 1,
+    "track": 1,
+    "voice": 19,
+    "gesture": {
+      "type": "expression",
+      "expression": {
+        "pitch": 0,
+        "pressure": 65535,
+        "timbre": 32509
+      }
+    }
+  },
+  {
+    "at": 2040000,
+    "destination": 2,
+    "track": 2,
+    "voice": 30,
+    "gesture": {
+      "type": "off",
+      "velocity": 0
+    }
+  },
+  {
+    "at": 2042528,
+    "destination": 3,
+    "track": 3,
+    "voice": 31,
+    "gesture": {
+      "type": "off",
+      "velocity": 0
+    }
+  },
+  {
+    "at": 2163730,
+    "destination": 3,
+    "track": 3,
+    "voice": 32,
+    "gesture": {
+      "type": "on",
+      "key": 76,
+      "velocity": 73,
+      "expression": {
+        "pitch": 0,
+        "pressure": 0,
+        "timbre": 32768
+      }
+    }
+  },
+  {
+    "at": 2283730,
+    "destination": 3,
+    "track": 3,
+    "voice": 32,
+    "gesture": {
+      "type": "off",
+      "velocity": 0
+    }
+  },
+  {
+    "at": 2306582,
+    "destination": 1,
+    "track": 1,
+    "voice": 26,
+    "gesture": {
+      "type": "expression",
+      "expression": {
+        "pitch": 246093,
+        "pressure": 0,
+        "timbre": 32509
+      }
+    }
+  },
+  {
+    "at": 2306582,
+    "destination": 1,
+    "track": 1,
+    "voice": 22,
+    "gesture": {
+      "type": "expression",
+      "expression": {
+        "pitch": 246093,
+        "pressure": 0,
+        "timbre": 32509
+      }
+    }
+  },
+  {
+    "at": 2306582,
+    "destination": 1,
+    "track": 1,
+    "voice": 18,
+    "gesture": {
+      "type": "expression",
+      "expression": {
+        "pitch": 246093,
+        "pressure": 0,
+        "timbre": 32509
+      }
+    }
+  },
+  {
+    "at": 2311994,
+    "destination": 1,
+    "track": 1,
+    "voice": 26,
+    "gesture": {
+      "type": "off",
+      "velocity": 127
+    }
+  },
+  {
+    "at": 2311994,
+    "destination": 1,
+    "track": 1,
+    "voice": 22,
+    "gesture": {
+      "type": "off",
+      "velocity": 127
+    }
+  },
+  {
+    "at": 2311994,
+    "destination": 1,
+    "track": 1,
+    "voice": 18,
+    "gesture": {
+      "type": "off",
+      "velocity": 127
+    }
+  },
+  {
+    "at": 2317061,
+    "destination": 1,
+    "track": 1,
+    "voice": 25,
+    "gesture": {
+      "type": "expression",
+      "expression": {
+        "pitch": 0,
+        "pressure": 0,
+        "timbre": 52118
+      }
+    }
+  },
+  {
+    "at": 2317061,
+    "destination": 1,
+    "track": 1,
+    "voice": 21,
+    "gesture": {
+      "type": "expression",
+      "expression": {
+        "pitch": 0,
+        "pressure": 0,
+        "timbre": 52118
+      }
+    }
+  },
+  {
+    "at": 2317061,
+    "destination": 1,
+    "track": 1,
+    "voice": 23,
+    "gesture": {
+      "type": "expression",
+      "expression": {
+        "pitch": 0,
+        "pressure": 0,
+        "timbre": 52118
+      }
+    }
+  },
+  {
+    "at": 2322481,
+    "destination": 1,
+    "track": 1,
+    "voice": 25,
+    "gesture": {
+      "type": "off",
+      "velocity": 127
+    }
+  },
+  {
+    "at": 2322481,
+    "destination": 1,
+    "track": 1,
+    "voice": 21,
+    "gesture": {
+      "type": "off",
+      "velocity": 127
+    }
+  },
+  {
+    "at": 2322481,
+    "destination": 1,
+    "track": 1,
+    "voice": 23,
+    "gesture": {
+      "type": "off",
+      "velocity": 127
+    }
+  },
+  {
+    "at": 2327552,
+    "destination": 1,
+    "track": 1,
+    "voice": 24,
+    "gesture": {
+      "type": "expression",
+      "expression": {
+        "pitch": 0,
+        "pressure": 0,
+        "timbre": 32509
+      }
+    }
+  },
+  {
+    "at": 2327552,
+    "destination": 1,
+    "track": 1,
+    "voice": 20,
+    "gesture": {
+      "type": "expression",
+      "expression": {
+        "pitch": 0,
+        "pressure": 0,
+        "timbre": 32509
+      }
+    }
+  },
+  {
+    "at": 2327552,
+    "destination": 1,
+    "track": 1,
+    "voice": 19,
+    "gesture": {
+      "type": "expression",
+      "expression": {
+        "pitch": 0,
+        "pressure": 0,
+        "timbre": 32509
+      }
+    }
+  },
+  {
+    "at": 2332972,
+    "destination": 1,
+    "track": 1,
+    "voice": 24,
+    "gesture": {
+      "type": "off",
+      "velocity": 127
+    }
+  },
+  {
+    "at": 2332972,
+    "destination": 1,
+    "track": 1,
+    "voice": 20,
+    "gesture": {
+      "type": "off",
+      "velocity": 127
+    }
+  },
+  {
+    "at": 2332972,
+    "destination": 1,
+    "track": 1,
+    "voice": 19,
+    "gesture": {
+      "type": "off",
+      "velocity": 127
+    }
+  },
+  {
+    "at": 2407416,
+    "destination": 3,
+    "track": 3,
+    "voice": 33,
+    "gesture": {
+      "type": "on",
+      "key": 67,
+      "velocity": 72,
+      "expression": {
+        "pitch": 0,
+        "pressure": 0,
+        "timbre": 32768
+      }
+    }
+  },
+  {
+    "at": 2527416,
+    "destination": 3,
+    "track": 3,
+    "voice": 33,
+    "gesture": {
+      "type": "off",
+      "velocity": 0
+    }
+  },
+  {
+    "at": 2640000,
+    "destination": 2,
+    "track": 2,
+    "voice": 34,
+    "gesture": {
+      "type": "on",
+      "key": 52,
+      "velocity": 90,
+      "expression": {
+        "pitch": 0,
+        "pressure": 0,
+        "timbre": 32768
+      }
+    }
+  },
+  {
+    "at": 2643240,
+    "destination": 3,
+    "track": 3,
+    "voice": 35,
+    "gesture": {
+      "type": "on",
+      "key": 71,
+      "velocity": 75,
+      "expression": {
+        "pitch": 0,
+        "pressure": 0,
+        "timbre": 32768
+      }
+    }
+  },
+  {
+    "at": 2704821,
+    "destination": 1,
+    "track": 1,
+    "voice": 36,
+    "gesture": {
+      "type": "on",
+      "key": 77,
+      "velocity": 120,
+      "expression": {
+        "pitch": 0,
+        "pressure": 0,
+        "timbre": 32509
+      }
+    }
+  },
+  {
+    "at": 2719186,
+    "destination": 1,
+    "track": 1,
+    "voice": 36,
+    "gesture": {
+      "type": "expression",
+      "expression": {
+        "pitch": 0,
+        "pressure": 47990,
+        "timbre": 32509
+      }
+    }
+  },
+  {
+    "at": 2726135,
+    "destination": 1,
+    "track": 1,
+    "voice": 37,
+    "gesture": {
+      "type": "on",
+      "key": 76,
+      "velocity": 126,
+      "expression": {
+        "pitch": 0,
+        "pressure": 61406,
+        "timbre": 32509
+      }
+    }
+  },
+  {
+    "at": 2729468,
+    "destination": 1,
+    "track": 1,
+    "voice": 38,
+    "gesture": {
+      "type": "on",
+      "key": 72,
+      "velocity": 127,
+      "expression": {
+        "pitch": 0,
+        "pressure": 61406,
+        "timbre": 32509
+      }
+    }
+  },
+  {
+    "at": 2735741,
+    "destination": 1,
+    "track": 1,
+    "voice": 39,
+    "gesture": {
+      "type": "on",
+      "key": 67,
+      "velocity": 117,
+      "expression": {
+        "pitch": 0,
+        "pressure": 57794,
+        "timbre": 32509
+      }
+    }
+  },
+  {
+    "at": 2735829,
+    "destination": 1,
+    "track": 1,
+    "voice": 40,
+    "gesture": {
+      "type": "on",
+      "key": 74,
+      "velocity": 117,
+      "expression": {
+        "pitch": 0,
+        "pressure": 47990,
+        "timbre": 32509
+      }
+    }
+  },
+  {
+    "at": 2737102,
+    "destination": 1,
+    "track": 1,
+    "voice": 41,
+    "gesture": {
+      "type": "on",
+      "key": 71,
+      "velocity": 121,
+      "expression": {
+        "pitch": 0,
+        "pressure": 57794,
+        "timbre": 32509
+      }
+    }
+  },
+  {
+    "at": 2743027,
+    "destination": 1,
+    "track": 1,
+    "voice": 42,
+    "gesture": {
+      "type": "on",
+      "key": 69,
+      "velocity": 127,
+      "expression": {
+        "pitch": 0,
+        "pressure": 61406,
+        "timbre": 32509
+      }
+    }
+  },
+  {
+    "at": 2745294,
+    "destination": 1,
+    "track": 1,
+    "voice": 43,
+    "gesture": {
+      "type": "on",
+      "key": 64,
+      "velocity": 119,
+      "expression": {
+        "pitch": 0,
+        "pressure": 57794,
+        "timbre": 32509
+      }
+    }
+  },
+  {
+    "at": 2758862,
+    "destination": 1,
+    "track": 1,
+    "voice": 44,
+    "gesture": {
+      "type": "on",
+      "key": 71,
+      "velocity": 124,
+      "expression": {
+        "pitch": 0,
+        "pressure": 47990,
+        "timbre": 32509
+      }
+    }
+  },
+  {
+    "at": 2760000,
+    "destination": 2,
+    "track": 2,
+    "voice": 34,
+    "gesture": {
+      "type": "off",
+      "velocity": 0
+    }
+  },
+  {
+    "at": 2763240,
+    "destination": 3,
+    "track": 3,
+    "voice": 35,
+    "gesture": {
+      "type": "off",
+      "velocity": 0
+    }
+  },
+  {
+    "at": 2882528,
+    "destination": 3,
+    "track": 3,
+    "voice": 45,
+    "gesture": {
+      "type": "on",
+      "key": 64,
+      "velocity": 67,
+      "expression": {
+        "pitch": 0,
+        "pressure": 0,
+        "timbre": 32768
+      }
+    }
+  },
+  {
+    "at": 3002528,
+    "destination": 3,
+    "track": 3,
+    "voice": 45,
+    "gesture": {
+      "type": "off",
+      "velocity": 0
+    }
+  },
+  {
+    "at": 3123730,
+    "destination": 3,
+    "track": 3,
+    "voice": 46,
+    "gesture": {
+      "type": "on",
+      "key": 76,
+      "velocity": 73,
+      "expression": {
+        "pitch": 0,
+        "pressure": 0,
+        "timbre": 32768
+      }
+    }
+  },
+  {
+    "at": 3243730,
+    "destination": 3,
+    "track": 3,
+    "voice": 46,
+    "gesture": {
+      "type": "off",
+      "velocity": 0
+    }
+  },
+  {
+    "at": 3265469,
+    "destination": 1,
+    "track": 1,
+    "voice": 44,
+    "gesture": {
+      "type": "expression",
+      "expression": {
+        "pitch": 246093,
+        "pressure": 47990,
+        "timbre": 32509
+      }
+    }
+  },
+  {
+    "at": 3265469,
+    "destination": 1,
+    "track": 1,
+    "voice": 40,
+    "gesture": {
+      "type": "expression",
+      "expression": {
+        "pitch": 246093,
+        "pressure": 47990,
+        "timbre": 32509
+      }
+    }
+  },
+  {
+    "at": 3265469,
+    "destination": 1,
+    "track": 1,
+    "voice": 36,
+    "gesture": {
+      "type": "expression",
+      "expression": {
+        "pitch": 246093,
+        "pressure": 47990,
+        "timbre": 32509
+      }
+    }
+  },
+  {
+    "at": 3266870,
+    "destination": 1,
+    "track": 1,
+    "voice": 43,
+    "gesture": {
+      "type": "expression",
+      "expression": {
+        "pitch": 0,
+        "pressure": 57794,
+        "timbre": 52118
+      }
+    }
+  },
+  {
+    "at": 3266870,
+    "destination": 1,
+    "track": 1,
+    "voice": 39,
+    "gesture": {
+      "type": "expression",
+      "expression": {
+        "pitch": 0,
+        "pressure": 57794,
+        "timbre": 52118
+      }
+    }
+  },
+  {
+    "at": 3266870,
+    "destination": 1,
+    "track": 1,
+    "voice": 41,
+    "gesture": {
+      "type": "expression",
+      "expression": {
+        "pitch": 0,
+        "pressure": 57794,
+        "timbre": 52118
+      }
+    }
+  },
+  {
+    "at": 3268105,
+    "destination": 1,
+    "track": 1,
+    "voice": 42,
+    "gesture": {
+      "type": "expression",
+      "expression": {
+        "pitch": 0,
+        "pressure": 63470,
+        "timbre": 32509
+      }
+    }
+  },
+  {
+    "at": 3268105,
+    "destination": 1,
+    "track": 1,
+    "voice": 38,
+    "gesture": {
+      "type": "expression",
+      "expression": {
+        "pitch": 0,
+        "pressure": 63470,
+        "timbre": 32509
+      }
+    }
+  },
+  {
+    "at": 3268105,
+    "destination": 1,
+    "track": 1,
+    "voice": 37,
+    "gesture": {
+      "type": "expression",
+      "expression": {
+        "pitch": 0,
+        "pressure": 63470,
+        "timbre": 32509
+      }
+    }
+  },
+  {
+    "at": 3284922,
+    "destination": 1,
+    "track": 1,
+    "voice": 42,
+    "gesture": {
+      "type": "expression",
+      "expression": {
+        "pitch": 0,
+        "pressure": 65535,
+        "timbre": 32509
+      }
+    }
+  },
+  {
+    "at": 3284922,
+    "destination": 1,
+    "track": 1,
+    "voice": 38,
+    "gesture": {
+      "type": "expression",
+      "expression": {
+        "pitch": 0,
+        "pressure": 65535,
+        "timbre": 32509
+      }
+    }
+  },
+  {
+    "at": 3284922,
+    "destination": 1,
+    "track": 1,
+    "voice": 37,
+    "gesture": {
+      "type": "expression",
+      "expression": {
+        "pitch": 0,
+        "pressure": 65535,
+        "timbre": 32509
+      }
+    }
+  },
+  {
+    "at": 3360000,
+    "destination": 2,
+    "track": 2,
+    "voice": 47,
+    "gesture": {
+      "type": "on",
+      "key": 52,
+      "velocity": 90,
+      "expression": {
+        "pitch": 0,
+        "pressure": 0,
+        "timbre": 32768
+      }
+    }
+  },
+  {
+    "at": 3367416,
+    "destination": 3,
+    "track": 3,
+    "voice": 48,
+    "gesture": {
+      "type": "on",
+      "key": 67,
+      "velocity": 72,
+      "expression": {
+        "pitch": 0,
+        "pressure": 0,
+        "timbre": 32768
+      }
+    }
+  },
+  {
+    "at": 3480000,
+    "destination": 2,
+    "track": 2,
+    "voice": 47,
+    "gesture": {
+      "type": "off",
+      "velocity": 0
+    }
+  },
+  {
+    "at": 3487416,
+    "destination": 3,
+    "track": 3,
+    "voice": 48,
+    "gesture": {
+      "type": "off",
+      "velocity": 0
+    }
+  },
+  {
+    "at": 3603240,
+    "destination": 3,
+    "track": 3,
+    "voice": 49,
+    "gesture": {
+      "type": "on",
+      "key": 71,
+      "velocity": 75,
+      "expression": {
+        "pitch": 0,
+        "pressure": 0,
+        "timbre": 32768
+      }
+    }
+  },
+  {
+    "at": 3650600,
+    "destination": 1,
+    "track": 1,
+    "voice": 44,
+    "gesture": {
+      "type": "expression",
+      "expression": {
+        "pitch": 246093,
+        "pressure": 0,
+        "timbre": 32509
+      }
+    }
+  },
+  {
+    "at": 3650600,
+    "destination": 1,
+    "track": 1,
+    "voice": 40,
+    "gesture": {
+      "type": "expression",
+      "expression": {
+        "pitch": 246093,
+        "pressure": 0,
+        "timbre": 32509
+      }
+    }
+  },
+  {
+    "at": 3650600,
+    "destination": 1,
+    "track": 1,
+    "voice": 36,
+    "gesture": {
+      "type": "expression",
+      "expression": {
+        "pitch": 246093,
+        "pressure": 0,
+        "timbre": 32509
+      }
+    }
+  },
+  {
+    "at": 3656012,
+    "destination": 1,
+    "track": 1,
+    "voice": 44,
+    "gesture": {
+      "type": "off",
+      "velocity": 127
+    }
+  },
+  {
+    "at": 3656012,
+    "destination": 1,
+    "track": 1,
+    "voice": 40,
+    "gesture": {
+      "type": "off",
+      "velocity": 127
+    }
+  },
+  {
+    "at": 3656012,
+    "destination": 1,
+    "track": 1,
+    "voice": 36,
+    "gesture": {
+      "type": "off",
+      "velocity": 127
+    }
+  },
+  {
+    "at": 3661079,
+    "destination": 1,
+    "track": 1,
+    "voice": 43,
+    "gesture": {
+      "type": "expression",
+      "expression": {
+        "pitch": 0,
+        "pressure": 0,
+        "timbre": 52118
+      }
+    }
+  },
+  {
+    "at": 3661079,
+    "destination": 1,
+    "track": 1,
+    "voice": 39,
+    "gesture": {
+      "type": "expression",
+      "expression": {
+        "pitch": 0,
+        "pressure": 0,
+        "timbre": 52118
+      }
+    }
+  },
+  {
+    "at": 3661079,
+    "destination": 1,
+    "track": 1,
+    "voice": 41,
+    "gesture": {
+      "type": "expression",
+      "expression": {
+        "pitch": 0,
+        "pressure": 0,
+        "timbre": 52118
+      }
+    }
+  },
+  {
+    "at": 3666499,
+    "destination": 1,
+    "track": 1,
+    "voice": 43,
+    "gesture": {
+      "type": "off",
+      "velocity": 127
+    }
+  },
+  {
+    "at": 3666499,
+    "destination": 1,
+    "track": 1,
+    "voice": 39,
+    "gesture": {
+      "type": "off",
+      "velocity": 127
+    }
+  },
+  {
+    "at": 3666499,
+    "destination": 1,
+    "track": 1,
+    "voice": 41,
+    "gesture": {
+      "type": "off",
+      "velocity": 127
+    }
+  },
+  {
+    "at": 3671570,
+    "destination": 1,
+    "track": 1,
+    "voice": 42,
+    "gesture": {
+      "type": "expression",
+      "expression": {
+        "pitch": 0,
+        "pressure": 0,
+        "timbre": 32509
+      }
+    }
+  },
+  {
+    "at": 3671570,
+    "destination": 1,
+    "track": 1,
+    "voice": 38,
+    "gesture": {
+      "type": "expression",
+      "expression": {
+        "pitch": 0,
+        "pressure": 0,
+        "timbre": 32509
+      }
+    }
+  },
+  {
+    "at": 3671570,
+    "destination": 1,
+    "track": 1,
+    "voice": 37,
+    "gesture": {
+      "type": "expression",
+      "expression": {
+        "pitch": 0,
+        "pressure": 0,
+        "timbre": 32509
+      }
+    }
+  },
+  {
+    "at": 3676990,
+    "destination": 1,
+    "track": 1,
+    "voice": 42,
+    "gesture": {
+      "type": "off",
+      "velocity": 127
+    }
+  },
+  {
+    "at": 3676990,
+    "destination": 1,
+    "track": 1,
+    "voice": 38,
+    "gesture": {
+      "type": "off",
+      "velocity": 127
+    }
+  },
+  {
+    "at": 3676990,
+    "destination": 1,
+    "track": 1,
+    "voice": 37,
+    "gesture": {
+      "type": "off",
+      "velocity": 127
+    }
+  },
+  {
+    "at": 3723240,
+    "destination": 3,
+    "track": 3,
+    "voice": 49,
+    "gesture": {
+      "type": "off",
+      "velocity": 0
+    }
+  }
+]

@@ -302,10 +302,12 @@ impl Performance {
     fn toggle_slot(&mut self, slot: usize) -> Result<()> {
         let snapshot = self.engine.snapshot();
         match snapshot.slots.get(slot) {
-            Some(SlotState::Recorded) => self.engine.command(Command::Launch {
-                slot,
-                quantum: self.launch_quantum,
-            })?,
+            Some(SlotState::Recorded) => self
+                .command(Command::Launch {
+                    slot,
+                    quantum: self.launch_quantum,
+                })
+                .map(|_| ())?,
             Some(SlotState::Playing | SlotState::Queued) => {
                 self.engine.command(Command::StopSlot { slot })?
             }
@@ -313,8 +315,24 @@ impl Performance {
         }
         Ok(())
     }
+    /// Reject unsupported attack settings before scheduling any part of a clip.
+    /// Persistence accepts these references; only the backend can claim support.
+    fn require_playable_clip(&self, slot: usize) -> Result<()> {
+        if self
+            .clip(slot)?
+            .is_some_and(|clip| !clip.parameter_locks.is_empty())
+        {
+            return Err(Error::Binding(
+                "Tracker does not support per-note parameter locks yet; remove locks in the standalone host before launching this clip",
+            ));
+        }
+        Ok(())
+    }
     /// Returned mode configuration must be sent to the controller separately.
     pub fn command(&mut self, command: Command) -> Result<Vec<MidiMessage>> {
+        if let Command::Launch { slot, .. } = command {
+            self.require_playable_clip(slot)?;
+        }
         if matches!(command, Command::CaptureRecent { .. } | Command::Undo) {
             self.require_idle_recorder()?;
         }
