@@ -205,6 +205,7 @@ struct Runtime {
     saved_performance: Option<crest_tracker::performance::Document>,
     performance_playback: Option<performance::Playback>,
     performance_live: Option<performance::Live>,
+    performance_surface: Option<performance::Surface>,
     loading: Option<(LoadWorker, PathBuf)>,
     resource_candidate: Option<resources::repair::Candidate>,
     repairing_resource: Option<std::sync::mpsc::Receiver<Result<Document, String>>>,
@@ -305,6 +306,7 @@ impl Runtime {
             saved_performance: None,
             performance_playback: None,
             performance_live: None,
+            performance_surface: None,
             loading: None,
             resource_candidate: None,
             repairing_resource: None,
@@ -791,6 +793,11 @@ impl Runtime {
             return Err("Finish or cancel asset repair before changing the Song".into());
         }
         match request {
+            Request::PerformanceClips { endpoint, pads } => {
+                self.enter_performance_clips(sound, endpoint, pads)
+            }
+            Request::PerformancePlay => self.restore_performance_surface(),
+            Request::PerformancePad { slot } => self.performance_pad(sound, clock, slot),
             Request::PerformanceInput => self.enable_performance_input(sound, clock),
             Request::PerformanceRecord { slot } => self.record_performance(sound, clock, slot),
             Request::PerformanceFinish => self.finish_performance_input(sound, false),
@@ -1227,6 +1234,7 @@ impl Runtime {
                     )?;
                     return Ok(false);
                 }
+                self.restore_performance_surface()?;
                 self.discard_capture_for_replacement(sound)?;
                 if matches!(action, FileAction::ImportMidi) {
                     self.loading = Some((
@@ -2624,6 +2632,7 @@ impl ApplicationHost<LockFreeControlHandle> for Runtime {
             if outputs.error_count != self.output_error_count {
                 self.output_error_count = outputs.error_count;
                 self.close_requested = false;
+                self.restore_performance_surface()?;
                 if let Some(error) = outputs.last_error {
                     return Err(format!("MIDI OUTPUT: {}", error.message));
                 }
@@ -2646,6 +2655,7 @@ impl ApplicationHost<LockFreeControlHandle> for Runtime {
             self.advance_capture(sound, clock)?;
             self.advance(sound, clock)?;
             self.advance_performance(sound, clock)?;
+            self.advance_performance_surface(sound)?;
             self.poll_recovery(clock)?;
             self.elapsed_since_capture += clock.elapsed;
             if self.elapsed_since_capture >= std::time::Duration::from_millis(300) {
@@ -2682,6 +2692,9 @@ impl ApplicationHost<LockFreeControlHandle> for Runtime {
         event: crest_synth::control::PhysicalMidiEvent,
         clock: HostClock,
     ) -> bool {
+        if self.performance_surface_input(event) {
+            return true;
+        }
         if self.performance_midi_input(event, clock) {
             return true;
         }
@@ -2775,7 +2788,16 @@ impl ApplicationHost<LockFreeControlHandle> for Runtime {
             );
             return false;
         }
-        if snapshot.settled_epoch < snapshot.requested_epoch {
+        if snapshot.settled_epoch < snapshot.requested_epoch
+            || snapshot.settled_surface_generation < snapshot.requested_surface_generation
+        {
+            return false;
+        }
+        if let Some(surface) = &self.performance_surface {
+            if let Some(error) = &surface.fault {
+                self.close_requested = false;
+                self.app.borrow_mut().status = format!("CLOSE CANCELED · {error}");
+            }
             return false;
         }
         std::mem::take(&mut self.close_requested)

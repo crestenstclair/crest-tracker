@@ -218,7 +218,7 @@ impl Live {
     }
 }
 
-fn normalized_bytes(message: MidiMessage) -> ([u8; 3], usize) {
+pub(super) fn normalized_bytes(message: MidiMessage) -> ([u8; 3], usize) {
     let (status, length) = match message.kind() {
         MidiMessageKind::NoteOff => (0x80, 3),
         MidiMessageKind::NoteOn => (0x90, 3),

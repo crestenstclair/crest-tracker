@@ -976,6 +976,7 @@ mod tests {
             monitor_generation: AtomicU64::new(1),
             pending: AtomicUsize::new(0),
             shutdown: AtomicBool::new(false),
+            surface: crate::midi_output::surface::Mailbox::default(),
             snapshot: Mutex::new(MidiOutputSnapshot {
                 connection_versions: BTreeMap::from([("exact-port".into(), 7)]),
                 ..Default::default()

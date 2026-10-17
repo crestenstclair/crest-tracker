@@ -7,7 +7,9 @@
 //! MPE batches reserve zones and validate all retained master states before wire.
 
 mod mpe;
+mod surface;
 pub use mpe::{MpeOutputAction, MpeOutputProfile, MpeOwner, MpeSource};
+pub(crate) use surface::SurfaceLease;
 
 use midir::{MidiOutput, MidiOutputConnection};
 use serde::Serialize;
@@ -52,6 +54,8 @@ pub struct MidiOutputSnapshot {
     pub requested_monitor_generation: u64,
     pub settled_monitor_generation: u64,
     pub running: bool,
+    pub requested_surface_generation: u64,
+    pub settled_surface_generation: u64,
     #[serde(skip)]
     connection_versions: BTreeMap<String, u64>,
 }
@@ -182,6 +186,7 @@ struct Shared {
     monitor_generation: AtomicU64,
     pending: AtomicUsize,
     shutdown: AtomicBool,
+    surface: surface::Mailbox,
     snapshot: Mutex<MidiOutputSnapshot>,
 }
 
@@ -208,6 +213,8 @@ impl MidiOutputService {
             settled_epoch: 1,
             requested_monitor_generation: 1,
             settled_monitor_generation: 1,
+            requested_surface_generation: 1,
+            settled_surface_generation: 1,
             running: true,
             ..Default::default()
         };
@@ -216,6 +223,7 @@ impl MidiOutputService {
             monitor_generation: AtomicU64::new(1),
             pending: AtomicUsize::new(0),
             shutdown: AtomicBool::new(false),
+            surface: surface::Mailbox::default(),
             snapshot: Mutex::new(snapshot.clone()),
         });
         let worker_shared = Arc::clone(&shared);
@@ -432,6 +440,8 @@ impl MidiOutputService {
         }
         self.snapshot.pending = self.shared.pending.load(Ordering::Acquire);
         self.snapshot.requested_epoch = self.epoch();
+        self.snapshot.requested_surface_generation =
+            self.shared.surface.generation.load(Ordering::Acquire);
         self.snapshot.requested_monitor_generation =
             self.shared.monitor_generation.load(Ordering::Acquire);
         self.snapshot.clone()
@@ -535,6 +545,7 @@ struct Destination<S: Sink> {
     failed: bool,
     version: u64,
     transport_active: bool,
+    surface_owned: bool,
     mpe: mpe::Allocator,
     mpe_recovery_notes: BTreeSet<(u8, u8)>,
     mpe_recovery_channels: BTreeSet<u8>,
@@ -548,6 +559,7 @@ impl<S: Sink> Destination<S> {
             failed: false,
             version,
             transport_active: false,
+            surface_owned: false,
             mpe: mpe::Allocator::default(),
             mpe_recovery_notes: BTreeSet::new(),
             mpe_recovery_channels: BTreeSet::new(),
@@ -715,6 +727,9 @@ impl<S: Sink> Destination<S> {
     }
 
     fn require_unreserved(&self, packet: Packet) -> Result<(), String> {
+        if self.surface_owned {
+            return Err("MIDI destination is reserved for LinnStrument feedback".into());
+        }
         if !packet.is_transport() && self.mpe.reserves(packet.bytes[0] & 15) {
             return Err("ordinary MIDI collides with a reserved MPE zone".into());
         }
@@ -728,6 +743,9 @@ impl<S: Sink> Destination<S> {
     ) -> Result<(), String> {
         if self.failed {
             return Err("connection failed; explicit reconnect required".into());
+        }
+        if self.surface_owned {
+            return Err("MIDI destination is reserved for LinnStrument feedback".into());
         }
         let plan = self.mpe.plan(profile, actions, &self.channels)?;
         self.send_mpe_plan(plan)
@@ -926,6 +944,7 @@ fn worker_main(receiver: Receiver<Command>, shared: Arc<Shared>, capacity: usize
     let mut epoch = 1;
     let mut monitor_generation = 1;
     let mut connection_version = 0_u64;
+    let mut surface = surface::Worker::default();
     loop {
         let requested = shared.epoch.load(Ordering::Acquire);
         if requested != epoch {
@@ -970,6 +989,7 @@ fn worker_main(receiver: Receiver<Command>, shared: Arc<Shared>, capacity: usize
                 publish_connections(&shared, &destinations);
             }
         }
+        surface.advance(&shared, &mut destinations, Instant::now());
         let wait = queue.first().map_or(POLL_INTERVAL, |event| {
             event
                 .deadline
@@ -998,8 +1018,9 @@ fn worker_main(receiver: Receiver<Command>, shared: Arc<Shared>, capacity: usize
                     continue;
                 }
                 discard_endpoint(&mut queue, &id, &shared);
+                surface.retire(&shared, &mut destinations, &id);
                 if let Some(mut old) = destinations.remove(&id) {
-                    if let Err(error) = old.cleanup() {
+                    if let Err(error) = old.retire() {
                         report(&shared, "cleanup", Some(&id), error);
                         destinations.insert(id.clone(), old);
                         publish_connections(&shared, &destinations);
@@ -1028,8 +1049,9 @@ fn worker_main(receiver: Receiver<Command>, shared: Arc<Shared>, capacity: usize
             }
             Command::Disconnect(id) => {
                 discard_endpoint(&mut queue, &id, &shared);
+                surface.retire(&shared, &mut destinations, &id);
                 if let Some(mut destination) = destinations.remove(&id) {
-                    if let Err(error) = destination.cleanup() {
+                    if let Err(error) = destination.retire() {
                         report(&shared, "cleanup", Some(&id), error);
                         destinations.insert(id.clone(), destination);
                     }
@@ -1062,7 +1084,12 @@ fn worker_main(receiver: Receiver<Command>, shared: Arc<Shared>, capacity: usize
             }
         }
     }
-    cleanup_all(&shared, &mut destinations);
+    surface.restore(&shared, &mut destinations);
+    for (id, destination) in &mut destinations {
+        if let Err(error) = destination.retire() {
+            report(&shared, "retire", Some(id), error);
+        }
+    }
     shared
         .pending
         .fetch_sub(queue.iter().map(Scheduled::cost).sum(), Ordering::AcqRel);
@@ -1119,6 +1146,7 @@ mod test_support {
         batches: Vec<MidiOutputTestBatch>,
         epoch: u64,
         monitor_generation: u64,
+        surface: surface::Worker,
     }
 
     pub(super) fn recording(
@@ -1133,6 +1161,8 @@ mod test_support {
             settled_epoch: 1,
             requested_monitor_generation: 1,
             settled_monitor_generation: 1,
+            requested_surface_generation: 1,
+            settled_surface_generation: 1,
             endpoints: vec![MidiOutputEndpoint {
                 id: endpoint.into(),
                 name: endpoint.into(),
@@ -1146,6 +1176,7 @@ mod test_support {
             monitor_generation: AtomicU64::new(1),
             pending: AtomicUsize::new(0),
             shutdown: AtomicBool::new(false),
+            surface: surface::Mailbox::default(),
             snapshot: Mutex::new(snapshot.clone()),
         });
         let packets = Arc::new(Mutex::new(Vec::new()));
@@ -1161,6 +1192,7 @@ mod test_support {
             batches: Vec::new(),
             epoch: 1,
             monitor_generation: 1,
+            surface: surface::Worker::default(),
         };
         (
             MidiOutputService {
@@ -1235,8 +1267,10 @@ mod test_support {
                     }
                     Command::Disconnect(endpoint) => {
                         discard_endpoint(&mut self.queue, &endpoint, &self.shared);
+                        self.surface
+                            .retire(&self.shared, &mut self.destinations, &endpoint);
                         if let Some(destination) = self.destinations.get_mut(&endpoint) {
-                            destination.cleanup()?;
+                            destination.retire()?;
                         }
                         self.destinations.remove(&endpoint);
                         publish_connections(&self.shared, &self.destinations);
@@ -1265,6 +1299,8 @@ mod test_support {
                     });
                 }
             }
+            self.surface
+                .advance(&self.shared, &mut self.destinations, now);
             Ok(())
         }
     }
@@ -1677,6 +1713,7 @@ mod tests {
             monitor_generation: AtomicU64::new(1),
             pending: AtomicUsize::new(0),
             shutdown: AtomicBool::new(false),
+            surface: surface::Mailbox::default(),
             snapshot: Mutex::new(MidiOutputSnapshot {
                 connection_versions: BTreeMap::from([("port".into(), 7)]),
                 ..Default::default()
@@ -1759,6 +1796,7 @@ mod tests {
             monitor_generation: AtomicU64::new(1),
             pending: AtomicUsize::new(0),
             shutdown: AtomicBool::new(false),
+            surface: surface::Mailbox::default(),
             snapshot: Mutex::new(MidiOutputSnapshot {
                 connection_versions: BTreeMap::from([("port".into(), 1)]),
                 ..Default::default()

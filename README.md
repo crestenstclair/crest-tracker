@@ -57,8 +57,33 @@ CoreAudio clock correlation on macOS; Linux input correlation remains qualificat
 Native Sample witnesses cover six concurrent voices, capture, project serialization,
 reopened playback with live input and interrupted-take retention. This input path has no
 crash checkpoint for an uncommitted library take yet; explicit Finish/Save persists it.
-Virtual-pad launch/LED return, production clip editing and Steam Deck qualification remain
-integration work. The standalone application retains its complete firmware-driven workflow.
+**Refresh MIDI feedback destinations**, connect the matching LinnStrument feedback port,
+then select **Clips mode** for its 128- or 200-pad geometry. Input and output endpoints are
+selected explicitly; the stock firmware's NRPN mode report must arrive before pad input
+is accepted. A once-per-second mode query detects firmware resets; three seconds without
+a report interrupts control input and starts restoration. The bottom playable row launches recorded clips, and pressing the playing
+clip stops it. This uses the same host launch path as the workspace. Switching to Clips
+finishes an active take and releases live monitor voices. The first bank uses one active
+clip; launch quantization and multiple simultaneous clip tracks remain integration work.
+
+LED intent travels through the output worker and the firmware input parser. Blue means
+recorded, green means playing; the simulator renders decoded firmware SPI output. Complete
+cell updates are coalesced, with at most eight cells every 34 ms after due musical output.
+A claimed feedback port rejects musical routing until released. Stop retains clip controls;
+**Return LinnStrument to Play**, document replacement, input loss, output disconnect and
+shutdown restore stock Play. Mode restoration bypasses a full musical queue. Connected
+close waits for firmware acknowledgement; a timeout keeps the app open with a visible
+recovery action. Reconnecting requires an explicit feedback selection and full repaint.
+The simulator must run with `LINNSTRUMENT_VIRTUAL_MIDI=1`; its internal test host then stays
+out of the external host's musical and mode ownership.
+
+Native desktop verification has captured an independent three-finger phrase from the
+simulator's actual firmware, saved/reopened it in Tracker, launched/stopped it by clicking
+a virtual pad, observed the decoded LED change from blue to green and back, and restored
+the stock playing display. This is virtual validation, not physical-device qualification.
+Production clip editing, tracker interoperability, external performance routes, Linux
+input clock correlation and Steam Deck qualification remain integration work. The
+standalone application retains its complete firmware-driven workflow.
 
 Edit both packages in this checkout. One diff and commit can contain a cross-boundary change. The original sibling Synth checkout remains untouched. [FORK.json](crates/crest-synth/FORK.json) records the imported working-tree source and hashes, including the uncommitted fixes present at import.
 

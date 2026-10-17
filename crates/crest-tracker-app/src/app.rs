@@ -60,6 +60,15 @@ pub enum TransportScope {
 #[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
 pub enum Request {
     PerformanceInput,
+    PerformanceClips {
+        endpoint: String,
+        pads: u16,
+    },
+    PerformancePlay,
+    #[serde(skip)]
+    PerformancePad {
+        slot: usize,
+    },
     PerformanceRecord {
         slot: usize,
     },
@@ -1037,6 +1046,9 @@ impl App {
                 source,
             } => self.apply_chord(revision, occurrence, event, slot, root, source)?,
             Request::PerformanceAudition { .. }
+            | Request::PerformanceClips { .. }
+            | Request::PerformancePlay
+            | Request::PerformancePad { .. }
             | Request::PerformanceInput
             | Request::PerformanceRecord { .. }
             | Request::PerformanceFinish

@@ -2,12 +2,14 @@
 mod live;
 mod output;
 mod playback;
+mod surface;
 use super::*;
 use crest_linnstrument::Geometry;
 use crest_performance_core::Limits;
 use crest_tracker::performance::Performance;
 pub(super) use live::Live;
 pub(super) use playback::Playback;
+pub(super) use surface::Surface;
 
 pub(super) struct PendingOpen {
     pub document: Document,
@@ -40,6 +42,11 @@ impl Runtime {
         sound: &mut Sound<'_>,
         clock: HostClock,
     ) -> Result<(), String> {
+        if self.performance_surface.is_some() {
+            return Err(
+                "Return the LinnStrument to Play and wait for its acknowledgement first".into(),
+            );
+        }
         if self.performance_live.is_some() {
             return Ok(());
         }
@@ -220,6 +227,7 @@ impl Runtime {
         self.app.borrow_mut().performance = serde_json::json!({
             "session":self.performance_live.as_ref().map(|live| live.engine.snapshot()).or_else(|| self.performance.as_ref().map(Performance::snapshot)),
             "input":self.performance_live.is_some(),
+            "surface":self.performance_surface.as_ref().map(|s| serde_json::json!({"endpoint": s.endpoint, "pads":s.pads(), "status":s.status()})),
             "armed_slot":self.performance_live.as_ref().and_then(|live| live.engine.armed_slot()),
             "input_fault":self.performance_live.as_ref().and_then(|live| live.fault.as_deref()),
             "auditioning":self.performance_playback.is_some(),

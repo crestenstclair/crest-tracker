@@ -9,6 +9,7 @@ pub(super) fn rows(app: &App) -> Vec<WorkspaceRow> {
             "Open expressive Sample example",
         ),
     ]);
+    rows.extend(surface_rows(app));
     rows.extend(commands(&[
         ("performance_input", "Enable LinnStrument MPE input"),
         ("performance_finish", "Finish take and stop input"),
@@ -67,11 +68,82 @@ pub(super) fn rows(app: &App) -> Vec<WorkspaceRow> {
     rows
 }
 
+fn surface_rows(app: &App) -> Vec<WorkspaceRow> {
+    let mut rows = commands(&[
+        ("midi_discover", "Refresh MIDI feedback destinations"),
+        ("synth_settings", "Choose LinnStrument MIDI input"),
+        ("performance_play", "Return LinnStrument to Play"),
+    ]);
+    rows.push(row(
+        "performance_surface_status",
+        "LinnStrument surface",
+        app.performance["surface"]["status"]
+            .as_str()
+            .unwrap_or("PLAY"),
+    ));
+    if let Some(endpoints) = app.outputs["endpoints"].as_array() {
+        for endpoint in endpoints {
+            rows.extend(surface_endpoint_rows(app, endpoint));
+        }
+    }
+    rows
+}
+fn surface_endpoint_rows(app: &App, endpoint: &serde_json::Value) -> Vec<WorkspaceRow> {
+    let Some(id) = endpoint["id"].as_str() else {
+        return vec![];
+    };
+    let name = endpoint["name"].as_str().unwrap_or(id);
+    let connected = app.outputs["connected"]
+        .as_array()
+        .is_some_and(|items| items.iter().any(|item| item == id));
+    if !connected {
+        return vec![row(
+            format!("performance_connect:{id}"),
+            format!("Connect feedback · {name}"),
+            "DISCONNECTED",
+        )];
+    }
+    [200, 128]
+        .into_iter()
+        .map(|pads| {
+            row(
+                format!("performance_clips:{pads}:{id}"),
+                format!("Clips mode · {pads} pads · {name}"),
+                if app.performance["surface"]["endpoint"] == id
+                    && app.performance["surface"]["pads"].as_u64() == Some(pads)
+                {
+                    "SELECTED"
+                } else {
+                    "Select matching LinnStrument feedback port"
+                },
+            )
+        })
+        .collect()
+}
+
 pub(super) fn activate(app: &mut App, id: &str) -> bool {
     if app.workspace.panel != Some(Panel::Performance) {
         return false;
     }
-    let request = if id == "performance_input" {
+    let request = if id == "performance_play" {
+        Request::PerformancePlay
+    } else if let Some(endpoint) = id.strip_prefix("performance_connect:") {
+        Request::MidiOutput {
+            action: "connect".into(),
+            endpoint: Some(endpoint.into()),
+        }
+    } else if let Some((pads, endpoint)) = id
+        .strip_prefix("performance_clips:")
+        .and_then(|s| s.split_once(':'))
+    {
+        let Ok(pads) = pads.parse::<u16>() else {
+            return true;
+        };
+        Request::PerformanceClips {
+            endpoint: endpoint.into(),
+            pads,
+        }
+    } else if id == "performance_input" {
         Request::PerformanceInput
     } else if id == "performance_finish" {
         Request::PerformanceFinish
@@ -117,6 +189,36 @@ pub(super) fn activate(app: &mut App, id: &str) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn feedback_selection_preserves_opaque_endpoint_and_geometry() {
+        let mut app = App::new();
+        super::super::commands::activate(&mut app, "menu");
+        super::super::commands::activate(&mut app, "performance");
+        app.outputs = serde_json::json!({"endpoints":[{"id":"opaque:feedback:7", "name":"LinnStrument feedback"}], "connected":[]});
+        assert!(rows(&app)
+            .iter()
+            .any(|r| r.id == "performance_connect:opaque:feedback:7"));
+        assert!(activate(&mut app, "performance_connect:opaque:feedback:7"));
+        assert!(
+            matches!(app.requests.last(), Some(Request::MidiOutput { action, endpoint: Some(endpoint) }) if action == "connect" && endpoint == "opaque:feedback:7")
+        );
+        app.outputs["connected"] = serde_json::json!(["opaque:feedback:7"]);
+        assert!(rows(&app)
+            .iter()
+            .any(|r| r.id == "performance_clips:128:opaque:feedback:7"));
+        assert!(activate(
+            &mut app,
+            "performance_clips:128:opaque:feedback:7"
+        ));
+        assert!(
+            matches!(app.requests.last(), Some(Request::PerformanceClips { endpoint, pads: 128 }) if endpoint == "opaque:feedback:7")
+        );
+        assert!(activate(&mut app, "performance_play"));
+        assert!(matches!(
+            app.requests.last(),
+            Some(Request::PerformancePlay)
+        ));
+    }
     #[test]
     fn performance_navigation_preserves_back_focus_and_uses_semantic_transport() {
         let mut app = App::new();
