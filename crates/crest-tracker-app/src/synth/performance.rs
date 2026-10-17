@@ -1,6 +1,7 @@
 //! Tracker owns project lifecycle and sound bindings around the released library.
 mod bank;
 mod editing;
+mod harmony;
 mod live;
 mod output;
 mod playback;
@@ -77,7 +78,12 @@ impl Runtime {
         let document = self
             .performance_document()?
             .ok_or("Open a performance session first")?;
-        let live = Live::new(
+        let mode = self
+            .performance
+            .as_ref()
+            .map(|engine| engine.snapshot().mode)
+            .unwrap_or(crest_performance_core::SurfaceMode::Play);
+        let mut live = Live::new(
             document,
             &self.app.borrow(),
             sound,
@@ -85,6 +91,10 @@ impl Runtime {
             revision,
             overflow,
         )?;
+        harmony::require_supported(live.engine.snapshot().harmony, mode)?;
+        live.engine
+            .command(crest_performance_core::Command::SetMode(mode))
+            .map_err(|e| e.to_string())?;
         sound.release_default_input().map_err(|e| e.to_string())?;
         sound.cancel_monitor_schedule().map_err(|e| e.to_string())?;
         self.app.borrow_mut().performance_editor = None;
@@ -286,8 +296,18 @@ impl Runtime {
         Ok(())
     }
     pub(super) fn project_performance(&self) {
+        let session = self
+            .performance_live
+            .as_ref()
+            .map(|live| live.engine.snapshot())
+            .or_else(|| self.performance.as_ref().map(Performance::snapshot));
+        let last_voicing = session
+            .as_ref()
+            .and_then(|state| state.last_voicing.as_ref())
+            .map(|v| v.notes());
         self.app.borrow_mut().performance = serde_json::json!({
-            "session":self.performance_live.as_ref().map(|live| live.engine.snapshot()).or_else(|| self.performance.as_ref().map(Performance::snapshot)),
+            "session":session,
+            "harmony_notes":last_voicing,
             "input":self.performance_live.is_some(),
             "surface":self.performance_surface.as_ref().map(|s| serde_json::json!({"endpoint": s.endpoint, "pads":s.pads(), "status":s.status()})),
             "armed_slot":self.performance_live.as_ref().and_then(|live| live.engine.armed_slot()),

@@ -12,6 +12,7 @@ mod minimap;
 mod notes;
 mod performance;
 mod performance_edit;
+mod performance_harmony;
 mod phrase;
 mod projection;
 mod settings;
@@ -57,6 +58,7 @@ enum Panel {
     ChordLibrary,
     Performance,
     PerformanceEdit,
+    PerformanceHarmony,
     Repair,
     Midi,
     MidiBinding,
@@ -188,7 +190,7 @@ pub fn action(app: &mut App, action: SemanticAction) -> bool {
         SemanticAction::PreviewStart
             if matches!(
                 app.workspace.panel,
-                Some(Panel::Performance | Panel::PerformanceEdit)
+                Some(Panel::Performance | Panel::PerformanceEdit | Panel::PerformanceHarmony)
             ) =>
         {
             app.requests.push(performance::transport(app));
@@ -476,7 +478,7 @@ pub fn event(app: &mut App, event: WorkspaceEvent) {
         app.requests.push(
             if matches!(
                 app.workspace.panel,
-                Some(Panel::Performance | Panel::PerformanceEdit)
+                Some(Panel::Performance | Panel::PerformanceEdit | Panel::PerformanceHarmony)
             ) {
                 performance::transport(app)
             } else {

@@ -135,6 +135,7 @@ fn project_panel(app: &App, panel: Panel, view: &mut WorkspaceProjection) {
         Panel::NoteSelection => "SELECTION / CLIPBOARD".into(),
         Panel::NoteHistory => "UNDO / REDO".into(),
         Panel::ChordLibrary => "CHORD LIBRARY".into(),
+        Panel::PerformanceHarmony => "PERFORMANCE HARMONY".into(),
         Panel::MidiBinding => "MIDI BINDING".into(),
         _ => format!("{panel:?}").to_uppercase(),
     };
@@ -204,6 +205,7 @@ fn project_panel(app: &App, panel: Panel, view: &mut WorkspaceProjection) {
         Panel::Library => library::sound_rows(app),
         Panel::ChordLibrary => library::chord_rows(app),
         Panel::Performance => performance::rows(app),
+        Panel::PerformanceHarmony => performance_harmony::rows(app),
         Panel::PerformanceEdit => {
             performance_edit::project(app, view);
             performance_edit::rows(app)

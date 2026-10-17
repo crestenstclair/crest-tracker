@@ -4,7 +4,7 @@ use super::*;
 use crest_performance_core::Command;
 
 impl Runtime {
-    fn require_performance_clip_change(&self) -> Result<(), String> {
+    pub(in crate::synth) fn require_performance_change(&self) -> Result<(), String> {
         if self.pending_open.is_some()
             || self.loading.is_some()
             || self.capture_baseline.is_some()
@@ -28,7 +28,7 @@ impl Runtime {
         clock: HostClock,
         slot: usize,
     ) -> Result<(), String> {
-        self.require_performance_clip_change()?;
+        self.require_performance_change()?;
         self.performance_live
             .as_mut()
             .ok_or("Enable LinnStrument MPE input before playing the phrase to capture")?
@@ -40,7 +40,7 @@ impl Runtime {
     }
 
     pub(in crate::synth) fn undo_performance_clip_change(&mut self) -> Result<(), String> {
-        self.require_performance_clip_change()?;
+        self.require_performance_change()?;
         let engine = self
             .performance_live
             .as_mut()

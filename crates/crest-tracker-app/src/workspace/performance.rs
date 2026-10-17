@@ -9,6 +9,10 @@ pub(super) fn rows(app: &App) -> Vec<WorkspaceRow> {
             "Open expressive Sample example",
         ),
     ]);
+    rows.extend(commands(&[(
+        "performance_harmony",
+        "Harmony · chords and strumplate",
+    )]));
     rows.extend(surface_rows(app));
     rows.push(row(
         "performance_launch_grid",

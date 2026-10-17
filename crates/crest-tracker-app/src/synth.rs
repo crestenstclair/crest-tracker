@@ -801,6 +801,8 @@ impl Runtime {
             return Err("Finish or cancel asset repair before changing the Song".into());
         }
         match request {
+            Request::PerformanceInputMode { mode } => self.set_performance_input_mode(sound, mode),
+            Request::PerformanceHarmony { edit } => self.edit_performance_harmony(edit),
             Request::PerformanceLaunchGrid { grid } => {
                 self.performance_launch_grid = grid;
                 Ok(())
@@ -808,7 +810,7 @@ impl Runtime {
             Request::PerformanceClips { endpoint, pads } => {
                 self.enter_performance_clips(sound, endpoint, pads)
             }
-            Request::PerformancePlay => self.restore_performance_surface(),
+            Request::PerformancePlay => self.return_performance_to_play(sound),
             Request::PerformancePad { slot } => self.performance_pad(sound, clock, slot),
             Request::PerformanceEdit { slot } => self.open_performance_editor(sound, slot),
             Request::PerformanceNote {

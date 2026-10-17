@@ -201,6 +201,29 @@ impl Live {
         Ok(())
     }
 
+    /// Validate the library transition before touching native ownership. Cancel
+    /// the Monitor lane only; separately running clips retain their groups.
+    pub fn set_mode(
+        &mut self,
+        sound: &mut Sound<'_>,
+        mode: crest_performance_core::SurfaceMode,
+    ) -> Result<(), String> {
+        if self.engine.armed_slot().is_some() {
+            return Err("Finish or discard the armed take before changing mode".into());
+        }
+        self.engine
+            .command(Command::SetMode(mode))
+            .map_err(|e| e.to_string())?;
+        if let Err(error) = sound.cancel_monitor_schedule() {
+            self.fault = Some(error.to_string());
+            return Err(error.to_string());
+        }
+        self.pending.clear();
+        self.engine.drain_output().for_each(drop);
+        self.outputs.reset();
+        Ok(())
+    }
+
     pub fn recording(&self) -> bool {
         self.engine.snapshot().slots.contains(&SlotState::Recording)
     }

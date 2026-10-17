@@ -50,6 +50,14 @@ impl Outputs {
         }
         Ok(Self(destinations))
     }
+    /// Called only after the native lane has been canceled. Discard channel and
+    /// voice ownership together so the next attack cannot inherit stale state.
+    pub fn reset(&mut self) {
+        for destination in self.0.values_mut() {
+            destination.midi.release_all();
+            destination.voices.clear();
+        }
+    }
     pub fn schedule(
         &mut self,
         sound: &mut Sound<'_>,

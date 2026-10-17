@@ -48,6 +48,41 @@ pitch, timbre and pressure in Braids and actual resident sfizz audio. Integratio
 cover Sample playback and project save/reopen, deadline recovery and unsupported-engine
 rejection; native heap/lock checks cover callback expression and voice reuse.
 
+**Performance clips → Harmony · chords and strumplate** exposes the library's diatonic
+chords in the existing semantic workspace. Choose Play or Chords, then enable MPE input.
+Seven adjacent chromatic input notes beginning at the displayed input anchor select degrees
+I–VII; the stock LinnStrument keeps generating its ordinary MPE messages. Tonic, scale,
+sevenths/ninths, suspensions, borrowed chords, inversions, register, spread and voice leading
+use the library's original implementation. The panel displays selected and last-played
+voicings. All-voice or top-voice expression is captured at each attack; changing it does not
+reassign held voices. Manual strumplate mode picks successive tones of the selected degree,
+with each finger retaining its own expression and release. These controls use the same
+keyboard/controller navigation as the other workspace panels.
+
+Settings persist in the library session. Project reopening starts safely in Play. Recording
+stores rendered chord notes and per-note curves alongside generating gestures. Existing
+clip players retain their snapshots until relaunch. Mode changes cancel live sounding and
+queued voices without stopping clips; an armed or active take must first be finished or
+discarded. Return LinnStrument to Play also restores ordinary library playing. Chords cannot
+start while Clips-mode firmware restoration is pending. Native Sample and Braids witnesses
+exercise these controls, expressive chord recording, project round trips and simultaneous
+playback through the actual embedded engines, with zero callback allocations/deallocations
+and zero late scheduled events.
+
+macOS desktop verification used the firmware replica's sensor pad, mouse drag and pressure
+keys to record one C/E/G chord into clip 2. The saved schema-8 project contains 30 ordered
+events with changing X/Y/Z on each generated note and balanced releases. Reopening retained
+the phrase, and clips 1 and 2 looped together. The semantic inversion/register/spread controls
+produced the independently expected `[76, 84, 91]` voicing while existing loops continued.
+The local evidence project is `target/dev/firmware-harmony.crest-song`; native automated
+witnesses provide reproducible assertions separately from this manual capture.
+
+Live chord pads currently admit Block articulation. Imported delayed strum, humanization or
+arpeggio settings are retained but reject chord-mode activation until explicitly changed to
+Block; manual strumplate remains immediate. Continuous scheduling for those live articulations
+is separate work. This restriction does not alter already rendered recorded clips or the
+independent library's articulation support.
+
 Each player uses a disposable clip snapshot, the Song's tempo at start, at least 50 ms scheduling
 lead and the existing 100 ms scheduling window. Additional launches begin after already-published
 lookahead, so immediate launch latency may approach 100 ms. Events merge chronologically on the
@@ -107,7 +142,7 @@ channel-monitor voices first. The initial native path requires the existing Core
 CoreAudio clock correlation on macOS. Linux input correlation remains implementation and
 qualification work: the pinned CPAL ALSA stream and midir input queue report independent
 relative clocks without a shared epoch. Capture rejects this configuration explicitly.
-Native Sample witnesses cover six concurrent voices, capture, project serialization,
+Native Sample witnesses cover concurrent clips and live voices, capture, project serialization,
 reopened playback with live input and interrupted-take retention.
 
 While recording, the existing recovery worker checkpoints a stopped copy every 250 ms,

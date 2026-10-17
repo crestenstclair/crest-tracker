@@ -75,9 +75,49 @@ impl PerformanceLaunchGrid {
         })
     }
 }
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum PerformanceInputMode {
+    Play,
+    Chords,
+}
+impl PerformanceInputMode {
+    pub fn surface(self) -> crest_performance_core::SurfaceMode {
+        match self {
+            Self::Play => crest_performance_core::SurfaceMode::Play,
+            Self::Chords => crest_performance_core::SurfaceMode::Chords,
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Deserialize)]
+#[serde(tag = "control", rename_all = "snake_case", deny_unknown_fields)]
+pub enum PerformanceHarmonyEdit {
+    Tonic { delta: i8 },
+    Anchor { delta: i8 },
+    Scale,
+    Extension,
+    Suspension,
+    Borrowed,
+    Inversion { delta: i8 },
+    Register { delta: i8 },
+    Spread,
+    VoiceLeading,
+    Expression,
+    Playing,
+    Degree { degree: u8 },
+    BlockArticulation,
+}
+
 #[derive(Clone, Debug, Deserialize)]
 #[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
 pub enum Request {
+    PerformanceInputMode {
+        mode: PerformanceInputMode,
+    },
+    PerformanceHarmony {
+        edit: PerformanceHarmonyEdit,
+    },
     PerformanceLaunchGrid {
         grid: PerformanceLaunchGrid,
     },
@@ -1087,7 +1127,9 @@ impl App {
                 root,
                 source,
             } => self.apply_chord(revision, occurrence, event, slot, root, source)?,
-            Request::PerformanceAudition { .. }
+            Request::PerformanceInputMode { .. }
+            | Request::PerformanceHarmony { .. }
+            | Request::PerformanceAudition { .. }
             | Request::PerformanceLaunchGrid { .. }
             | Request::PerformanceClips { .. }
             | Request::PerformancePlay
