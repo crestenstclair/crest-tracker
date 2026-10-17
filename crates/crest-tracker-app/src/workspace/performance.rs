@@ -43,6 +43,19 @@ pub(super) fn rows(app: &App) -> Vec<WorkspaceRow> {
             clip.playing = playing;
             clip
         }));
+        rows.extend(
+            slots
+                .iter()
+                .enumerate()
+                .filter(|(_, state)| *state == "recorded")
+                .map(|(slot, _)| {
+                    row(
+                        format!("performance_edit:{slot}"),
+                        format!("Edit clip {}", slot + 1),
+                        "PIANO ROLL",
+                    )
+                }),
+        );
         rows.extend(slots.iter().enumerate().map(|(slot, state)| {
             row(
                 format!("performance_record:{slot}"),
@@ -125,7 +138,12 @@ pub(super) fn activate(app: &mut App, id: &str) -> bool {
     if app.workspace.panel != Some(Panel::Performance) {
         return false;
     }
-    let request = if id == "performance_play" {
+    let request = if let Some(slot) = id
+        .strip_prefix("performance_edit:")
+        .and_then(|s| s.parse::<usize>().ok())
+    {
+        Request::PerformanceEdit { slot }
+    } else if id == "performance_play" {
         Request::PerformancePlay
     } else if let Some(endpoint) = id.strip_prefix("performance_connect:") {
         Request::MidiOutput {
@@ -184,6 +202,20 @@ pub(super) fn activate(app: &mut App, id: &str) -> bool {
     };
     app.requests.push(request);
     true
+}
+
+pub(super) fn transport(app: &App) -> Request {
+    if app.playing {
+        Request::Stop
+    } else {
+        Request::PerformanceAudition {
+            slot: app
+                .performance_editor
+                .as_ref()
+                .filter(|_| app.workspace.panel == Some(Panel::PerformanceEdit))
+                .map_or(0, |editor| editor.slot),
+        }
+    }
 }
 
 #[cfg(test)]

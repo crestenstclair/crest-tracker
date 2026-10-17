@@ -1,4 +1,5 @@
 //! Tracker owns project lifecycle and sound bindings around the released library.
+mod editing;
 mod live;
 mod output;
 mod playback;
@@ -81,6 +82,7 @@ impl Runtime {
         )?;
         sound.release_default_input().map_err(|e| e.to_string())?;
         sound.cancel_monitor_schedule().map_err(|e| e.to_string())?;
+        self.app.borrow_mut().performance_editor = None;
         self.performance_live = Some(live);
         self.performance = None;
         self.app.borrow_mut().status =
@@ -124,6 +126,7 @@ impl Runtime {
         };
         if let Err(error) = live.finish(frame, discard) {
             live.fault = Some(error.clone());
+            self.app.borrow_mut().performance_editor = None;
             self.performance_live = Some(live);
             return Err(error);
         }

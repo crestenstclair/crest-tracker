@@ -11,6 +11,7 @@ mod midi;
 mod minimap;
 mod notes;
 mod performance;
+mod performance_edit;
 mod phrase;
 mod projection;
 mod settings;
@@ -55,6 +56,7 @@ enum Panel {
     Library,
     ChordLibrary,
     Performance,
+    PerformanceEdit,
     Repair,
     Midi,
     MidiBinding,
@@ -111,6 +113,10 @@ fn open(app: &mut App, panel: Option<Panel>) {
     app.workspace.focus = None;
     app.workspace.text = None;
     cancel_edit(app);
+}
+pub(crate) fn open_performance_editor(app: &mut App) {
+    open(app, Some(Panel::PerformanceEdit));
+    app.workspace.focus = Some("performance_pitch".into());
 }
 fn back(app: &mut App) {
     let (panel, focus) = app.workspace.parents.pop().unwrap_or((None, None));
@@ -179,12 +185,13 @@ pub fn action(app: &mut App, action: SemanticAction) -> bool {
         SemanticAction::NavigatePage(direction) => navigate_page(app, direction),
         SemanticAction::Adjust(direction) => adjust(app, direction),
         SemanticAction::Activate => activate_focused(app),
-        SemanticAction::PreviewStart if app.workspace.panel == Some(Panel::Performance) => {
-            app.requests.push(if app.playing {
-                Request::Stop
-            } else {
-                Request::PerformanceAudition { slot: 0 }
-            });
+        SemanticAction::PreviewStart
+            if matches!(
+                app.workspace.panel,
+                Some(Panel::Performance | Panel::PerformanceEdit)
+            ) =>
+        {
+            app.requests.push(performance::transport(app));
         }
         SemanticAction::PreviewStart => app.requests.push(Request::Play),
         SemanticAction::PreviewStop => {}
@@ -305,6 +312,9 @@ fn adjust(app: &mut App, direction: Direction) {
     match app.workspace.panel {
         Some(Panel::FxCommands) => navigate(app, direction),
         Some(Panel::Midi | Panel::MidiBinding) => midi::adjust(app, &focused_id(app), field_delta),
+        Some(Panel::PerformanceEdit) => {
+            performance_edit::adjust(app, &focused_id(app), field_delta)
+        }
         Some(Panel::Generator) => generator::adjust(app, &focused_id(app), field_delta),
         Some(Panel::Effects) => effects::adjust(app, &focused_id(app), field_delta),
         Some(Panel::Notes | Panel::NoteValues | Panel::NoteSelection) => {
@@ -458,7 +468,16 @@ pub fn event(app: &mut App, event: WorkspaceEvent) {
         WorkspaceEvent::Submit { .. } | WorkspaceEvent::TextChanged { .. } => unreachable!(),
     };
     if id == "transport" && activate_row {
-        app.requests.push(Request::Play);
+        app.requests.push(
+            if matches!(
+                app.workspace.panel,
+                Some(Panel::Performance | Panel::PerformanceEdit)
+            ) {
+                performance::transport(app)
+            } else {
+                Request::Play
+            },
+        );
         return;
     }
     if id == "instruments" {
@@ -487,6 +506,10 @@ pub fn event(app: &mut App, event: WorkspaceEvent) {
     }
     if let Some(timeline) = &view.timeline {
         if timeline.spans.iter().any(|span| span.id == id) {
+            if app.workspace.panel == Some(Panel::PerformanceEdit) {
+                performance_edit::select(app, &id);
+                return;
+            }
             if let (Some(event), Some(occurrence)) = (
                 id.strip_prefix("note:")
                     .and_then(|id| id.parse().ok())
@@ -611,7 +634,7 @@ fn field_delta(app: &App, id: &str, direction: Direction, delta: i32) -> i32 {
     }
     if matches!(
         id,
-        "gen_pitch" | "gen_low" | "gen_high" | "notes_pitch" | "chord_root"
+        "gen_pitch" | "gen_low" | "gen_high" | "notes_pitch" | "chord_root" | "performance_pitch"
     ) || id.starts_with("gen_note:")
         || id.starts_with("chord_interval:")
     {

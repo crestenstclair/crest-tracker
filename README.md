@@ -17,7 +17,9 @@ A fresh checkout needs the pinned Rust 1.96.0 toolchain, the native build prereq
 - `crates/crest-tracker-app`: composes both through `HostedSynthControl`; owns the Song file and Tracker workspace state.
 
 The independent [Crest Performance v0.1.0](https://github.com/crestenstclair/crest-linnstrument/releases/tag/v0.1.0)
-library is consumed by its Git tag and lockfile, without a sibling checkout. The Tracker-owned
+baseline is consumed at pinned patch commit `efe5f994802ad919a21984bea744bd5f7a45e310`
+and its lockfile, without a sibling checkout. This deliberate upgrade preserves release-time
+expression and unedited zero-duration notes during clip edits; API and session versions are unchanged. The Tracker-owned
 `performance` adapter provides exact rational/fixed-point time conversion, instrument bindings,
 public commands, timestamped MIDI input, versioned state and separate LED feedback. Shared
 contract fixtures verify expressive record/reopen/playback equivalence. Song format 2 embeds
@@ -81,9 +83,23 @@ Native desktop verification has captured an independent three-finger phrase from
 simulator's actual firmware, saved/reopened it in Tracker, launched/stopped it by clicking
 a virtual pad, observed the decoded LED change from blue to green and back, and restored
 the stock playing display. This is virtual validation, not physical-device qualification.
-Production clip editing, tracker interoperability, external performance routes, Linux
-input clock correlation and Steam Deck qualification remain integration work. The
-standalone application retains its complete firmware-driven workflow.
+**Edit clip** opens the existing native piano-roll timeline over the library's note
+projection. Select a span or use Previous/Next, then edit pitch, exact start or duration.
+The quarter-beat ruler is visual: controller timing nudges add 1/16 beat to the existing
+time without snapping, and text accepts exact beat fractions representable at 960,000
+ticks per beat. Moving or repitching retains every expression sample, including samples
+at release. Shortening explicitly removes samples at or beyond the new end; **Undo clip
+edit** restores the complete prior clip. Editing stops that clip first, and playing clips
+reject edits until stopped. The editor uses stable note identities, rejects stale commands
+and saves through the existing project lifecycle. It currently edits existing notes;
+adding/removing notes, expression-curve tools and tracker interoperability remain work.
+Native Sample witnesses cover exact movement, Undo, repitching, save/reopen and audible replay.
+Desktop verification exercised keyboard editing, unchanged expression counts, playback
+rejection while editing, Undo's clean state and reopening the saved repitched clip.
+
+External performance routes, Linux input clock correlation and Steam Deck qualification
+also remain integration work. The standalone application retains its complete
+firmware-driven workflow.
 
 Edit both packages in this checkout. One diff and commit can contain a cross-boundary change. The original sibling Synth checkout remains untouched. [FORK.json](crates/crest-synth/FORK.json) records the imported working-tree source and hashes, including the uncommitted fixes present at import.
 

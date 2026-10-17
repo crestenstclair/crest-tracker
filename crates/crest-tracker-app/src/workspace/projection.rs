@@ -204,6 +204,10 @@ fn project_panel(app: &App, panel: Panel, view: &mut WorkspaceProjection) {
         Panel::Library => library::sound_rows(app),
         Panel::ChordLibrary => library::chord_rows(app),
         Panel::Performance => performance::rows(app),
+        Panel::PerformanceEdit => {
+            performance_edit::project(app, view);
+            performance_edit::rows(app)
+        }
         Panel::Repair => library::repair_rows(app),
         Panel::Midi => midi::rows(app),
         Panel::MidiBinding => midi::binding_rows(app),

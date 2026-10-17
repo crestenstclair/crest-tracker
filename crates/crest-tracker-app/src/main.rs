@@ -4,6 +4,7 @@ mod library;
 mod midi_clock;
 mod midi_import;
 mod midi_output;
+mod performance_editor;
 mod persistence;
 mod preferences;
 mod recovery;

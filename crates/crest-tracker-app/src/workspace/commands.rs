@@ -35,7 +35,8 @@ pub(super) fn activate(app: &mut App, id: &str) {
         chord_action(app, id);
         return;
     }
-    if performance::activate(app, id)
+    if performance_edit::activate(app, id)
+        || performance::activate(app, id)
         || arrangement::activate(app, id)
         || library::activate(app, id)
         || midi::activate(app, id)
@@ -298,6 +299,13 @@ pub(super) fn submit(app: &mut App, id: &str, value: String) {
         .as_ref()
         .is_none_or(|entry| entry.id != id)
     {
+        return;
+    }
+    if id.starts_with("performance_value:") {
+        match performance_edit::submit(app, id, &value) {
+            Ok(()) => back(app),
+            Err(error) => app.status = error,
+        }
         return;
     }
     if matches!(id, "chord_name" | "chord_intervals") {

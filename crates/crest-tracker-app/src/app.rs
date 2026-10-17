@@ -59,6 +59,19 @@ pub enum TransportScope {
 #[derive(Clone, Debug, Deserialize)]
 #[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
 pub enum Request {
+    PerformanceEdit {
+        slot: usize,
+    },
+    PerformanceNote {
+        token: u64,
+        note: crest_performance_core::NoteKey,
+        key: u8,
+        start: crest_performance_core::BeatTime,
+        duration: crest_performance_core::BeatTime,
+    },
+    PerformanceUndo {
+        token: u64,
+    },
     PerformanceInput,
     PerformanceClips {
         endpoint: String,
@@ -582,6 +595,7 @@ pub struct App {
     pub shift_held: bool,
     pub capture: Value,
     pub performance: Value,
+    pub performance_editor: Option<crate::performance_editor::ClipEditor>,
     pub outputs: Value,
     pub recovery: Value,
     pub resource_repair: Value,
@@ -651,6 +665,7 @@ impl App {
             shift_held: false,
             capture: json!({"state":"idle"}),
             performance: Value::Null,
+            performance_editor: None,
             outputs: json!({}),
             recovery: Value::Null,
             resource_repair: Value::Null,
@@ -696,6 +711,7 @@ impl App {
     /// A replacement document may reuse phrase IDs from the previous Song.
     pub fn reset_document_editors(&mut self) {
         self.clear_event_selection();
+        self.performance_editor = None;
         self.workspace = crate::workspace::Navigation::default();
         self.drum_drafts.clear();
         self.roll_cursor = Beat::ZERO;
@@ -1049,6 +1065,9 @@ impl App {
             | Request::PerformanceClips { .. }
             | Request::PerformancePlay
             | Request::PerformancePad { .. }
+            | Request::PerformanceEdit { .. }
+            | Request::PerformanceNote { .. }
+            | Request::PerformanceUndo { .. }
             | Request::PerformanceInput
             | Request::PerformanceRecord { .. }
             | Request::PerformanceFinish

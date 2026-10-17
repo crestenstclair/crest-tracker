@@ -144,6 +144,16 @@ impl Performance {
     pub fn snapshot(&self) -> PerformanceSnapshot {
         self.engine.snapshot()
     }
+    /// Read the authoritative clip without converting its expression or timing.
+    /// Hosts project notes only when opening or changing an editor, off the clock path.
+    pub fn clip(&self, slot: usize) -> Result<Option<&library::Clip>> {
+        self.engine
+            .session()
+            .slots
+            .get(slot)
+            .map(|slot| slot.clip.as_ref())
+            .ok_or(Error::Binding("unknown clip slot"))
+    }
     /// Start capture at the next accepted member attack, preserving source time.
     /// Idle UI ticks need not advance the input engine to establish a record boundary.
     pub fn arm_recording(&mut self, slot: usize) -> Result<()> {

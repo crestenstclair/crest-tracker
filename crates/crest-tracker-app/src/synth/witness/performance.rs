@@ -359,7 +359,7 @@ struct SampleJourney {
     stage: u8,
     started: u64,
     path: PathBuf,
-    performance: Option<Value>,
+    performance: Option<crest_tracker::performance::Document>,
 }
 
 impl SampleJourney {
@@ -380,10 +380,11 @@ impl SampleJourney {
             1 if runtime.app.borrow().editor.song().name
                 == "Expressive Sample performance example" =>
             {
-                self.performance =
-                    Some(serde_json::to_value(runtime.performance_document().unwrap()).unwrap());
-                queue(runtime, Request::PerformanceAudition { slot: 0 });
-                self.stage = 2;
+                self.performance = runtime.performance_document().unwrap();
+                activate(runtime, "menu");
+                activate(runtime, "performance");
+                activate(runtime, "performance_edit:0");
+                self.stage = 13;
             }
             2 if runtime.performance_playback.is_some() => {
                 self.started = audio.rendered_frames();
@@ -411,10 +412,7 @@ impl SampleJourney {
             5 if choose(runtime, &self.path) => self.stage = 6,
             6 if !runtime.saving && runtime.app.borrow().path.as_ref() == Some(&self.path) => {
                 let saved = Document::read(&self.path).unwrap();
-                assert_eq!(
-                    serde_json::to_value(saved.performance).unwrap(),
-                    *self.performance.as_ref().unwrap()
-                );
+                assert_eq!(saved.performance, self.performance);
                 assert_eq!(
                     saved.synth["patches"][0]["instrument"]["capabilityId"],
                     "instrument.sample"
@@ -426,6 +424,65 @@ impl SampleJourney {
                     },
                 );
                 self.stage = 7;
+            }
+            _ => {}
+        }
+    }
+
+    fn edit_and_undo(&mut self, runtime: &mut Runtime) {
+        let Some(view) = runtime.app.borrow().performance_editor.clone() else {
+            return;
+        };
+        let source = self.performance.as_ref().unwrap().session.slots[0]
+            .clip
+            .as_ref()
+            .unwrap()
+            .notes()
+            .unwrap();
+        let original = &source[0];
+        let current = view
+            .notes
+            .iter()
+            .find(|note| note.id == original.id)
+            .unwrap();
+        match self.stage {
+            13 => {
+                assert_eq!(view.notes, source);
+                submit_clip_value(
+                    runtime,
+                    "performance_start",
+                    &format!("{}/960000", original.start.0 + 37),
+                );
+                self.stage = 14;
+            }
+            14 if current.start.0 == original.start.0 + 37 => {
+                assert_eq!(current.expression, original.expression);
+                assert_eq!(current.duration, original.duration);
+                activate(runtime, "performance_undo_edit");
+                self.stage = 15;
+            }
+            15 if !view.can_undo => {
+                assert_eq!(runtime.performance_document().unwrap(), self.performance);
+                submit_clip_value(
+                    runtime,
+                    "performance_pitch",
+                    &(original.key + 1).to_string(),
+                );
+                self.stage = 16;
+            }
+            16 if current.key == original.key + 1 => {
+                assert_eq!(current.expression, original.expression);
+                assert_eq!(
+                    (current.start, current.duration),
+                    (original.start, original.duration)
+                );
+                assert!(source
+                    .iter()
+                    .filter(|note| note.id != original.id)
+                    .all(|note| view.notes.contains(note)));
+                self.performance = runtime.performance_document().unwrap();
+                activate(runtime, "performance_editor_launch");
+                self.stage = 2;
             }
             _ => {}
         }
@@ -450,10 +507,7 @@ impl SampleJourney {
                 == "Expressive Sample performance example"
                 && runtime.pending_open.is_none() =>
             {
-                assert_eq!(
-                    serde_json::to_value(runtime.performance_document().unwrap()).unwrap(),
-                    *self.performance.as_ref().unwrap()
-                );
+                assert_eq!(runtime.performance_document().unwrap(), self.performance);
                 queue(runtime, Request::PerformanceAudition { slot: 0 });
                 self.stage = 10;
             }
@@ -477,9 +531,25 @@ impl SampleJourney {
     }
 }
 
+fn submit_clip_value(runtime: &Runtime, field: &str, value: &str) {
+    activate(runtime, field);
+    let entry = crate::workspace::project(&runtime.app.borrow())
+        .workspace
+        .unwrap()
+        .text_entry
+        .unwrap();
+    crate::workspace::event(
+        &mut runtime.app.borrow_mut(),
+        WorkspaceEvent::Submit {
+            id: entry.id,
+            value: value.into(),
+        },
+    );
+}
+
 #[test]
 #[ignore = "production sample DSP, public library and project lifecycle witness"]
-fn firmware_phrase_plays_through_sample_and_survives_project_save_reopen() {
+fn firmware_phrase_edits_undo_and_sample_playback_survive_project_save_reopen() {
     let root = scenarios::temp_root("performance-sample");
     let mut journey = SampleJourney {
         stage: 0,
@@ -490,6 +560,9 @@ fn firmware_phrase_plays_through_sample_and_survives_project_save_reopen() {
     let evidence = run(
         &root,
         Box::new(move |runtime, audio, evidence| {
+            if (13..=16).contains(&journey.stage) {
+                journey.edit_and_undo(runtime);
+            }
             journey.first_play_and_save(runtime, audio, evidence);
             journey.reopen_and_play(runtime, audio)
         }),
