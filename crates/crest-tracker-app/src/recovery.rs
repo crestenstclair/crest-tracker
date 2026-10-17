@@ -18,18 +18,36 @@ pub struct RecoverySnapshot {
     format: String,
     version: u32,
     baseline: Document,
-    recording: RecordingCheckpoint,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    recording: Option<RecordingCheckpoint>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    performance_slot: Option<usize>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     checkpoint_unix_millis: Option<u64>,
 }
 
 impl RecoverySnapshot {
     pub fn new(baseline: Document, recording: RecordingCheckpoint) -> Result<Self, String> {
+        Self::create(baseline, Some(recording), None)
+    }
+
+    /// Version 2 contains a complete stopped performance session. Version 1
+    /// tracker takes remain readable and retain their original encoded shape.
+    pub fn performance(document: Document, slot: usize) -> Result<Self, String> {
+        Self::create(document, None, Some(slot))
+    }
+
+    fn create(
+        baseline: Document,
+        recording: Option<RecordingCheckpoint>,
+        performance_slot: Option<usize>,
+    ) -> Result<Self, String> {
         let snapshot = Self {
             format: "crest-tracker-recording-recovery".into(),
-            version: 1,
+            version: if performance_slot.is_some() { 2 } else { 1 },
             baseline,
             recording,
+            performance_slot,
             checkpoint_unix_millis: Some(
                 std::time::SystemTime::now()
                     .duration_since(std::time::UNIX_EPOCH)
@@ -51,12 +69,38 @@ impl RecoverySnapshot {
         self.checkpoint_unix_millis
     }
     pub fn take_events(&self) -> usize {
-        self.recording.draft_event_count()
+        if let Some(recording) = &self.recording {
+            return recording.draft_event_count();
+        }
+        self.performance_slot
+            .and_then(|slot| {
+                self.baseline
+                    .performance
+                    .as_ref()?
+                    .session
+                    .slots
+                    .get(slot)?
+                    .clip
+                    .as_ref()
+            })
+            .map_or(0, |clip| clip.events.len())
+    }
+    pub fn performance_slot(&self) -> Option<usize> {
+        self.performance_slot
     }
 
     /// The host must explicitly adopt the saved composite baseline first. This
     /// compares Synth-native content, mappings and pins as well as musical data.
     pub fn restore(&self, current: &Document, editor: &Editor) -> Result<Recorder, String> {
+        self.verify_adoption(current, editor)?;
+        let recording = self
+            .recording
+            .clone()
+            .ok_or("Performance recovery restores its library session, not a tracker take")?;
+        Recorder::recover(recording, editor).map_err(|e| e.to_string())
+    }
+
+    pub fn verify_adoption(&self, current: &Document, editor: &Editor) -> Result<(), String> {
         self.validate()?;
         current.validate()?;
         if serde_json::to_value(current.clone().into_current()?).map_err(|e| e.to_string())?
@@ -66,16 +110,32 @@ impl RecoverySnapshot {
         {
             return Err("Recording recovery belongs to a different composite Song baseline".into());
         }
-        Recorder::recover(self.recording.clone(), editor).map_err(|e| e.to_string())
+        Ok(())
     }
 
     fn validate(&self) -> Result<(), String> {
-        if self.format != "crest-tracker-recording-recovery" || self.version != 1 {
+        if self.format != "crest-tracker-recording-recovery" {
             return Err("Unsupported recording recovery format or version".into());
         }
         self.baseline.validate()?;
-        let editor = Editor::new(self.baseline.song.clone()).map_err(|e| e.to_string())?;
-        Recorder::recover(self.recording.clone(), &editor).map_err(|e| e.to_string())?;
+        match (self.version, &self.recording, self.performance_slot) {
+            (1, Some(recording), None) => {
+                let editor = Editor::new(self.baseline.song.clone()).map_err(|e| e.to_string())?;
+                Recorder::recover(recording.clone(), &editor).map_err(|e| e.to_string())?;
+            }
+            (2, None, Some(slot)) => {
+                if self
+                    .baseline
+                    .performance
+                    .as_ref()
+                    .and_then(|state| state.session.slots.get(slot))
+                    .is_none()
+                {
+                    return Err("Performance recovery slot is missing".into());
+                }
+            }
+            _ => return Err("Unsupported recording recovery format or version".into()),
+        }
         Ok(())
     }
 
@@ -425,6 +485,65 @@ mod tests {
             },
             release,
         )
+    }
+
+    #[test]
+    fn performance_checkpoint_roundtrip_rejects_mixed_payloads_and_keeps_legacy_shape() {
+        let root = root();
+        let (mut baseline, _) = fixture();
+        baseline.performance = Some(crest_tracker::performance::Document {
+            version: 1,
+            session: crest_performance_core::Session::default(),
+            routes: vec![crest_tracker::performance::Route {
+                destination: crest_performance_core::DestinationId(1),
+                instrument: *baseline.song.instruments.keys().next().unwrap(),
+            }],
+        });
+        let snapshot = RecoverySnapshot::performance(baseline.clone(), 0).unwrap();
+        assert_eq!(snapshot.performance_slot(), Some(0));
+        assert_eq!(snapshot.take_events(), 0);
+        let worker = RecoveryWorker::new(root.clone()).unwrap();
+        worker.submit(snapshot.clone()).unwrap();
+        until(|| worker.poll().is_some_and(|result| result.is_ok()));
+        let loaded = RecoveryWorker::load(&root).unwrap().unwrap();
+        let editor = Editor::new(baseline.song.clone()).unwrap();
+        loaded.verify_adoption(&baseline, &editor).unwrap();
+        assert_eq!(
+            serde_json::to_value(loaded.baseline()).unwrap(),
+            serde_json::to_value(&baseline).unwrap()
+        );
+        assert!(loaded.restore(&baseline, &editor).is_err());
+        let encoded = serde_json::to_value(snapshot).unwrap();
+        assert_eq!(encoded["version"], 2);
+        assert!(encoded.get("recording").is_none());
+        let (legacy_baseline, recorder) = fixture();
+        let legacy = RecoverySnapshot::new(legacy_baseline, recorder.checkpoint()).unwrap();
+        let legacy = serde_json::to_value(legacy).unwrap();
+        assert_eq!(legacy["version"], 1);
+        assert!(legacy.get("performance_slot").is_none());
+        let mut mixed = encoded.clone();
+        mixed["recording"] = legacy["recording"].clone();
+        assert!(serde_json::from_value::<RecoverySnapshot>(mixed)
+            .unwrap()
+            .validate()
+            .is_err());
+        let mut future = encoded.clone();
+        future["version"] = json!(3);
+        assert!(serde_json::from_value::<RecoverySnapshot>(future)
+            .unwrap()
+            .validate()
+            .is_err());
+        let mut wrong_slot = encoded;
+        wrong_slot["performance_slot"] = json!(999);
+        assert!(serde_json::from_value::<RecoverySnapshot>(wrong_slot)
+            .unwrap()
+            .validate()
+            .is_err());
+        let mut changed = baseline;
+        changed.performance.as_mut().unwrap().session.harmony.tonic = 61;
+        assert!(loaded.verify_adoption(&changed, &editor).is_err());
+        drop(worker);
+        std::fs::remove_dir_all(root).unwrap();
     }
 
     #[test]

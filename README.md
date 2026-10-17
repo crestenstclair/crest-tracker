@@ -17,9 +17,10 @@ A fresh checkout needs the pinned Rust 1.96.0 toolchain, the native build prereq
 - `crates/crest-tracker-app`: composes both through `HostedSynthControl`; owns the Song file and Tracker workspace state.
 
 The independent [Crest Performance v0.1.0](https://github.com/crestenstclair/crest-linnstrument/releases/tag/v0.1.0)
-baseline is consumed at pinned patch commit `efe5f994802ad919a21984bea744bd5f7a45e310`
+baseline is consumed at pinned patch commit `bbb8504213f154dc5f44c2f6b6f3a7eb741653ac`
 and its lockfile, without a sibling checkout. This deliberate upgrade preserves release-time
-expression and unedited zero-duration notes during clip edits; API and session versions are unchanged. The Tracker-owned
+expression and unedited zero-duration notes during clip edits, and adds stopped recovery snapshots
+with an explicit host-clock cutoff. API and session versions are unchanged. The Tracker-owned
 `performance` adapter provides exact rational/fixed-point time conversion, instrument bindings,
 public commands, timestamped MIDI input, versioned state and separate LED feedback. Shared
 contract fixtures verify expressive record/reopen/playback equivalence. Song format 2 embeds
@@ -43,8 +44,9 @@ existing 100 ms scheduling window. Tempo, graph or sample-rate changes stop it e
 The first output profile is lower-zone MPE with 15 members and a ±48-semitone range per destination;
 only engines advertising proven owned-expression support are admitted (currently Braids and Sample).
 With a selected LinnStrument input, **Enable LinnStrument MPE input** uses the released
-adapter to monitor independently alongside a running clip. **Record clip** arms the
-selected slot; the first member note starts capture. **Finish take and stop input**
+adapter to monitor independently alongside a running clip. **Record clip** verifies sample
+assets on a worker before arming the selected slot; wait for **ARMED** and release any held
+notes before starting. The first member note starts capture. **Finish take and stop input**
 commits the expressive take without stopping clip playback. Stop and Save also finish
 the take. Discard leaves the previous committed clip intact. Relaunch a recorded slot
 to hear its new take; an already running clip retains its original playback snapshot.
@@ -57,8 +59,23 @@ and retain a take through its last accepted gesture. Input takeover releases def
 channel-monitor voices first. The initial native path requires the existing CoreMIDI/
 CoreAudio clock correlation on macOS; Linux input correlation remains qualification work.
 Native Sample witnesses cover six concurrent voices, capture, project serialization,
-reopened playback with live input and interrupted-take retention. This input path has no
-crash checkpoint for an uncommitted library take yet; explicit Finish/Save persists it.
+reopened playback with live input and interrupted-take retention.
+
+While recording, the existing recovery worker checkpoints a stopped copy every 250 ms,
+using the native audio clock to retain elapsed holds even without new MIDI. The live engine
+continues unchanged. Recovery can lose work since the last completed disk write; the cadence
+is not a durability deadline. **Settings → Recording recovery** restores the checkpoint with
+its sound graph, stopped and unsaved. Audition and Stop retain it; successful project Save
+clears it only when that saved performance still matches current state. Discarding a later
+take keeps preceding unsaved clips. Explicit document replacement or Close after the existing
+save/discard decision clears the old checkpoint. Setup failure preserves the prior checkpoint.
+
+Performance checkpoints use recovery format 2. Existing tracker-take checkpoints retain their
+format 1 shape and remain readable; older readers reject format 2 explicitly. Recovery keeps
+the composite Song/sound baseline from take setup plus the latest library performance; it is
+not general Song autosave. Sample identities are verified before arming; moved or missing
+assets still require repair. A native witness reads an unfinished three-note take from disk,
+restores independent expression, plays it through Sample, then proves Save clears recovery.
 **Refresh MIDI feedback destinations**, connect the matching LinnStrument feedback port,
 then select **Clips mode** for its 128- or 200-pad geometry. Input and output endpoints are
 selected explicitly; the stock firmware's NRPN mode report must arrive before pad input

@@ -175,6 +175,35 @@ impl Live {
         self.engine.snapshot().slots.contains(&SlotState::Recording)
     }
 
+    fn close_boundary(&self, frame: Option<u64>) -> Result<BeatTime, String> {
+        let after_last = self
+            .engine
+            .snapshot()
+            .at
+            .0
+            .checked_add(1)
+            .ok_or("Input time overflow")?;
+        let at = match frame.filter(|_| self.fault.is_none()) {
+            Some(frame) => crest_tracker::performance::performance_time(self.beat_at(frame)?)
+                .map_err(|e| e.to_string())?
+                .0
+                .max(after_last),
+            None => after_last,
+        };
+        Ok(BeatTime(at))
+    }
+
+    pub fn checkpoint(
+        &self,
+        frame: Option<u64>,
+    ) -> Result<crest_tracker::performance::Document, String> {
+        let cutoff = crest_tracker::performance::tracker_time(self.close_boundary(frame)?)
+            .map_err(|e| e.to_string())?;
+        self.engine
+            .checkpoint_document_at(cutoff)
+            .map_err(|e| e.to_string())
+    }
+
     /// Explicitly close the take before releasing input ownership. On fault the
     /// close boundary is one tick after the last accepted gesture. No raw gesture
     /// is retimed; held recorded notes receive the library's loop-end release.
@@ -186,24 +215,10 @@ impl Live {
                 .command(Command::CancelRecord)
                 .map_err(|e| e.to_string())?;
         } else if self.recording() {
-            let last = self
-                .engine
-                .snapshot()
-                .at
-                .0
-                .checked_add(1)
-                .ok_or("Input time overflow")?;
-            let at = match frame {
-                Some(frame) => crest_tracker::performance::performance_time(self.beat_at(frame)?)
-                    .map_err(|e| e.to_string())?
-                    .0
-                    .max(last),
-                None => last,
-            };
+            let cutoff = self.close_boundary(frame)?;
             self.engine
                 .advance(
-                    crest_tracker::performance::tracker_time(BeatTime(at))
-                        .map_err(|e| e.to_string())?,
+                    crest_tracker::performance::tracker_time(cutoff).map_err(|e| e.to_string())?,
                 )
                 .map_err(|e| e.to_string())?;
             self.engine

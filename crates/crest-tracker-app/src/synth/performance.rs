@@ -3,6 +3,7 @@ mod editing;
 mod live;
 mod output;
 mod playback;
+mod recovery;
 mod surface;
 use super::*;
 use crest_linnstrument::Geometry;
@@ -10,6 +11,7 @@ use crest_performance_core::Limits;
 use crest_tracker::performance::Performance;
 pub(super) use live::Live;
 pub(super) use playback::Playback;
+pub(super) use recovery::{PendingRecord, RecoveryCapture};
 pub(super) use surface::Surface;
 
 pub(super) struct PendingOpen {
@@ -99,14 +101,16 @@ impl Runtime {
         self.enable_performance_input(sound, clock)?;
         let live = self
             .performance_live
-            .as_mut()
+            .as_ref()
             .ok_or("Performance input unavailable")?;
         if live.fault.is_some() {
             return Err("Finish or discard the interrupted take first".into());
         }
-        live.engine.arm_recording(slot).map_err(|e| e.to_string())?;
-        self.app.borrow_mut().status =
-            format!("ARMED · Clip {} · Play the first note to record", slot + 1);
+        if live.recording() || live.engine.armed_slot().is_some() {
+            return Err("Finish or discard the current take first".into());
+        }
+        self.performance_preparing = Some(self.prepare_performance_recording(sound, slot)?);
+        self.app.borrow_mut().status = "PREPARING RECORDING · Verifying asset content".into();
         Ok(())
     }
 
@@ -115,6 +119,7 @@ impl Runtime {
         sound: &mut Sound<'_>,
         discard: bool,
     ) -> Result<(), String> {
+        self.performance_preparing = None;
         let Some(mut live) = self.performance_live.take() else {
             return Ok(());
         };
@@ -139,6 +144,7 @@ impl Runtime {
             "INPUT STOPPED · Take retained"
         }
         .into();
+        self.finish_performance_recovery()?;
         canceled.map(|_| ())
     }
 
@@ -157,6 +163,7 @@ impl Runtime {
             self.app.borrow_mut().status = error;
         }
         if live.recording() {
+            self.checkpoint_dirty |= self.performance_recovery.is_some();
             let mut app = self.app.borrow_mut();
             app.performance_dirty = true;
             if let Some(slot) = armed.filter(|_| live.fault.is_none()) {

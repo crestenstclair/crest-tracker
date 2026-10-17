@@ -207,6 +207,8 @@ struct Runtime {
     performance_live: Option<performance::Live>,
     performance_surface: Option<performance::Surface>,
     performance_edit_token: u64,
+    performance_recovery: Option<performance::RecoveryCapture>,
+    performance_preparing: Option<performance::PendingRecord>,
     loading: Option<(LoadWorker, PathBuf)>,
     resource_candidate: Option<resources::repair::Candidate>,
     repairing_resource: Option<std::sync::mpsc::Receiver<Result<Document, String>>>,
@@ -309,6 +311,8 @@ impl Runtime {
             performance_live: None,
             performance_surface: None,
             performance_edit_token: 0,
+            performance_recovery: None,
+            performance_preparing: None,
             loading: None,
             resource_candidate: None,
             repairing_resource: None,
@@ -1262,6 +1266,9 @@ impl Runtime {
                 }
                 if matches!(action, FileAction::Close) {
                     self.flush_monitor(sound)?;
+                    if self.performance_recovery.is_some() {
+                        self.clear_recovery()?;
+                    }
                     self.close_requested = true;
                     self.app.borrow_mut().status = "CLOSING · Waiting for MIDI cleanup".into();
                     return Ok(false);
@@ -1425,6 +1432,7 @@ impl Runtime {
         approved: bool,
     ) -> Result<(), String> {
         if self.capture_baseline.is_some()
+            || self.performance_live.is_some()
             || self.saving
             || self.recovery_preparing.is_some()
             || self.pending_open.is_some()
@@ -1479,6 +1487,7 @@ impl Runtime {
         self.capture_preparing = None;
         self.checkpoint_dirty = false;
         self.capture_baseline = None;
+        self.performance_recovery = None;
         self.app.borrow_mut().editor.set_recording_guard(None);
         self.recovery_available = None;
         self.recovery_load_error = None;
@@ -1496,6 +1505,7 @@ impl Runtime {
         }
     }
     fn poll_recovery(&mut self, clock: HostClock) -> Result<(), String> {
+        self.poll_performance_recording()?;
         if let Some(result) = self.capture_preparing.as_ref().and_then(poll_once) {
             self.capture_preparing = None;
             match result {
@@ -1543,12 +1553,19 @@ impl Runtime {
             }
         }
         self.checkpoint_elapsed += clock.elapsed;
+        let performance_recording = self.performance_recovery.is_some()
+            && self
+                .performance_live
+                .as_ref()
+                .is_some_and(|live| live.recording() && live.fault.is_none());
         if self.capture_preparing.is_none()
-            && self.checkpoint_dirty
+            && (self.checkpoint_dirty || performance_recording)
             && self.checkpoint_elapsed >= std::time::Duration::from_millis(250)
         {
             self.checkpoint_elapsed = std::time::Duration::ZERO;
-            if let Some(baseline) = self.capture_baseline.as_ref() {
+            if self.performance_recovery.is_some() {
+                self.checkpoint_performance()?;
+            } else if let Some(baseline) = self.capture_baseline.as_ref() {
                 let snapshot = RecoverySnapshot::new(baseline.clone(), self.recorder.checkpoint())?;
                 self.checkpoint_generation = self.recovery_worker.submit(snapshot)?;
             }
@@ -1697,6 +1714,13 @@ impl Runtime {
             let result = result?;
             result.result?;
             self.saved_performance = result.document.performance;
+            let recovery_cleanup = if self.performance_recovery.is_some()
+                && self.performance_document()? == self.saved_performance
+            {
+                self.clear_recovery()
+            } else {
+                Ok(())
+            };
             self.app.borrow_mut().performance_dirty =
                 self.performance_document()? != self.saved_performance;
             self.saved_sound = Some(result.document.synth);
@@ -1706,6 +1730,7 @@ impl Runtime {
             app.editor.mark_saved(result.document.song);
             app.status = "SAVED".into();
             drop(app);
+            recovery_cleanup?;
             if let Some(next) = next {
                 self.close_requested |= self.file(sound, next)?;
             }
@@ -1725,6 +1750,14 @@ impl Runtime {
                         self.synchronize_catalog(sound)?;
                         return Ok(());
                     }
+                    // Graph activation has succeeded. Cleanup failure must not
+                    // prevent publication of its matching musical document.
+                    let recovery_cleanup =
+                        if self.recovering.is_none() && self.performance_recovery.is_some() {
+                            self.clear_recovery()
+                        } else {
+                            Ok(())
+                        };
                     self.saved_performance = document.performance;
                     self.performance = performance;
                     self.app.borrow_mut().performance_dirty = false;
@@ -1755,6 +1788,9 @@ impl Runtime {
                             )
                             .map_err(|e| e.to_string())?,
                         )?;
+                        if self.restore_performance_recovery(&snapshot, &baseline)? {
+                            return Ok(());
+                        }
                         self.recorder = snapshot.restore(&baseline, &self.app.borrow().editor)?;
                         if let Some(draft) = self.recorder.draft() {
                             self.phrase_loop = Some(draft.occurrence);
@@ -1780,6 +1816,7 @@ impl Runtime {
                     } else {
                         self.synchronize_catalog(sound)?;
                     }
+                    recovery_cleanup?;
                 }
                 Ok(false) => {}
                 Err(error) => {
@@ -1932,6 +1969,9 @@ impl Runtime {
         }
         if self.capture_baseline.is_some() || self.recorder.draft().is_some() {
             return Err("Commit or discard the retained take first".into());
+        }
+        if self.performance_recovery.is_some() {
+            return Err("Save the expressive performance before starting a tracker take".into());
         }
         if self.recovery_available.is_some()
             || self.recovery_load_error.is_some()

@@ -141,6 +141,24 @@ impl Performance {
             routes: self.routes.clone(),
         })
     }
+    /// A stopped recovery copy of the current take; input and playback continue.
+    /// This clones and validates musical state on the control thread only.
+    pub fn checkpoint_document(&self) -> Result<Document> {
+        Ok(Document {
+            version: 1,
+            session: self.engine.checkpoint_session()?,
+            routes: self.routes.clone(),
+        })
+    }
+    pub fn checkpoint_document_at(&self, cutoff: Beat) -> Result<Document> {
+        Ok(Document {
+            version: 1,
+            session: self
+                .engine
+                .checkpoint_session_at(performance_time(cutoff)?)?,
+            routes: self.routes.clone(),
+        })
+    }
     pub fn snapshot(&self) -> PerformanceSnapshot {
         self.engine.snapshot()
     }
