@@ -155,7 +155,7 @@ impl Runtime {
         self.performance_edit_committed("CLIP EDIT UNDONE · Original performance restored")
     }
 
-    fn performance_edit_committed(&mut self, status: &str) -> Result<(), String> {
+    pub(super) fn performance_edit_committed(&mut self, status: &str) -> Result<(), String> {
         self.checkpoint_dirty |= self.performance_recovery.is_some();
         let dirty = self.performance_document()? != self.saved_performance;
         let mut app = self.app.borrow_mut();

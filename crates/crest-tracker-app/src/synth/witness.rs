@@ -8,6 +8,7 @@ mod performance;
 mod performance_live;
 mod performance_quantized;
 mod performance_recovery;
+mod performance_retrospective;
 mod recording_edits;
 mod replacement;
 mod scenarios;

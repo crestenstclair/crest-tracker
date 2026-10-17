@@ -4,6 +4,7 @@ mod live;
 mod output;
 mod playback;
 mod recovery;
+mod retrospective;
 mod surface;
 use super::*;
 use crest_linnstrument::Geometry;

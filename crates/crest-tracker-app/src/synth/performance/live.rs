@@ -131,6 +131,16 @@ impl Live {
         if self.fault.is_some() {
             return Ok(());
         }
+        self.validate_clock(sound, clock, tempo)?;
+        self.flush(sound, clock, ids)
+    }
+
+    fn validate_clock(
+        &self,
+        sound: &Sound<'_>,
+        clock: HostClock,
+        tempo: crest_tracker::time::Tempo,
+    ) -> Result<(), String> {
         if clock.sample_rate != self.rate
             || sound.active_graph_revision().value() != self.graph
             || tempo != self.tempo_at_start
@@ -139,7 +149,27 @@ impl Live {
                 "Tempo, sound graph or sample rate changed; LinnStrument input stopped".into(),
             );
         }
-        self.flush(sound, clock, ids)
+        Ok(())
+    }
+
+    /// Capture at the click's audio boundary without moving input time. Packets
+    /// still in flight retain their original timestamps and live ownership.
+    pub fn capture_recent(
+        &mut self,
+        slot: usize,
+        sound: &Sound<'_>,
+        clock: HostClock,
+        tempo: crest_tracker::time::Tempo,
+    ) -> Result<(), String> {
+        if self.fault.is_some() {
+            return Err("Finish or discard the interrupted input before capturing".into());
+        }
+        self.validate_clock(sound, clock, tempo)?;
+        let cutoff = self.close_boundary(Some(clock.audio.rendered_frames()))?;
+        self.engine
+            .capture_recent_at(slot, BeatTime((4 * TICKS_PER_BEAT).min(cutoff.0)), cutoff)
+            .map_err(|e| e.to_string())?;
+        Ok(())
     }
 
     pub fn validate_source(&self, sound: &Sound<'_>) -> Result<(), String> {

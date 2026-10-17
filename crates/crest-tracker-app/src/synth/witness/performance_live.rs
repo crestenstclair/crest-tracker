@@ -17,7 +17,11 @@ const INPUT: &[(u64, &[u8])] = &[
     (12_048, &[0x82, 64, 0]),
     (12_096, &[0x83, 67, 0]),
 ];
-fn packet(clock: HostClock, frame: u64, bytes: &[u8]) -> crest_synth::control::PhysicalMidiEvent {
+pub(super) fn packet(
+    clock: HostClock,
+    frame: u64,
+    bytes: &[u8],
+) -> crest_synth::control::PhysicalMidiEvent {
     let timestamp = audio_timestamp_at_frame(clock, frame).unwrap();
     let (mut producer, mut consumer) = PhysicalMidiIngress::bounded(MidiConnectionRevision::FIRST);
     consumer.enable();

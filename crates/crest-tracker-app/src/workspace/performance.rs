@@ -69,6 +69,17 @@ pub(super) fn rows(app: &App) -> Vec<WorkspaceRow> {
                     )
                 }),
         );
+        rows.extend(slots.iter().enumerate().map(|(slot, _)| {
+            row(
+                format!("performance_recent:{slot}"),
+                format!("Capture last 4 beats to clip {}", slot + 1),
+                "LIVE INPUT · UNDOABLE",
+            )
+        }));
+        rows.extend(commands(&[(
+            "performance_undo_clip",
+            "Undo last clip change",
+        )]));
         rows.extend(slots.iter().enumerate().map(|(slot, state)| {
             row(
                 format!("performance_record:{slot}"),
@@ -187,6 +198,19 @@ pub(super) fn activate(app: &mut App, id: &str) -> bool {
         }
     } else if id == "performance_input" {
         Request::PerformanceInput
+    } else if id == "performance_undo_clip" {
+        Request::PerformanceUndoClipChange
+    } else if let Some(slot) = id
+        .strip_prefix("performance_recent:")
+        .and_then(|s| s.parse::<usize>().ok())
+    {
+        if app.performance["session"]["slots"]
+            .as_array()
+            .is_none_or(|slots| slot >= slots.len())
+        {
+            return true;
+        }
+        Request::PerformanceCaptureRecent { slot }
     } else if id == "performance_finish" {
         Request::PerformanceFinish
     } else if id == "performance_cancel" {
@@ -245,6 +269,27 @@ pub(super) fn transport(app: &App) -> Request {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn retrospective_actions_are_semantic_and_reject_unknown_slots() {
+        let mut app = App::new();
+        app.workspace.panel = Some(Panel::Performance);
+        app.performance = serde_json::json!({"session":{"slots":["recorded","empty"]}});
+        assert!(rows(&app)
+            .iter()
+            .any(|row| row.id == "performance_recent:1" && row.label.contains("last 4 beats")));
+        assert!(activate(&mut app, "performance_recent:1"));
+        assert!(matches!(
+            app.requests.pop(),
+            Some(Request::PerformanceCaptureRecent { slot: 1 })
+        ));
+        assert!(activate(&mut app, "performance_recent:99"));
+        assert!(app.requests.is_empty());
+        assert!(activate(&mut app, "performance_undo_clip"));
+        assert!(matches!(
+            app.requests.pop(),
+            Some(Request::PerformanceUndoClipChange)
+        ));
+    }
     #[test]
     fn launch_grid_cycles_semantically_and_queued_feedback_is_not_looping() {
         use crate::app::PerformanceLaunchGrid;

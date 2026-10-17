@@ -821,6 +821,10 @@ impl Runtime {
             Request::PerformanceUndo { token } => self.undo_performance_edit(token),
             Request::PerformanceInput => self.enable_performance_input(sound, clock),
             Request::PerformanceRecord { slot } => self.record_performance(sound, clock, slot),
+            Request::PerformanceCaptureRecent { slot } => {
+                self.capture_recent_performance(sound, clock, slot)
+            }
+            Request::PerformanceUndoClipChange => self.undo_performance_clip_change(),
             Request::PerformanceFinish => self.finish_performance_input(sound, false),
             Request::PerformanceCancel => self.finish_performance_input(sound, true),
             Request::PerformanceAudition { slot } => self.audition_performance(sound, clock, slot),

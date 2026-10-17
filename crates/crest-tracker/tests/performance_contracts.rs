@@ -238,3 +238,60 @@ fn unknown_versions_and_ambiguous_bindings_fail_before_engine_creation() {
         library::SESSION_VERSION
     );
 }
+
+#[test]
+fn retrospective_capture_keeps_live_input_and_rejects_armed_take_changes() {
+    let mut tracker = adapter();
+    tracker.arm_recording(0).unwrap();
+    assert!(tracker
+        .capture_recent_at(0, BeatTime(10), BeatTime(10))
+        .is_err());
+    assert!(tracker.command(Command::Undo).is_err());
+    assert_eq!(tracker.armed_slot(), Some(0));
+    tracker.command(Command::CancelRecord).unwrap();
+    tracker.command(Command::BeginRecord { slot: 1 }).unwrap();
+    assert!(tracker
+        .capture_recent_at(0, BeatTime(10), BeatTime(10))
+        .is_err());
+    tracker.command(Command::CancelRecord).unwrap();
+    tracker
+        .accept_midi(Beat::integer(1), &[0x91, 60, 100])
+        .unwrap();
+    tracker
+        .accept_midi(Beat::new(3, 2).unwrap(), &[0xe1, 0, 65])
+        .unwrap();
+    let before = tracker.snapshot();
+    tracker
+        .capture_recent_at(
+            0,
+            BeatTime(4 * library::TICKS_PER_BEAT),
+            BeatTime(4 * library::TICKS_PER_BEAT),
+        )
+        .unwrap();
+    assert_eq!(tracker.snapshot().at, before.at);
+    assert_eq!(tracker.snapshot().active_voices, 1);
+    assert_eq!(tracker.drain_output().count(), 2);
+    let captured = tracker.document().unwrap();
+    let notes = captured.session.slots[0]
+        .clip
+        .as_ref()
+        .unwrap()
+        .notes()
+        .unwrap();
+    assert_eq!(notes.len(), 1);
+    assert_eq!(
+        (notes[0].start, notes[0].duration),
+        (
+            BeatTime(library::TICKS_PER_BEAT),
+            BeatTime(3 * library::TICKS_PER_BEAT)
+        )
+    );
+    assert_eq!(notes[0].expression.points[1].value.pitch, 750_000);
+    tracker
+        .accept_midi(Beat::integer(2), &[0x81, 60, 17])
+        .unwrap();
+    assert_eq!(tracker.document().unwrap(), captured);
+    tracker.command(Command::Undo).unwrap();
+    assert!(tracker.clip(0).unwrap().is_none());
+    assert_eq!(tracker.snapshot().active_voices, 0);
+}

@@ -207,6 +207,31 @@ impl Performance {
         self.armed_slot = Some(slot);
         Ok(())
     }
+    /// Copy retained input at the host cutoff while keeping live time and ownership.
+    pub fn capture_recent_at(
+        &mut self,
+        slot: usize,
+        length: BeatTime,
+        cutoff: BeatTime,
+    ) -> Result<()> {
+        self.require_idle_recorder()?;
+        Ok(self.engine.capture_recent_at(slot, length, cutoff)?)
+    }
+    fn require_idle_recorder(&self) -> Result<()> {
+        if self.armed_slot.is_some()
+            || self
+                .engine
+                .snapshot()
+                .slots
+                .iter()
+                .any(|state| matches!(state, SlotState::Recording | SlotState::Overdubbing))
+        {
+            return Err(Error::Binding(
+                "finish or discard the current take before changing clips",
+            ));
+        }
+        Ok(())
+    }
     pub fn armed_slot(&self) -> Option<usize> {
         self.armed_slot
     }
@@ -268,6 +293,9 @@ impl Performance {
     }
     /// Returned mode configuration must be sent to the controller separately.
     pub fn command(&mut self, command: Command) -> Result<Vec<MidiMessage>> {
+        if matches!(command, Command::CaptureRecent { .. } | Command::Undo) {
+            self.require_idle_recorder()?;
+        }
         self.engine.command(command)?;
         if matches!(
             command,

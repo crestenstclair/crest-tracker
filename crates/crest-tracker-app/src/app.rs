@@ -107,6 +107,10 @@ pub enum Request {
     PerformanceRecord {
         slot: usize,
     },
+    PerformanceCaptureRecent {
+        slot: usize,
+    },
+    PerformanceUndoClipChange,
     PerformanceFinish,
     PerformanceCancel,
     PerformanceAudition {
@@ -1093,6 +1097,8 @@ impl App {
             | Request::PerformanceUndo { .. }
             | Request::PerformanceInput
             | Request::PerformanceRecord { .. }
+            | Request::PerformanceCaptureRecent { .. }
+            | Request::PerformanceUndoClipChange
             | Request::PerformanceFinish
             | Request::PerformanceCancel
             | Request::Play
