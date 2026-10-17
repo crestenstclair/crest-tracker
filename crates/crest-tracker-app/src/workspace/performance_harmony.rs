@@ -2,8 +2,8 @@
 use super::*;
 use crate::app::{PerformanceHarmonyEdit as Edit, PerformanceInputMode};
 use crest_performance_core::{
-    Articulation, ChordExtension, ExpressionPolicy, HarmonyPlaying, HarmonySettings, Scale,
-    Suspension,
+    Articulation, BeatTime, ChordExtension, ExpressionPolicy, HarmonyPlaying, HarmonySettings,
+    Scale, StrumDirection, Suspension, TICKS_PER_BEAT,
 };
 
 pub(super) fn rows(app: &App) -> Vec<WorkspaceRow> {
@@ -160,7 +160,7 @@ fn playing_controls(settings: HarmonySettings) -> Vec<WorkspaceRow> {
     ));
     rows.push(row(
         "harmony_articulation",
-        "Stored articulation",
+        "Articulation",
         match settings.articulation {
             Articulation::Block => "Block",
             Articulation::Strum { .. } => "Delayed strum",
@@ -168,12 +168,23 @@ fn playing_controls(settings: HarmonySettings) -> Vec<WorkspaceRow> {
             Articulation::Humanized { .. } => "Humanized",
         },
     ));
-    if settings.articulation != Articulation::Block {
-        rows.extend(commands(&[(
-            "harmony_block",
-            "Use Block articulation for live chord pads",
-        )]));
-    }
+    rows.extend(commands(&[
+        ("harmony_block", "Together · no attack delay"),
+        ("harmony_strum_up", "Strum up · 1/8 beat between tones"),
+        ("harmony_strum_down", "Strum down · 1/8 beat between tones"),
+        (
+            "harmony_arp_up",
+            "Arpeggio up · 1/8 beat step, 1/16 beat gate",
+        ),
+        (
+            "harmony_arp_down",
+            "Arpeggio down · 1/8 beat step, 1/16 beat gate",
+        ),
+        (
+            "harmony_humanized",
+            "Humanized · up to 1/16 beat delay, velocity ±8, seed 42",
+        ),
+    ]));
     rows.push(row(
         "harmony_scope",
         "Setting changes",
@@ -244,6 +255,26 @@ fn edit(id: &str) -> Option<Edit> {
         "harmony_expression" => Edit::Expression,
         "harmony_playing" => Edit::Playing,
         "harmony_block" => Edit::BlockArticulation,
+        "harmony_strum_up" | "harmony_strum_down" => Edit::Articulation {
+            value: Articulation::Strum {
+                direction: direction(id),
+                interval: BeatTime(TICKS_PER_BEAT / 8),
+            },
+        },
+        "harmony_arp_up" | "harmony_arp_down" => Edit::Articulation {
+            value: Articulation::Arpeggio {
+                direction: direction(id),
+                interval: BeatTime(TICKS_PER_BEAT / 8),
+                gate: BeatTime(TICKS_PER_BEAT / 16),
+            },
+        },
+        "harmony_humanized" => Edit::Articulation {
+            value: Articulation::Humanized {
+                max_delay: BeatTime(TICKS_PER_BEAT / 16),
+                velocity_variation: 8,
+                seed: 42,
+            },
+        },
         _ => Edit::Degree {
             degree: id
                 .strip_prefix("harmony_degree:")?
@@ -252,6 +283,14 @@ fn edit(id: &str) -> Option<Edit> {
                 .filter(|d| *d < 7)?,
         },
     })
+}
+
+fn direction(id: &str) -> StrumDirection {
+    if id.ends_with("_down") {
+        StrumDirection::Descending
+    } else {
+        StrumDirection::Ascending
+    }
 }
 
 #[cfg(test)]
@@ -292,6 +331,29 @@ mod tests {
                 mode: PerformanceInputMode::Chords
             })
         ));
+        for id in [
+            "harmony_strum_up",
+            "harmony_strum_down",
+            "harmony_arp_up",
+            "harmony_arp_down",
+            "harmony_humanized",
+        ] {
+            assert!(projected.iter().any(|row| row.id == id));
+            assert!(activate(&mut app, id));
+            let Some(Request::PerformanceHarmony {
+                edit: Edit::Articulation { value },
+            }) = app.requests.pop()
+            else {
+                panic!("typed articulation command");
+            };
+            assert_ne!(value, Articulation::Block);
+            HarmonySettings {
+                articulation: value,
+                ..HarmonySettings::default()
+            }
+            .validate()
+            .unwrap();
+        }
         app.playing = true;
         action(&mut app, SemanticAction::PreviewStart);
         assert!(matches!(app.requests.pop(), Some(Request::Stop)));

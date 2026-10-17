@@ -91,7 +91,6 @@ impl Runtime {
             revision,
             overflow,
         )?;
-        harmony::require_supported(live.engine.snapshot().harmony, mode)?;
         live.engine
             .command(crest_performance_core::Command::SetMode(mode))
             .map_err(|e| e.to_string())?;
@@ -273,7 +272,7 @@ impl Runtime {
             if let Some(error) = &live.fault {
                 return Err(error.clone());
             }
-            if let Err(error) = live.validate_source(sound).and_then(|()| {
+            let emitted = match live.validate_source(sound).and_then(|()| {
                 live.advance(
                     sound,
                     clock,
@@ -281,8 +280,15 @@ impl Runtime {
                     &mut self.voices,
                 )
             }) {
-                live.fault = Some(error.clone());
-                return Err(error);
+                Ok(emitted) => emitted,
+                Err(error) => {
+                    live.fault = Some(error.clone());
+                    return Err(error);
+                }
+            };
+            if emitted && live.recording() {
+                self.checkpoint_dirty |= self.performance_recovery.is_some();
+                self.app.borrow_mut().performance_dirty = true;
             }
         }
         if let Some(playback) = &mut self.performance_playback {

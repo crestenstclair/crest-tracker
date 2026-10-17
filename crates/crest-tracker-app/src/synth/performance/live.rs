@@ -1,5 +1,6 @@
-//! Input time follows accepted device packets, never the playback lookahead.
-//! Monitoring has a fixed 50 ms lead; missed deadlines fail without moving notes.
+//! Live input and delayed harmony share source time, never playback lookahead.
+//! Idle scheduling trails audio by 20 ms to admit in-flight MIDI; monitoring keeps
+//! its fixed 50 ms lead. Late packets/deadlines fail without moving notes.
 use super::*;
 use crest_performance_core::{BeatTime, Command, OutputEvent, SlotState, TICKS_PER_BEAT};
 use crest_synth::control::PhysicalMidiEvent;
@@ -12,6 +13,7 @@ pub(in crate::synth) struct Live {
     pending: VecDeque<(u64, OutputEvent)>,
     anchor: u64,
     last_input: u64,
+    processed_frame: u64,
     rate: u32,
     tempo: TempoMap,
     tempo_at_start: crest_tracker::time::Tempo,
@@ -47,6 +49,7 @@ impl Live {
             pending: VecDeque::with_capacity(Limits::default().output_events),
             anchor,
             last_input: anchor,
+            processed_frame: anchor,
             rate: clock.sample_rate,
             tempo: TempoMap::new(app.editor.song().tempo),
             tempo_at_start: app.editor.song().tempo,
@@ -86,19 +89,46 @@ impl Live {
         if frame < self.last_input {
             return Err("LinnStrument timestamp moved backwards".into());
         }
+        if frame < self.processed_frame {
+            return Err(
+                "LinnStrument packet arrived behind the 20 ms input horizon; take retained".into(),
+            );
+        }
         let at = self.beat_at(frame)?;
         self.engine
             .accept_midi(at, bytes)
             .map_err(|e| e.to_string())?;
         self.last_input = frame;
-        let delivery = frame
-            .checked_add(u64::from(self.rate) / 20)
-            .ok_or("Monitor clock overflow")?;
+        self.processed_frame = frame;
+        self.collect_output(Some((
+            crest_tracker::performance::performance_time(at).map_err(|e| e.to_string())?,
+            frame,
+        )))
+    }
+
+    /// Advance only the settled past. Incoming packets retain exact timestamps;
+    /// a quiet held chord continues even when the controller sends no more bytes.
+    fn advance_source(&mut self, now: u64) -> Result<(), String> {
+        let settled = now
+            .saturating_sub(u64::from(self.rate) / 50)
+            .max(self.anchor);
+        if settled <= self.processed_frame {
+            return Ok(());
+        }
+        self.engine
+            .advance(self.beat_at(settled)?)
+            .map_err(|e| e.to_string())?;
+        self.processed_frame = settled;
+        self.collect_output(None)
+    }
+
+    fn collect_output(&mut self, input: Option<(BeatTime, u64)>) -> Result<(), String> {
         for event in self.engine.drain_output() {
             if self.pending.len() == Limits::default().output_events {
                 return Err("LinnStrument monitor queue full; take retained".into());
             }
-            self.pending.push_back((delivery, event));
+            let frame = monitor_frame(&self.tempo, self.rate, self.anchor, event.at, input)?;
+            self.pending.push_back((frame, event));
         }
         Ok(())
     }
@@ -121,18 +151,23 @@ impl Live {
         .map_err(|e| e.to_string())
     }
 
+    /// Returns whether musical output was submitted, including generated notes
+    /// during input silence. Hosts use this to update take recovery checkpoints.
     pub fn advance(
         &mut self,
         sound: &mut Sound<'_>,
         clock: HostClock,
         tempo: crest_tracker::time::Tempo,
         ids: &mut ScheduledVoices,
-    ) -> Result<(), String> {
+    ) -> Result<bool, String> {
         if self.fault.is_some() {
-            return Ok(());
+            return Ok(false);
         }
         self.validate_clock(sound, clock, tempo)?;
-        self.flush(sound, clock, ids)
+        self.advance_source(clock.audio.rendered_frames())?;
+        let emitted = !self.pending.is_empty();
+        self.flush(sound, clock, ids)?;
+        Ok(emitted)
     }
 
     fn validate_clock(
@@ -194,7 +229,7 @@ impl Live {
     ) -> Result<(), String> {
         while let Some((frame, event)) = self.pending.pop_front() {
             if frame < clock.audio.rendered_frames() {
-                return Err("LinnStrument monitor missed its deadline; take retained".into());
+                return Err(format!("LinnStrument monitor missed its deadline; take retained (event {frame}, audio {}, source {}, control tick {} µs)", clock.audio.rendered_frames(), self.processed_frame, clock.elapsed.as_micros()));
             }
             self.outputs.schedule(sound, ids, frame, event, None)?;
         }
@@ -286,6 +321,29 @@ impl Live {
     }
 }
 
+/// Source packets retain their exact frame; generated attacks/releases use their
+/// own library timestamp rather than the packet that happened to trigger a drain.
+fn monitor_frame(
+    tempo: &TempoMap,
+    rate: u32,
+    anchor: u64,
+    at: BeatTime,
+    input: Option<(BeatTime, u64)>,
+) -> Result<u64, String> {
+    let source = if let Some((_, frame)) = input.filter(|(time, _)| *time == at) {
+        frame
+    } else {
+        let beat = crest_tracker::performance::tracker_time(at).map_err(|e| e.to_string())?;
+        let relative = tempo.frame_at(beat, rate).map_err(|e| e.to_string())?;
+        anchor
+            .checked_add(relative)
+            .ok_or("Monitor clock overflow")?
+    };
+    source
+        .checked_add(u64::from(rate) / 20)
+        .ok_or_else(|| "Monitor clock overflow".into())
+}
+
 pub(super) fn normalized_bytes(message: MidiMessage) -> ([u8; 3], usize) {
     let (status, length) = match message.kind() {
         MidiMessageKind::NoteOff => (0x80, 3),
@@ -304,4 +362,39 @@ pub(super) fn normalized_bytes(message: MidiMessage) -> ([u8; 3], usize) {
         ],
         length,
     )
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn generated_events_use_own_time_even_when_drained_by_later_packet() {
+        let tempo = TempoMap::new(crest_tracker::time::Tempo::new(120_000).unwrap());
+        let input = Some((BeatTime(480_000), 22_000));
+        for (ticks, frame) in [
+            (0, 12_400),
+            (60_000, 13_900),
+            (120_000, 15_400),
+            (480_000, 24_400),
+        ] {
+            assert_eq!(
+                monitor_frame(&tempo, 48_000, 10_000, BeatTime(ticks), input).unwrap(),
+                frame
+            );
+        }
+        // Source timestamps stay exact even when their tick conversion rounded.
+        assert_eq!(
+            monitor_frame(
+                &tempo,
+                48_000,
+                10_000,
+                BeatTime(480_000),
+                Some((BeatTime(480_000), 22_001))
+            )
+            .unwrap(),
+            24_401
+        );
+        assert!(monitor_frame(&tempo, 48_000, u64::MAX, BeatTime(1), None).is_err());
+    }
 }

@@ -77,11 +77,39 @@ produced the independently expected `[76, 84, 91]` voicing while existing loops 
 The local evidence project is `target/dev/firmware-harmony.crest-song`; native automated
 witnesses provide reproducible assertions separately from this manual capture.
 
-Live chord pads currently admit Block articulation. Imported delayed strum, humanization or
-arpeggio settings are retained but reject chord-mode activation until explicitly changed to
-Block; manual strumplate remains immediate. Continuous scheduling for those live articulations
-is separate work. This restriction does not alter already rendered recorded clips or the
-independent library's articulation support.
+Live chord pads support the library's delayed strum, repeating arpeggio and seeded humanized
+articulations. The Harmony panel offers ascending/descending strum and arpeggio presets with
+1/8-beat spacing (arpeggio gate 1/16 beat), plus humanization up to 1/16 beat with ±8 velocity
+and seed 42. Imported settings retain their exact spacing, gate and seed until explicitly
+changed. Manual strumplate remains immediate. Release cancels future tones; mode changes
+cancel the live lane, including prepared attacks, while other clips continue.
+
+The native clock advances quiet held gestures through a source horizon 20 ms behind the
+rendered audio frame. This admits in-flight MIDI without scheduling into the input future;
+packets older than that horizon fail explicitly rather than being retimed. Each generated
+event uses its own musical timestamp plus the existing 50 ms monitor lead, so an input
+packet arriving later cannot bunch earlier strum notes together. Recovery checkpoints are
+dirtied by generated output even when no new MIDI arrives. The horizon is a bounded admission
+policy, not a measured device-latency guarantee.
+
+Native Sample and Braids witnesses hold a single gesture with no further packets, verify
+all delayed chord tones sound, and check exact strum/arpeggio timing, expression on later
+arpeggio voices, humanization bounds, release ownership, recovery prefixes and project
+reopening. They replay alongside another clip and cancel waiting live tones without stopping
+either clip. All 16 focused native performance witnesses pass with zero callback allocations,
+deallocations and late events; 269 app tests and scoped lint also pass locally.
+
+The optimized macOS desktop bundle also captured a held arpeggio from keyboard-controlled
+virtual contacts through the pinned firmware and OS MIDI transport. The saved clip contains
+349 attacks and 349 matching releases at exactly 120,000-tick intervals and 60,000-tick gates,
+with independent pitch, timbre and pressure changes preserved. Reopening retained the phrase;
+clips 1 and 3 then looped together and stopped cleanly. Local evidence is
+`target/dev/firmware-arpeggio-release.crest-song` (SHA-256
+`084816884d3f17a8acd34b0bd649032a9beed31b67d89d1b5a39668ce2082911`).
+Debug desktop runs exceeded the remaining 30 ms scheduling margin and stopped input while
+retaining the take. This acceptance therefore covers the optimized bundle, not arbitrary
+control-thread stalls or the debug build. Deadline failures remain visible; notes are never
+silently retimed to hide them. Deck and Linux clock correlation remain separate qualification.
 
 Each player uses a disposable clip snapshot, the Song's tempo at start, at least 50 ms scheduling
 lead and the existing 100 ms scheduling window. Additional launches begin after already-published
@@ -135,7 +163,8 @@ to hear its new take; an already running clip retains its original playback snap
 
 Input recording follows correlated source timestamps, with conversion error below one
 library tick, and never follows the clip scheduling horizon. Monitoring uses a separate
-ordered audio lane with a fixed 50 ms lead, not a measured latency claim. Late input,
+ordered audio lane with a fixed 50 ms lead, not a measured latency claim. Quiet input advances
+only through the 20 ms source horizon described above. Late input,
 reordered timestamps, disconnects, overflow, tempo or sound changes stop input explicitly
 and retain a take through its last accepted gesture. Input takeover releases default
 channel-monitor voices first. The initial native path requires the existing CoreMIDI/
@@ -147,7 +176,7 @@ reopened playback with live input and interrupted-take retention.
 
 While recording, the existing recovery worker checkpoints a stopped copy every 250 ms,
 using the native audio clock to retain elapsed holds even without new MIDI. The live engine
-continues unchanged. Recovery can lose work since the last completed disk write; the cadence
+continues playing. Recovery can lose work since the last completed disk write; the cadence
 is not a durability deadline. **Settings → Recording recovery** restores the checkpoint with
 its sound graph, stopped and unsaved. Audition and Stop retain it; successful project Save
 clears it only when that saved performance still matches current state. Discarding a later

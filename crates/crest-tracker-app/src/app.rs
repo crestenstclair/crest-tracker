@@ -93,19 +93,32 @@ impl PerformanceInputMode {
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Deserialize)]
 #[serde(tag = "control", rename_all = "snake_case", deny_unknown_fields)]
 pub enum PerformanceHarmonyEdit {
-    Tonic { delta: i8 },
-    Anchor { delta: i8 },
+    Tonic {
+        delta: i8,
+    },
+    Anchor {
+        delta: i8,
+    },
     Scale,
     Extension,
     Suspension,
     Borrowed,
-    Inversion { delta: i8 },
-    Register { delta: i8 },
+    Inversion {
+        delta: i8,
+    },
+    Register {
+        delta: i8,
+    },
     Spread,
     VoiceLeading,
     Expression,
     Playing,
-    Degree { degree: u8 },
+    Degree {
+        degree: u8,
+    },
+    Articulation {
+        value: crest_performance_core::Articulation,
+    },
     BlockArticulation,
 }
 

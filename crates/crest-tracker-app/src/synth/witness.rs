@@ -5,6 +5,7 @@ mod controller;
 mod corridors;
 mod live;
 mod performance;
+mod performance_articulation;
 mod performance_bank;
 mod performance_harmony;
 mod performance_live;

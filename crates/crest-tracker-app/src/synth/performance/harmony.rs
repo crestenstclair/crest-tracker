@@ -1,24 +1,11 @@
 //! Tracker controls select settings; the library owns chord rendering and voice
-//! lifetime. Delayed articulations await continuous live-event scheduling.
+//! lifetime, including delayed articulation on the native host clock.
 use super::*;
 use crate::app::{PerformanceHarmonyEdit as Edit, PerformanceInputMode};
 use crest_performance_core::{
     Articulation, ChordExtension, Command, ExpressionPolicy, HarmonyPlaying, HarmonySettings,
-    HarmonySource, Scale, SurfaceMode, Suspension,
+    HarmonySource, Scale, Suspension,
 };
-
-pub(super) fn require_supported(
-    settings: HarmonySettings,
-    mode: SurfaceMode,
-) -> Result<(), String> {
-    if mode == SurfaceMode::Chords
-        && settings.playing == HarmonyPlaying::ChordPads
-        && settings.articulation != Articulation::Block
-    {
-        return Err("Tracker live chords currently require Block articulation; select Block explicitly or use the manual strumplate".into());
-    }
-    Ok(())
-}
 
 /// Apply a relative control to current native state, not a stale frontend copy.
 fn edited(mut settings: HarmonySettings, edit: Edit) -> Result<HarmonySettings, String> {
@@ -85,6 +72,7 @@ fn edited(mut settings: HarmonySettings, edit: Edit) -> Result<HarmonySettings, 
             }
         }
         Edit::Degree { degree } => settings.degree = degree,
+        Edit::Articulation { value } => settings.articulation = value,
         Edit::BlockArticulation => settings.articulation = Articulation::Block,
     }
     settings.validate().map_err(|e| e.to_string())?;
@@ -110,7 +98,6 @@ impl Runtime {
             .or(self.performance.as_ref())
             .ok_or("Open a performance session first")?;
         let current = engine.snapshot();
-        require_supported(current.harmony, mode.surface())?;
         if current.mode != mode.surface() {
             if let Some(live) = &mut self.performance_live {
                 live.set_mode(sound, mode.surface())?;
@@ -149,7 +136,6 @@ impl Runtime {
             .ok_or("Open a performance session first")?;
         let current = engine.snapshot();
         let settings = edited(current.harmony, edit)?;
-        require_supported(settings, current.mode)?;
         engine
             .command(Command::SetHarmony(settings))
             .map_err(|e| e.to_string())?;
@@ -169,7 +155,7 @@ impl Runtime {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crest_performance_core::{BeatTime, Gesture, StrumDirection, TICKS_PER_BEAT};
+    use crest_performance_core::{BeatTime, Gesture, StrumDirection, SurfaceMode, TICKS_PER_BEAT};
 
     #[test]
     fn relative_controls_produce_independent_musical_expectations() {
@@ -200,7 +186,7 @@ mod tests {
     }
 
     #[test]
-    fn delayed_import_requires_explicit_conversion_and_strumplate_stays_supported() {
+    fn articulation_controls_retain_imported_timing_until_explicit_change() {
         let settings = HarmonySettings {
             articulation: Articulation::Strum {
                 direction: StrumDirection::Ascending,
@@ -208,19 +194,35 @@ mod tests {
             },
             ..HarmonySettings::default()
         };
-        assert!(require_supported(settings, SurfaceMode::Chords).is_err());
-        assert!(require_supported(settings, SurfaceMode::Play).is_ok());
-        assert!(require_supported(
-            edited(settings, Edit::Playing).unwrap(),
-            SurfaceMode::Chords
+        let changed = edited(settings, Edit::Playing).unwrap();
+        assert_eq!(changed.articulation, settings.articulation);
+        assert_eq!(
+            edited(settings, Edit::BlockArticulation)
+                .unwrap()
+                .articulation,
+            Articulation::Block
+        );
+        assert!(edited(
+            settings,
+            Edit::Articulation {
+                value: Articulation::Strum {
+                    direction: StrumDirection::Ascending,
+                    interval: BeatTime(0),
+                }
+            }
         )
-        .is_ok());
-        assert!(require_supported(
-            edited(settings, Edit::BlockArticulation).unwrap(),
-            SurfaceMode::Chords
-        )
-        .is_ok());
-        assert!(matches!(settings.articulation, Articulation::Strum { .. }));
+        .is_err());
+        let arpeggio = Articulation::Arpeggio {
+            direction: StrumDirection::Descending,
+            interval: BeatTime(TICKS_PER_BEAT / 4),
+            gate: BeatTime(TICKS_PER_BEAT / 8),
+        };
+        assert_eq!(
+            edited(settings, Edit::Articulation { value: arpeggio })
+                .unwrap()
+                .articulation,
+            arpeggio
+        );
     }
 
     #[test]
