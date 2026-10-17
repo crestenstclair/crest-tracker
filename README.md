@@ -17,9 +17,9 @@ A fresh checkout needs the pinned Rust 1.96.0 toolchain, the native build prereq
 - `crates/crest-tracker-app`: composes both through `HostedSynthControl`; owns the Song file and Tracker workspace state.
 
 The independent [Crest Performance v0.1.0](https://github.com/crestenstclair/crest-linnstrument/releases/tag/v0.1.0)
-baseline is consumed at pinned patch commit `b47950f63f4dbacfd9de4cbc0e0bed34e8c6b78b`
+baseline is consumed at pinned patch commit `2e86f2af04c456ad1ac0d989c3ab5d2e3783d909`
 and its lockfile, without a sibling checkout. This deliberate upgrade preserves release-time
-expression and unedited zero-duration notes during clip edits, and adds stopped recovery snapshots
+expression and unedited zero-duration notes during clip edits and overdubs, and adds stopped recovery snapshots
 with explicit host-clock recovery/capture cutoffs and observable accepted launch boundaries. API and
 session versions are unchanged. The Tracker-owned
 `performance` adapter provides exact rational/fixed-point time conversion, instrument bindings,

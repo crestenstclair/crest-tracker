@@ -295,3 +295,74 @@ fn retrospective_capture_keeps_live_input_and_rejects_armed_take_changes() {
     assert!(tracker.clip(0).unwrap().is_none());
     assert_eq!(tracker.snapshot().active_voices, 0);
 }
+
+#[test]
+fn overdub_retains_closing_expression_and_zero_duration_notes_across_project_reopen() {
+    let mut tracker = adapter();
+    tracker.command(Command::BeginRecord { slot: 0 }).unwrap();
+    for (tick, bytes) in [
+        (0, &[0x91, 60, 96][..]),
+        (20, &[0xe1, 0, 65, 0x81, 60, 7]),
+        (30, &[0x92, 64, 90, 0xd2, 80, 0x82, 64, 8]),
+    ] {
+        tracker
+            .accept_midi(performance::tracker_time(BeatTime(tick)).unwrap(), bytes)
+            .unwrap();
+        tracker.drain_output().for_each(drop);
+    }
+    tracker
+        .advance(performance::tracker_time(BeatTime(40)).unwrap())
+        .unwrap();
+    tracker.command(Command::FinishRecord).unwrap();
+    let original = tracker.document().unwrap().session.slots[0]
+        .clip
+        .clone()
+        .unwrap();
+    assert_eq!(original.events.len(), 6);
+    tracker.command(Command::BeginOverdub { slot: 0 }).unwrap();
+    for (tick, bytes) in [
+        (45, &[0x93, 72, 90][..]),
+        (55, &[0xb3, 74, 110, 0x83, 72, 9]),
+    ] {
+        tracker
+            .accept_midi(performance::tracker_time(BeatTime(tick)).unwrap(), bytes)
+            .unwrap();
+        tracker.drain_output().for_each(drop);
+    }
+    tracker
+        .advance(performance::tracker_time(BeatTime(61)).unwrap())
+        .unwrap();
+    tracker.command(Command::FinishRecord).unwrap();
+    tracker.command(Command::Stop).unwrap();
+    let saved = tracker.document().unwrap();
+    let merged = saved.session.slots[0].clip.as_ref().unwrap();
+    assert_eq!(merged.length, BeatTime(40));
+    assert_eq!(merged.events.len(), 9);
+    let old: Vec<_> = merged
+        .events
+        .iter()
+        .filter(|event| original.events.iter().any(|prior| prior.note == event.note))
+        .copied()
+        .collect();
+    assert_eq!(old, original.events);
+    let added = merged
+        .notes()
+        .unwrap()
+        .into_iter()
+        .find(|note| note.key == 72)
+        .unwrap();
+    assert_eq!(
+        (added.key, added.start, added.duration),
+        (72, BeatTime(5), BeatTime(10))
+    );
+    assert_eq!(added.expression.points[1].offset, BeatTime(10));
+    assert_eq!(added.expression.points[1].value.timbre, 56_762);
+    let reopened: Document = serde_json::from_slice(&serde_json::to_vec(&saved).unwrap()).unwrap();
+    let restored = Performance::new(reopened, Geometry::Pads200, Limits::default()).unwrap();
+    assert_eq!(restored.document().unwrap(), saved);
+    tracker.command(Command::Undo).unwrap();
+    assert_eq!(
+        tracker.document().unwrap().session.slots[0].clip,
+        Some(original)
+    );
+}
