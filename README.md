@@ -145,6 +145,12 @@ Native desktop verification has captured an independent three-finger phrase from
 simulator's actual firmware, saved/reopened it in Tracker, launched/stopped it by clicking
 a virtual pad, observed the decoded LED change from blue to green and back, and restored
 the stock playing display. This is virtual validation, not physical-device qualification.
+The independent clip-bank build also reopened two firmware-recorded clips, launched both
+from virtual pads, displayed both firmware LEDs green, then stopped one with its pad while
+the other stayed looping and green. Global Stop and firmware-confirmed Return to Play restored
+the stock layout. Native Braids spectral checks and resident Sample witnesses separately
+verify selective sustained/pending cancellation and unchanged surviving expression; live
+capture can retain three independent notes alongside two three-note clips.
 **Edit clip** opens the existing native piano-roll timeline over the library's note
 projection. **View** switches between Piano roll and Tracker without changing the clip.
 Tracker shows one row per note with exact start and duration, velocity and expression-point
