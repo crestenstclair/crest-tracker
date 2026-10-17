@@ -398,6 +398,17 @@ unknown clock domains reject correlation. Allocation audits and native rendering
 witnesses cover these paths; physical end-to-end latency remains a separate
 measurement.
 
+The pinned Linux backends do not expose a shared epoch: CPAL 0.18.1 ALSA subtracts
+its stream-creation anchor, choosing hardware system/audio-link timing or an
+`Instant` fallback, while midir 0.11.1 reports real time relative to its input
+sequencer queue. Their integers cannot be compared directly. CPAL's ALSA
+`Stream::now` remains stream-relative and midir does not expose the queue clock
+or its host-time correlation. Linux performance capture therefore remains
+unavailable rather than assigning callback receipt time to original gestures.
+Enabling it requires explicit backend clock-origin/type information and a
+measured correlation bound, including queue/stream restart and suspend recovery.
+Changing `AudioClockDomain` alone cannot establish that contract.
+
 Graph-status and audio-observation snapshots have one callback writer. Their
 versioned atomic payloads use a release fence after marking a write in progress
 and an acquire fence before the reader's final version check. Readers retry on

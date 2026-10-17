@@ -57,7 +57,9 @@ ordered audio lane with a fixed 50 ms lead, not a measured latency claim. Late i
 reordered timestamps, disconnects, overflow, tempo or sound changes stop input explicitly
 and retain a take through its last accepted gesture. Input takeover releases default
 channel-monitor voices first. The initial native path requires the existing CoreMIDI/
-CoreAudio clock correlation on macOS; Linux input correlation remains qualification work.
+CoreAudio clock correlation on macOS. Linux input correlation remains implementation and
+qualification work: the pinned CPAL ALSA stream and midir input queue report independent
+relative clocks without a shared epoch. Capture rejects this configuration explicitly.
 Native Sample witnesses cover six concurrent voices, capture, project serialization,
 reopened playback with live input and interrupted-take retention.
 
