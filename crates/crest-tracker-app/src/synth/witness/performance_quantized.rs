@@ -28,7 +28,7 @@ impl Journey {
         audio: AudioObservationSnapshot,
         evidence: &mut Evidence,
     ) {
-        let playback = runtime.performance_playback.as_ref().unwrap();
+        let playback = runtime.performance_playback.as_ref().unwrap().get(0);
         self.launch = playback.launch_frame();
         assert_eq!(playback.slot_state().1, SlotState::Queued);
         assert_eq!(
@@ -48,7 +48,7 @@ impl Journey {
         audio: AudioObservationSnapshot,
         evidence: &Evidence,
     ) {
-        let playback = runtime.performance_playback.as_ref().unwrap();
+        let playback = runtime.performance_playback.as_ref().unwrap().get(0);
         assert_eq!(
             playback.launch_frame(),
             self.launch,
@@ -96,7 +96,7 @@ impl Journey {
                 .performance_playback
                 .as_ref()
                 .is_some_and(|playback| {
-                    audio.rendered_frames().saturating_add(4_000) >= playback.launch_frame()
+                    audio.rendered_frames().saturating_add(4_000) >= playback.get(0).launch_frame()
                 }) =>
             {
                 self.cancel_prepared_launch(runtime, audio, evidence);
@@ -109,7 +109,7 @@ impl Journey {
                 }
             }
             4 if runtime.performance_playback.is_some() => {
-                let playback = runtime.performance_playback.as_ref().unwrap();
+                let playback = runtime.performance_playback.as_ref().unwrap().get(0);
                 self.launch = playback.launch_frame();
                 assert_eq!(playback.slot_state().1, SlotState::Queued);
                 request(

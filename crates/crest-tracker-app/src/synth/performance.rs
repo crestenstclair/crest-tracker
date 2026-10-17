@@ -1,4 +1,5 @@
 //! Tracker owns project lifecycle and sound bindings around the released library.
+mod bank;
 mod editing;
 mod live;
 mod output;
@@ -7,6 +8,7 @@ mod recovery;
 mod retrospective;
 mod surface;
 use super::*;
+pub(super) use bank::Bank;
 use crest_linnstrument::Geometry;
 use crest_performance_core::Limits;
 use crest_tracker::performance::Performance;
@@ -189,26 +191,66 @@ impl Runtime {
         if self.sync.external() {
             return Err("Performance audition requires the local host clock".into());
         }
+        if self
+            .performance_playback
+            .as_ref()
+            .is_some_and(|bank| bank.contains(slot))
+        {
+            return self.stop_performance_slot(sound, slot);
+        }
         let document = self
-            .performance_document()?
-            .ok_or("Open a Song containing a performance session first")?;
-        let mut playback = Playback::new(
+            .performance_live
+            .as_ref()
+            .map(|live| &live.engine)
+            .or(self.performance.as_ref())
+            .ok_or("Open a Song containing a performance session first")?
+            .playback_document(slot)
+            .map_err(|e| e.to_string())?;
+        let playback = Playback::new(
             document,
             slot,
             &self.app.borrow(),
             sound,
             clock,
             self.performance_launch_grid,
+            self.performance_playback.as_ref().map_or(0, Bank::horizon),
         )?;
-        self.stop(sound)?;
-        if let Err(error) = playback.advance(sound, clock, &mut self.voices) {
-            let _ = self.stop(sound);
-            return Err(error);
+        if self.playback.is_some() {
+            self.stop(sound)?;
+        } else if self.performance_playback.is_none() {
+            // Start a fresh playback watermark without interrupting live input.
+            sound.cancel_scheduled().map_err(|e| e.to_string())?;
         }
-        self.performance_playback = Some(playback);
+        if let Some(bank) = &mut self.performance_playback {
+            bank.insert(playback, sound)?;
+        } else {
+            let mut bank = Bank::default();
+            bank.insert(playback, sound)?;
+            self.performance_playback = Some(bank);
+        }
         self.app.borrow_mut().playing = true;
-        self.app.borrow_mut().status =
-            format!("PERFORMANCE · Auditioning clip {} · Stop to end", slot + 1);
+        self.app.borrow_mut().status = format!(
+            "PERFORMANCE · Clip {} launched · Press again to stop",
+            slot + 1
+        );
+        Ok(())
+    }
+
+    pub(super) fn stop_performance_slot(
+        &mut self,
+        sound: &mut Sound<'_>,
+        slot: usize,
+    ) -> Result<(), String> {
+        if let Some(bank) = &mut self.performance_playback {
+            bank.stop_slot(slot, sound)?;
+            if bank.is_empty() {
+                // Retire the lane watermark only when no other clip owns it.
+                sound.cancel_scheduled().map_err(|e| e.to_string())?;
+                self.performance_playback = None;
+                self.app.borrow_mut().playing = false;
+            }
+        }
+        self.app.borrow_mut().status = format!("CLIP {} STOPPED", slot + 1);
         Ok(())
     }
 
@@ -234,10 +276,12 @@ impl Runtime {
             }
         }
         if let Some(playback) = &mut self.performance_playback {
-            if playback.tempo_at_start != self.app.borrow().editor.song().tempo {
-                return Err("Tempo changed; restart performance audition at the new tempo".into());
-            }
-            playback.advance(sound, clock, &mut self.voices)?;
+            playback.advance(
+                sound,
+                clock,
+                &mut self.voices,
+                self.app.borrow().editor.song().tempo,
+            )?;
         }
         Ok(())
     }
@@ -249,8 +293,7 @@ impl Runtime {
             "armed_slot":self.performance_live.as_ref().and_then(|live| live.engine.armed_slot()),
             "input_fault":self.performance_live.as_ref().and_then(|live| live.fault.as_deref()),
             "auditioning":self.performance_playback.is_some(),
-            "playing_slot":self.performance_playback.as_ref().map(|playback| playback.slot),
-            "playback_state":self.performance_playback.as_ref().map(|playback| playback.slot_state().1),
+            "playing_slots":self.performance_playback.as_ref().map(Bank::states).unwrap_or_default(),
             "launch_grid":self.performance_launch_grid,
         });
     }

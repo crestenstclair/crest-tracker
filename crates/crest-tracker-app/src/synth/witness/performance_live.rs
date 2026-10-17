@@ -36,6 +36,7 @@ struct Journey {
     live: Option<Live>,
     anchor: u64,
     packet: usize,
+    relaunched_during_take: bool,
     done: Rc<Cell<bool>>,
 }
 impl Journey {
@@ -125,8 +126,45 @@ impl Journey {
             )
             .unwrap(),
         );
+        let previous_launch = runtime
+            .performance_playback
+            .as_ref()
+            .unwrap()
+            .get(0)
+            .launch_frame();
         runtime.audition_performance(sound, clock, 1).unwrap();
+        let bank = runtime.performance_playback.as_ref().unwrap();
+        assert!(bank.contains(0) && bank.contains(1));
+        assert_eq!(
+            bank.get(0).launch_frame(),
+            previous_launch,
+            "adding a clip cannot restart the original"
+        );
         self.begin_input(runtime, sound, clock, false);
+    }
+    fn relaunch_during_take(
+        &mut self,
+        runtime: &mut Runtime,
+        sound: &mut Sound<'_>,
+        clock: HostClock,
+    ) {
+        runtime.performance_live = self.live.take();
+        let before = runtime.performance_live.as_ref().unwrap().engine.snapshot();
+        assert!(runtime.performance_live.as_ref().unwrap().recording());
+        runtime.audition_performance(sound, clock, 0).unwrap(); // Stop only this clip.
+        assert!(runtime.performance_playback.is_none());
+        runtime.audition_performance(sound, clock, 0).unwrap(); // Start while input records slot 1.
+        assert!(runtime.performance_playback.as_ref().unwrap().contains(0));
+        let live = runtime.performance_live.as_ref().unwrap();
+        assert!(live.recording());
+        assert_eq!(
+            serde_json::to_value(live.engine.snapshot()).unwrap(),
+            serde_json::to_value(before).unwrap()
+        );
+        assert!(runtime.audition_performance(sound, clock, 1).is_err());
+        assert!(runtime.performance_playback.as_ref().unwrap().contains(0));
+        self.live = runtime.performance_live.take();
+        self.relaunched_during_take = true;
     }
     fn interrupt_and_retain(
         &mut self,
@@ -192,6 +230,11 @@ impl Journey {
             }
             2 => {
                 self.feed(runtime, sound, clock);
+                if !self.relaunched_during_take
+                    && clock.audio.rendered_frames() >= self.anchor + 6_000
+                {
+                    self.relaunch_during_take(runtime, sound, clock);
+                }
                 if clock.audio.rendered_frames() >= self.anchor + 14_400 {
                     self.finish_and_reopen(runtime, sound, clock);
                     self.stage = 3;
@@ -221,6 +264,7 @@ fn native_sample_live_capture_reopens_and_loops_with_independent_live_expression
         live: None,
         anchor: 0,
         packet: 0,
+        relaunched_during_take: false,
         done,
     };
     let evidence = run_with_output_and_host_step(
@@ -243,7 +287,8 @@ fn native_sample_live_capture_reopens_and_loops_with_independent_live_expression
         })),
     );
     evidence.check_cleanup();
-    assert_eq!(evidence.peak_voices, 6);
+    // Both three-note clips now continue alongside three independent live notes.
+    assert_eq!(evidence.peak_voices, 9);
     assert!(evidence.audible_tracks[0]);
     std::fs::remove_dir_all(root).unwrap();
 }

@@ -141,6 +141,28 @@ impl Performance {
             routes: self.routes.clone(),
         })
     }
+    /// Disposable playback copy of committed clips while another slot records.
+    /// This is not a save/checkpoint: the unfinished take is deliberately absent.
+    /// Reject the armed/recording slot rather than auditioning its previous take.
+    pub fn playback_document(&self, slot: usize) -> Result<Document> {
+        let snapshot = self.engine.snapshot();
+        let state = snapshot
+            .slots
+            .get(slot)
+            .ok_or(Error::Binding("unknown clip slot"))?;
+        if self.armed_slot == Some(slot)
+            || matches!(state, SlotState::Recording | SlotState::Overdubbing)
+        {
+            return Err(Error::Binding(
+                "finish or discard this slot's take before launching it",
+            ));
+        }
+        Ok(Document {
+            version: 1,
+            session: self.engine.session().clone(),
+            routes: self.routes.clone(),
+        })
+    }
     /// A stopped recovery copy of the current take; input and playback continue.
     /// This clones and validates musical state on the control thread only.
     pub fn checkpoint_document(&self) -> Result<Document> {

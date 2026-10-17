@@ -25,6 +25,58 @@ fn adapter() -> Performance {
 }
 
 #[test]
+fn playback_copy_keeps_unfinished_recording_and_live_ownership_untouched() {
+    let mut performance = adapter();
+    performance
+        .command(Command::BeginRecord { slot: 0 })
+        .unwrap();
+    performance
+        .accept_midi(Beat::ZERO, &[0x91, 60, 100])
+        .unwrap();
+    performance
+        .accept_midi(Beat::new(1, 2).unwrap(), &[0x81, 60, 0])
+        .unwrap();
+    performance.advance(Beat::ONE).unwrap();
+    performance.command(Command::FinishRecord).unwrap();
+    let committed = performance.document().unwrap();
+    performance.drain_output().for_each(drop);
+    performance.arm_recording(1).unwrap();
+    assert!(performance.playback_document(1).is_err());
+    assert_eq!(performance.playback_document(0).unwrap(), committed);
+    performance
+        .accept_midi(Beat::integer(2), &[0x91, 64, 90])
+        .unwrap();
+    performance
+        .accept_midi(Beat::new(5, 2).unwrap(), &[0xe1, 0, 65])
+        .unwrap();
+    let before = performance.snapshot();
+    assert_eq!(performance.playback_document(0).unwrap(), committed);
+    assert!(performance.playback_document(1).is_err());
+    assert!(performance.playback_document(usize::MAX).is_err());
+    assert!(
+        performance.document().is_err(),
+        "unfinished take cannot silently be saved"
+    );
+    assert_eq!(
+        serde_json::to_value(performance.snapshot()).unwrap(),
+        serde_json::to_value(before).unwrap()
+    );
+    performance
+        .accept_midi(Beat::integer(3), &[0x81, 64, 0])
+        .unwrap();
+    performance.command(Command::FinishRecord).unwrap();
+    let saved = performance.document().unwrap();
+    assert_eq!(saved.session.slots[0], committed.session.slots[0]);
+    let recorded = saved.session.slots[1].clip.as_ref().unwrap();
+    assert_eq!(recorded.events.len(), 3);
+    assert_eq!(recorded.events[1].at, BeatTime(library::TICKS_PER_BEAT / 2));
+    assert!(
+        matches!(recorded.events[1].gesture, Gesture::Expression { expression }
+        if expression.pitch == 750_000)
+    );
+}
+
+#[test]
 fn first_note_arming_preserves_packet_time_and_initial_expression() {
     let mut tracker = adapter();
     tracker.arm_recording(0).unwrap();

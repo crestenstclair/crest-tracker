@@ -56,11 +56,12 @@ impl Outputs {
         ids: &mut ScheduledVoices,
         frame: u64,
         event: OutputEvent,
+        group: Option<crest_synth::real_time::VoiceGroupId>,
     ) -> Result<(), String> {
         self.0
             .get_mut(&event.destination)
             .ok_or("Performance destination is unbound")?
-            .schedule(sound, ids, frame, event)
+            .schedule(sound, ids, frame, event, group)
     }
 }
 
@@ -93,10 +94,13 @@ impl Destination {
         ids: &mut ScheduledVoices,
         frame: u64,
         event: OutputEvent,
+        group: Option<crest_synth::real_time::VoiceGroupId>,
     ) -> Result<(), String> {
         let batch = self.midi.accept(event).map_err(|e| e.to_string())?;
         match event.gesture {
-            Gesture::On { .. } => self.attack(sound, ids, frame, event.voice, batch.messages()),
+            Gesture::On { .. } => {
+                self.attack(sound, ids, frame, event.voice, batch.messages(), group)
+            }
             Gesture::Expression { .. } => self.express(sound, frame, event.voice, batch.messages()),
             Gesture::Off { .. } => {
                 let voice = self
@@ -119,6 +123,7 @@ impl Destination {
         frame: u64,
         owner: VoiceId,
         messages: &[DeviceMidi],
+        group: Option<crest_synth::real_time::VoiceGroupId>,
     ) -> Result<(), String> {
         let note = messages.last().ok_or("Performance attack is empty")?;
         let midi = native_midi(*note)?;
@@ -146,6 +151,7 @@ impl Destination {
         }
         state.validate(sound, self.patch)?;
         let id = ids.allocate()?;
+        let id = group.map_or(id, |group| id.with_group(group));
         let initial = state.initial(midi.data2())?;
         match self.lane {
             ScheduledLane::Playback => {

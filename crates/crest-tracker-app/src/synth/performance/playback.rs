@@ -7,8 +7,7 @@ use crest_synth::real_time::scheduled_event::ScheduledLane;
 
 pub(in crate::synth) struct Playback {
     engine: Performance,
-    destinations: Outputs,
-    anchor: u64,
+    pub(super) destinations: Outputs,
     launch_frame: u64,
     rendered_frame: u64,
     horizon: u64,
@@ -19,10 +18,6 @@ pub(in crate::synth) struct Playback {
     pub slot: usize,
 }
 impl Playback {
-    #[cfg(test)]
-    pub fn anchor(&self) -> u64 {
-        self.anchor
-    }
     #[cfg(test)]
     pub fn launch_frame(&self) -> u64 {
         self.launch_frame
@@ -38,6 +33,7 @@ impl Playback {
         sound: &Sound<'_>,
         clock: HostClock,
         grid: crate::app::PerformanceLaunchGrid,
+        after_frame: u64,
     ) -> Result<Self, String> {
         if clock.sample_rate == 0 {
             return Err("Audio clock is not ready".into());
@@ -49,34 +45,25 @@ impl Playback {
             .audio
             .rendered_frames()
             .checked_add(u64::from(clock.sample_rate) / 20)
-            .ok_or("Audio clock overflow")?;
+            .ok_or("Audio clock overflow")?
+            .max(after_frame.checked_add(1).ok_or("Audio clock overflow")?);
         let tempo = TempoMap::new(app.editor.song().tempo);
-        // Quantized launches share audio-frame zero as a stable local grid.
-        // Immediate audition retains its existing 50 ms scheduling lead.
-        let anchor = if grid == crate::app::PerformanceLaunchGrid::Immediate {
-            earliest
-        } else {
-            0
-        };
+        // All players share audio-frame zero. A common tick horizon prevents
+        // fractional per-player rounding from publishing backwards next window.
         let launch_beat = launch_engine(
             &mut engine,
             slot,
             grid.quantum(),
             &tempo,
-            earliest - anchor,
+            earliest,
             clock.sample_rate,
         )?;
-        let launch_frame = anchor
-            .checked_add(
-                tempo
-                    .frame_at(launch_beat, clock.sample_rate)
-                    .map_err(|e| e.to_string())?,
-            )
-            .ok_or("Audio clock overflow")?;
+        let launch_frame = tempo
+            .frame_at(launch_beat, clock.sample_rate)
+            .map_err(|e| e.to_string())?;
         Ok(Self {
             engine,
             destinations,
-            anchor,
             launch_frame,
             rendered_frame: clock.audio.rendered_frames(),
             horizon: earliest,
@@ -86,6 +73,10 @@ impl Playback {
             tempo_at_start: app.editor.song().tempo,
             slot,
         })
+    }
+
+    pub fn horizon(&self) -> u64 {
+        self.horizon
     }
 
     pub fn slot_state(&self) -> (usize, SlotState) {
@@ -99,12 +90,11 @@ impl Playback {
         )
     }
 
-    pub fn advance(
+    pub fn prepare_window(
         &mut self,
-        sound: &mut Sound<'_>,
+        sound: &Sound<'_>,
         clock: HostClock,
-        ids: &mut ScheduledVoices,
-    ) -> Result<(), String> {
+    ) -> Result<Vec<(u64, crest_performance_core::OutputEvent)>, String> {
         if clock.sample_rate != self.rate || sound.active_graph_revision().value() != self.graph {
             return Err("Sound graph or sample rate changed; performance audition stopped".into());
         }
@@ -117,45 +107,42 @@ impl Playback {
             .ok_or("Audio clock overflow")?;
         let beat = self
             .tempo
-            .beat_at_frame(horizon.saturating_sub(self.anchor), self.rate)
+            .beat_at_frame(horizon, self.rate)
             .map_err(|e| e.to_string())?;
         // Scheduling horizon rounds down by less than one library tick. Event
         // positions themselves remain exact; only the final sample conversion rounds.
         let ticks = u128::from(beat.numerator()) * u128::from(TICKS_PER_BEAT)
             / u128::from(beat.denominator());
-        let at = crest_tracker::performance::tracker_time(BeatTime(
-            u64::try_from(ticks).map_err(|_| "Performance time overflow")?,
-        ))
-        .map_err(|e| e.to_string())?;
+        let ticks = BeatTime(u64::try_from(ticks).map_err(|_| "Performance time overflow")?);
+        self.rendered_frame = now;
+        // A just-added player can start beyond this already-published window.
+        // Keep its future launch queued until the common horizon catches up.
+        if ticks < self.engine.snapshot().at {
+            return Ok(Vec::new());
+        }
+        let at = crest_tracker::performance::tracker_time(ticks).map_err(|e| e.to_string())?;
         self.engine.advance(at).map_err(|e| e.to_string())?;
+        let mut events = Vec::new();
         for event in self.engine.drain_output() {
             let beat =
                 crest_tracker::performance::tracker_time(event.at).map_err(|e| e.to_string())?;
             let frame = self
-                .anchor
-                .checked_add(
-                    self.tempo
-                        .frame_at(beat, self.rate)
-                        .map_err(|e| e.to_string())?,
-                )
-                .ok_or("Audio event time overflow")?;
+                .tempo
+                .frame_at(beat, self.rate)
+                .map_err(|e| e.to_string())?;
             if frame < now {
                 return Err("Performance event arrived after its audio deadline".into());
             }
-            self.destinations.schedule(sound, ids, frame, event)?;
+            events.push((frame, event));
         }
         // The exact completed horizon is important: do not promise time that
         // rounding deferred to the next window.
         self.horizon = self
-            .anchor
-            .checked_add(
-                self.tempo
-                    .frame_at(at, self.rate)
-                    .map_err(|e| e.to_string())?,
-            )
-            .ok_or("Audio clock overflow")?;
+            .tempo
+            .frame_at(at, self.rate)
+            .map_err(|e| e.to_string())?;
         self.rendered_frame = now;
-        Ok(())
+        Ok(events)
     }
 }
 

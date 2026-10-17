@@ -196,7 +196,7 @@ impl Live {
             if frame < clock.audio.rendered_frames() {
                 return Err("LinnStrument monitor missed its deadline; take retained".into());
             }
-            self.outputs.schedule(sound, ids, frame, event)?;
+            self.outputs.schedule(sound, ids, frame, event, None)?;
         }
         Ok(())
     }

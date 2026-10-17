@@ -18,9 +18,9 @@ impl Runtime {
         if self
             .performance_playback
             .as_ref()
-            .is_some_and(|p| p.slot == slot)
+            .is_some_and(|p| p.contains(slot))
         {
-            self.stop(sound)?;
+            self.stop_performance_slot(sound, slot)?;
         }
         self.refresh_performance_editor(slot, None, false)?;
         crate::workspace::open_performance_editor(&mut self.app.borrow_mut());
@@ -87,7 +87,7 @@ impl Runtime {
         if self
             .performance_playback
             .as_ref()
-            .is_some_and(|p| p.slot == editor.slot)
+            .is_some_and(|p| p.contains(editor.slot))
         {
             return Err("Stop this clip before editing".into());
         }

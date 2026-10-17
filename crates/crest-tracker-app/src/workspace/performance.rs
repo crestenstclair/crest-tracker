@@ -39,12 +39,16 @@ pub(super) fn rows(app: &App) -> Vec<WorkspaceRow> {
     ));
     if let Some(slots) = app.performance["session"]["slots"].as_array() {
         rows.extend(slots.iter().enumerate().map(|(slot, state)| {
-            let active = app.performance["playing_slot"].as_u64() == Some(slot as u64);
-            let queued = active && app.performance["playback_state"] == "queued";
-            let playing = active && !queued;
+            let playback = clip_playback_state(app, slot);
+            let queued = playback == Some("queued");
+            let playing = playback == Some("playing");
             let mut clip = row(
                 format!("performance_audition:{slot}"),
-                format!("Audition clip {}", slot + 1),
+                format!(
+                    "{} clip {}",
+                    if queued || playing { "Stop" } else { "Launch" },
+                    slot + 1
+                ),
                 if queued {
                     "QUEUED".into()
                 } else if playing {
@@ -92,19 +96,30 @@ pub(super) fn rows(app: &App) -> Vec<WorkspaceRow> {
             )
         }));
     }
-    rows.push(row(
-        "performance_status",
-        "Playback",
-        if app.performance["playback_state"] == "queued" {
-            "QUEUED"
-        } else if app.performance["auditioning"].as_bool() == Some(true) {
-            "LOOPING"
-        } else {
-            "STOPPED"
-        },
-    ));
+    rows.push(row("performance_status", "Playback", playback_status(app)));
     rows.extend(commands(&[("stop", "Stop"), ("back", "Back")]));
     rows
+}
+
+fn clip_playback_state(app: &App, slot: usize) -> Option<&str> {
+    app.performance["playing_slots"]
+        .as_array()?
+        .iter()
+        .find(|entry| entry[0].as_u64() == Some(slot as u64))?[1]
+        .as_str()
+}
+
+fn playback_status(app: &App) -> &'static str {
+    let Some(players) = app.performance["playing_slots"].as_array() else {
+        return "STOPPED";
+    };
+    if players.iter().any(|entry| entry[1] == "playing") {
+        "LOOPING"
+    } else if players.iter().any(|entry| entry[1] == "queued") {
+        "QUEUED"
+    } else {
+        "STOPPED"
+    }
 }
 
 fn surface_rows(app: &App) -> Vec<WorkspaceRow> {
@@ -306,7 +321,7 @@ mod tests {
                 matches!(app.requests.last(), Some(Request::PerformanceLaunchGrid { grid }) if *grid == next)
             );
         }
-        app.performance = serde_json::json!({"session":{"slots":["recorded"]},"playing_slot":0,"playback_state":"queued","auditioning":true});
+        app.performance = serde_json::json!({"session":{"slots":["recorded"]},"playing_slots":[[0,"queued"]],"auditioning":true});
         let projected = rows(&app);
         let clip = projected
             .iter()
@@ -358,6 +373,33 @@ mod tests {
         ));
     }
     #[test]
+    fn independent_clips_show_distinct_states_and_keep_stop_identity() {
+        let mut app = App::new();
+        app.performance = serde_json::json!({
+            "session":{"slots":["recorded","recorded","recorded"]},
+            "playing_slots":[[0,"playing"],[1,"queued"]]
+        });
+        let projected = rows(&app);
+        for (slot, label, state, playing) in [
+            (0, "Stop clip 1", "LOOPING", true),
+            (1, "Stop clip 2", "QUEUED", false),
+            (2, "Launch clip 3", "RECORDED", false),
+        ] {
+            let clip = projected
+                .iter()
+                .find(|r| r.id == format!("performance_audition:{slot}"))
+                .unwrap();
+            assert_eq!(clip.label, label);
+            assert_eq!(clip.value, state);
+            assert_eq!(clip.playing, playing);
+        }
+        assert_eq!(playback_status(&app), "LOOPING");
+        app.performance["playing_slots"] = serde_json::json!([[1, "queued"]]);
+        assert_eq!(playback_status(&app), "QUEUED");
+        assert_eq!(clip_playback_state(&app, 0), None);
+    }
+
+    #[test]
     fn performance_navigation_preserves_back_focus_and_uses_semantic_transport() {
         let mut app = App::new();
         super::super::commands::activate(&mut app, "menu");
@@ -365,7 +407,7 @@ mod tests {
         app.performance =
             serde_json::json!({"session":{"slots":["recorded","empty"]},"auditioning":false});
         assert!(rows(&app).iter().any(|row| row.value == "RECORDED"));
-        app.performance["playing_slot"] = 0.into();
+        app.performance["playing_slots"] = serde_json::json!([[0, "playing"]]);
         assert!(rows(&app)
             .iter()
             .any(|row| row.id == "performance_audition:0"

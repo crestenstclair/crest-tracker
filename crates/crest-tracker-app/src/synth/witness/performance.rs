@@ -130,7 +130,7 @@ fn performance_audition_refuses_an_engine_without_owned_expression_support() {
     std::fs::remove_dir_all(root).unwrap();
 }
 
-fn independent_expression_document() -> crest_tracker::performance::Document {
+pub(super) fn independent_expression_document() -> crest_tracker::performance::Document {
     use crest_performance_core::{BeatTime, Command, Limits};
     let mut document = super::super::performance::example_document()
         .unwrap()
@@ -228,7 +228,14 @@ fn three_library_notes_keep_independent_pitch_timbre_and_pressure_in_rendered_au
                     stage = 2;
                 }
                 2 if runtime.performance_playback.is_some() => {
-                    observed.set(runtime.performance_playback.as_ref().unwrap().anchor());
+                    observed.set(
+                        runtime
+                            .performance_playback
+                            .as_ref()
+                            .unwrap()
+                            .get(0)
+                            .launch_frame(),
+                    );
                     evidence.measured = true;
                     stage = 3;
                 }
@@ -309,7 +316,7 @@ fn missed_performance_deadline_cancels_owned_voices_without_replaying_overdue_ev
     std::fs::remove_dir_all(root).unwrap();
 }
 
-fn verify_independent_audio(pcm: &[f32], anchor: u64) {
+pub(super) fn verify_independent_audio(pcm: &[f32], anchor: u64) {
     let at = |seconds: f64| anchor as usize + (seconds * 48_000.0) as usize;
     let midi_frequency = |key: f64| 440.0 * 2.0_f64.powf((key - 69.0) / 12.0);
     let amplitude = |second, key| magnitude(pcm, at(second), midi_frequency(key));

@@ -33,8 +33,9 @@ Library validation and engine allocation precede sound replacement. Format 1 Son
 in memory without changing their source files; older applications reject format 2 rather than
 discarding performance state. Keep the original file when sharing with an older application.
 Open **Menu → Performance clips → Open expressive example**, then return to Performance clips
-and audition a clip. Its loop runs through the released library, Tracker's timestamped audio
-scheduler and the embedded Synth's owned-note MIDI boundary. Stop releases its scheduled voices.
+and launch a clip. Its loop runs through the released library, Tracker's timestamped audio
+scheduler and the embedded Synth's owned-note MIDI boundary. Launch additional clips to layer
+them; pressing an active clip again stops only that clip. Stop releases all scheduled voices.
 The example uses a firmware-captured phrase from the standalone v0.1.0 release and an existing
 Braids patch. **Open expressive Sample example** uses the same phrase with the installed
 Sample engine and its looping default asset. Sample CC74 controls per-note low-pass brightness
@@ -43,8 +44,16 @@ pitch, timbre and pressure in Braids and actual resident sfizz audio. Integratio
 cover Sample playback and project save/reopen, deadline recovery and unsupported-engine
 rejection; native heap/lock checks cover callback expression and voice reuse.
 
-Audition uses a disposable clip snapshot, the Song's tempo at start, at least 50 ms scheduling
-lead and the existing 100 ms scheduling window. **Launch grid** cycles through immediate,
+Each player uses a disposable clip snapshot, the Song's tempo at start, at least 50 ms scheduling
+lead and the existing 100 ms scheduling window. Additional launches begin after already-published
+lookahead, so immediate launch latency may approach 100 ms. Events merge chronologically on the
+control thread, with stable slot order at equal timestamps and native voice identities unique
+across all players and live input. Independent cancellation removes queued attacks and sustained
+voices together without restarting another clip. The Synth's configurable voice-group and event
+budgets bound admission; failures are explicit. Starting a clip preserves live monitoring and
+recording. Opening its editor stops that clip only; edits affect the next launch, not another
+player's snapshot. This does not layer clips over the separate Song-arrangement transport.
+**Launch grid** cycles through immediate,
 one beat and four beats, for workspace and virtual/physical pad launches alike. Quantized
 launches align to a stable local grid whose beat zero is audio-stream frame zero; this is
 not Song-arrangement synchronization. The library chooses the first grid point at or after
@@ -118,8 +127,8 @@ selected explicitly; the stock firmware's NRPN mode report must arrive before pa
 is accepted. A once-per-second mode query detects firmware resets; three seconds without
 a report interrupts control input and starts restoration. The bottom playable row launches recorded clips, and pressing the playing
 clip stops it. This uses the same host launch path as the workspace. Switching to Clips
-finishes an active take and releases live monitor voices. The first bank uses one active
-clip; multiple simultaneous clip tracks remain integration work.
+finishes an active take and releases live monitor voices. Multiple slots can play together,
+including slots routed to the same native Patch, with independent queued/playing LEDs.
 
 LED intent travels through the output worker and the firmware input parser. Blue means
 recorded, yellow means queued, green means playing; the simulator renders decoded firmware SPI output. Complete

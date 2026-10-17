@@ -203,7 +203,7 @@ struct Runtime {
     pending_open: Option<PendingOpen>,
     performance: Option<crest_tracker::performance::Performance>,
     saved_performance: Option<crest_tracker::performance::Document>,
-    performance_playback: Option<performance::Playback>,
+    performance_playback: Option<performance::Bank>,
     performance_launch_grid: crate::app::PerformanceLaunchGrid,
     performance_live: Option<performance::Live>,
     performance_surface: Option<performance::Surface>,
