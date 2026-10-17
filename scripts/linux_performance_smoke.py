@@ -15,6 +15,7 @@ from develop import ROOT
 
 sys.path.insert(0, str(ROOT / 'crates/crest-synth/scripts/linux'))
 import pyatspi
+from gi.repository import GLib
 from native_desktop import command, key, record, windows
 
 
@@ -52,7 +53,15 @@ class Desktop:
         while time.monotonic() < deadline:
             if self.process.poll() is not None:
                 raise AssertionError(f'App exited {self.process.returncode}: {label}')
-            result = predicate()
+            try:
+                result = predicate()
+            except GLib.Error as error:
+                # WebKit can retire an accessibility object during a tree read.
+                # Retry observation/reveal only; never repeat input activation.
+                # A real process exit remains an immediate failure above.
+                if error.domain != 'atspi_error' or error.code != 0:
+                    raise
+                result = None
             if result:
                 print(f'Verified: {label}', flush=True)
                 return result
@@ -60,13 +69,21 @@ class Desktop:
         self.snapshot('timeout')
         raise AssertionError(f'Timed out: {label}')
 
-    def click(self, label):
-        button = self.wait(lambda: self.find(label), label)
-        component = button.queryComponent()
-        component.scrollTo(pyatspi.SCROLL_ANYWHERE)
+    def button_bounds(self, label):
+        button = self.find(label)
+        if button is None:
+            return None
+        button.queryComponent().scrollTo(pyatspi.SCROLL_ANYWHERE)
         time.sleep(.1)
-        x, y, width, height = component.getExtents(pyatspi.DESKTOP_COORDS)
-        assert width > 0 and height > 0, f'Button lacks native bounds: {label}'
+        # A render during scrolling can retire the previous accessible object.
+        button = self.find(label)
+        if button is None:
+            return None
+        bounds = button.queryComponent().getExtents(pyatspi.DESKTOP_COORDS)
+        return bounds if bounds[2] > 0 and bounds[3] > 0 else None
+
+    def click(self, label):
+        x, y, width, height = self.wait(lambda: self.button_bounds(label), label)
         command('xdotool', 'mousemove', '--sync', str(x + width // 2), str(y + height // 2),
                 'click', '1')
 
@@ -78,11 +95,12 @@ class Desktop:
 
     def enter_path(self, label, field, path):
         self.click(label)
-        entry = self.wait(lambda: self.find(field, pyatspi.ROLE_ENTRY), f'{field} editor')
-        assert entry.queryComponent().grabFocus(), 'Native text field must take focus'
+        self.wait(lambda: (entry := self.find(field, pyatspi.ROLE_ENTRY)) is not None
+                  and entry.queryComponent().grabFocus(), f'{field} editor focused')
         key('ctrl+a')
         command('xdotool', 'type', '--clearmodifiers', '--delay', '5', str(path))
-        self.wait(lambda: entry.queryText().getText(0, -1) == str(path), 'exact typed path')
+        self.wait(lambda: (entry := self.find(field, pyatspi.ROLE_ENTRY)) is not None
+                  and entry.queryText().getText(0, -1) == str(path), 'exact typed path')
         key('Return')
 
     def panel(self):

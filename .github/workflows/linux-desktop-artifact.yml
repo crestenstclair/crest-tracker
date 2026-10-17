@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
     inputs:
       package_run:
-        description: Successful Linux performance integration run that uploaded the package
+        description: Linux performance integration run whose package verification passed
         required: true
         type: string
 permissions:
@@ -23,7 +23,8 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           PACKAGE_RUN: ${{ inputs.package_run }}
         run: |
-          test "$(gh run view "$PACKAGE_RUN" --json conclusion --jq .conclusion)" = success
+          test "$(gh run view "$PACKAGE_RUN" --json status --jq .status)" = completed
+          test "$(gh run view "$PACKAGE_RUN" --json jobs --jq '[.jobs[].steps[] | select(.name == "Package and verify relocated shipping executable") | .conclusion] == ["success"]')" = true
           gh run download "$PACKAGE_RUN" -n Crest-Tracker-Linux-development -D target/linux-artifact
           (cd target/linux-artifact && sha256sum --quiet -c *.sha256)
       - name: Install virtual desktop and runtime dependencies

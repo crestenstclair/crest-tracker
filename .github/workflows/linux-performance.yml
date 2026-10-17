@@ -36,12 +36,15 @@ jobs:
           cargo test --locked --release -p crest-tracker-app synth::witness::performance
           -- --ignored --test-threads=1
       - name: Package and verify relocated shipping executable
+        id: package
         run: python3 scripts/package_linux.py
       - name: Exercise relocated app through Linux UI and virtual audio
         run: |
           archive="target/linux-candidate/crest-tracker-linux-x86_64-$(git rev-parse --short=12 HEAD).tar.gz"
           crates/crest-synth/scripts/linux/with-desktop.sh /usr/bin/python3 scripts/linux_performance_smoke.py "$archive"
       - uses: actions/upload-artifact@v4
+        # Retain a verified package even if the separate desktop witness fails.
+        if: always() && steps.package.outcome == 'success'
         with:
           name: Crest-Tracker-Linux-development
           path: target/linux-candidate/
