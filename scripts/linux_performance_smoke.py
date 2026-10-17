@@ -20,6 +20,9 @@ from native_desktop import command, key, record, windows
 
 
 def descendants(node):
+    # AT-SPI can return a vacant child slot while WebKit replaces a subtree.
+    if node is None:
+        return
     yield node
     for child in node:
         yield from descendants(child)
@@ -110,10 +113,13 @@ class Desktop:
     def snapshot(self, label):
         subprocess.run(['import', '-window', 'root', str(self.evidence / f'{label}.png')],
                        check=False, timeout=10)
-        frame = self.frame()
-        if frame is not None:
-            (self.evidence / f'{label}-accessibility.txt').write_text('\n'.join(
-                f'{node.getRoleName()}: {node.name}' for node in descendants(frame)))
+        try:
+            frame = self.frame()
+            report = '' if frame is None else '\n'.join(
+                f'{node.getRoleName()}: {node.name}' for node in descendants(frame))
+        except GLib.Error as error:
+            report = f'Accessibility snapshot unavailable: {error}'
+        (self.evidence / f'{label}-accessibility.txt').write_text(report)
 
 
 def exercise(desktop, root):
@@ -183,13 +189,15 @@ def smoke(binary, root):
             }, indent=2) + '\n')
         finally:
             if app.poll() is None:
-                desktop.snapshot('failure')
-                app.terminate()
                 try:
-                    app.wait(timeout=5)
-                except subprocess.TimeoutExpired:
-                    app.kill()
-                    app.wait(timeout=5)
+                    desktop.snapshot('failure')
+                finally:
+                    app.terminate()
+                    try:
+                        app.wait(timeout=5)
+                    except subprocess.TimeoutExpired:
+                        app.kill()
+                        app.wait(timeout=5)
 
 
 def main():
