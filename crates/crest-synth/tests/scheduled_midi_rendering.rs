@@ -31,9 +31,11 @@ use crest_synth::mixer::global_parameters::GlobalParameters;
 use crest_synth::mixer::mixer_state::MixerState;
 use crest_synth::mixer::mixer_track_id::MixerTrackId;
 use crest_synth::mixer::patch_output::PatchOutput;
+use crest_synth::real_time::audio_boundary::AudioThreadBoundary;
 use crest_synth::real_time::audio_observation::{AudioObservation, ControlAudioObservation};
 use crest_synth::real_time::parameter_snapshot::RtPatchParameters;
-use crest_synth::real_time::scheduled_event::ScheduledEvent;
+use crest_synth::real_time::scheduled_event::ScheduledEventPoll;
+use crest_synth::real_time::scheduled_event::{ScheduledEvent, ScheduledLane};
 use crest_synth::real_time::{
     AudioBoundary, AudioCommand, AudioRenderer, ControlAudioBoundary,
     ControlStructuralGraphBoundary, GraphHandoffStatus, GraphRevision, ParameterSnapshot,
@@ -734,6 +736,39 @@ impl RoutedFixture {
         assert_eq!(result.boundary_full(), None);
     }
 
+    fn timed_monitor(&mut self, frame: u64, id: u64, event: MidiEvent) {
+        let event = ScheduledEvent::monitor_voice(
+            frame,
+            self.control.scheduled_epoch_for(ScheduledLane::Monitor),
+            self.control.active_audio_graph_revision(),
+            PatchId::new(1).unwrap(),
+            MidiVoiceId::new(id).unwrap(),
+            MidiExpressionScope::Member,
+            midi(event.0, event.1, event.2),
+        );
+        let result = self
+            .control
+            .dispatch_scheduled_midi_from(event, EventSource::AutomaticMidi)
+            .unwrap();
+        assert_eq!(result.boundary_full(), None);
+    }
+
+    fn timed_monitor_attack(&mut self, frame: u64, initial: OwnedVoiceInitialization) {
+        let event = ScheduledEvent::initialized_monitor_voice(
+            frame,
+            self.control.scheduled_epoch_for(ScheduledLane::Monitor),
+            self.control.active_audio_graph_revision(),
+            PatchId::new(1).unwrap(),
+            MidiVoiceId::new(1).unwrap(),
+            initial,
+        );
+        let result = self
+            .control
+            .dispatch_scheduled_midi_from(event, EventSource::AutomaticMidi)
+            .unwrap();
+        assert_eq!(result.boundary_full(), None);
+    }
+
     fn live(&mut self, event: MidiEvent) {
         let result = self
             .control
@@ -768,6 +803,195 @@ impl RoutedFixture {
             );
         }
     }
+}
+
+#[test]
+fn timed_monitor_merges_before_clip_lookahead_with_independent_expression_and_cancel() {
+    const CHILD: &str = "CREST_TIMED_MONITOR_CHILD";
+    if std::env::var_os(CHILD).is_none() {
+        let child = std::process::Command::new(std::env::current_exe().unwrap())
+            .args([
+                "--exact",
+                "timed_monitor_merges_before_clip_lookahead_with_independent_expression_and_cancel",
+                "--nocapture",
+            ])
+            .env(CHILD, "1")
+            .output()
+            .unwrap();
+        assert!(
+            child.status.success(),
+            "{}\n{}",
+            String::from_utf8_lossy(&child.stdout),
+            String::from_utf8_lossy(&child.stderr)
+        );
+        assert!(String::from_utf8_lossy(&child.stdout).contains("1 passed"));
+        return;
+    }
+    use MidiMessageKind::{ChannelPressure, ControlChange, NoteOn, PitchBend};
+    let mut witness = ScopedRouteWitness::new();
+    witness.mixed.live((NoteOn, 48, 100));
+    witness.references[2].immediate(1, midi(NoteOn, 48, 100));
+    // Publish all clip lookahead first, then admit earlier live input through
+    // the reducer. Same channel, pitch and attack identity belong to two sources.
+    witness
+        .mixed
+        .schedule_owned(11, 1, MidiExpressionScope::Member, (NoteOn, 60, 100));
+    witness
+        .mixed
+        .schedule_owned(25, 1, MidiExpressionScope::Member, (ChannelPressure, 32, 0));
+    witness
+        .mixed
+        .schedule_owned(1_000, 1, MidiExpressionScope::Member, (ControlChange, 1, 0));
+    let initial = OwnedVoiceInitialization::new(
+        midi(NoteOn, 60, 100),
+        OwnedExpressionState::new(12_288, 2, 0, Some(64), None, 0).unwrap(),
+        OwnedExpressionState::default(),
+    )
+    .unwrap();
+    witness.mixed.timed_monitor_attack(3, initial);
+    witness.mixed.timed_monitor(21, 1, (PitchBend, 0, 64));
+    witness.mixed.timed_monitor(21, 1, (ChannelPressure, 97, 0));
+    witness.reference_boundary(3);
+    witness.reference(0, 3, (NoteOn, 61, 100));
+    witness.reference(0, 3, (ChannelPressure, 64, 0));
+    witness.reference_boundary(11);
+    witness.reference(1, 11, (NoteOn, 60, 100));
+    witness.reference_boundary(21);
+    witness.reference(0, 21, (PitchBend, 0, 32)); // 61 -1 =60, independent oracle.
+    witness.reference(0, 21, (ChannelPressure, 97, 0));
+    witness.reference_boundary(25);
+    witness.reference(1, 25, (ChannelPressure, 32, 0));
+    witness.compare(3);
+    witness.compare(3);
+    witness
+        .mixed
+        .control
+        .cancel_scheduled_lane(ScheduledLane::Monitor)
+        .unwrap();
+    witness.references[0]
+        .control
+        .push_command(AudioCommand::all_notes_off())
+        .unwrap();
+    witness.compare(2); // Clip and immediate input survive monitor cancellation.
+    witness.mixed.control.cancel_scheduled_midi().unwrap();
+    witness.references[1]
+        .control
+        .push_command(AudioCommand::all_notes_off())
+        .unwrap();
+    witness.compare(1);
+    let observed = witness.mixed.observation.read_latest_on_control();
+    assert_eq!(observed.scheduled_late_events(), 0);
+    assert_eq!(observed.scheduled_max_lateness_frames(), 0);
+}
+
+/// Deterministically performs a producer cancellation during callback polling.
+/// Queue operations remain allocation-free; no wall-clock race decides the test.
+struct MonitorCancellationRace {
+    audio: LockFreeAudioHandle,
+    producer: LockFreeControlHandle,
+    replacement: ScheduledEvent,
+    polls: usize,
+}
+impl AudioThreadBoundary for MonitorCancellationRace {
+    fn pop_command(&mut self) -> Option<AudioCommand> {
+        self.audio.pop_command()
+    }
+    fn scheduled_epoch_for(&self, lane: ScheduledLane) -> u64 {
+        self.audio.scheduled_epoch_for(lane)
+    }
+    fn exchange_latest_parameters(&mut self, previous: &mut ParameterSnapshot) -> bool {
+        self.audio.exchange_latest_parameters(previous)
+    }
+    fn poll_scheduled_before(&mut self, end: u64) -> ScheduledEventPoll {
+        self.polls += 1;
+        if self.polls == 3 {
+            assert_eq!(
+                self.producer.cancel_scheduled_lane(ScheduledLane::Monitor),
+                Ok(1)
+            );
+            self.producer.push_scheduled(self.replacement).unwrap();
+        }
+        self.audio.poll_scheduled_before(end)
+    }
+}
+
+#[test]
+fn monitor_cancel_during_block_releases_old_owner_and_admits_new_epoch_in_same_block() {
+    let (graph, _) = native_braids_graph_and_state();
+    let (mut producer, audio) =
+        LockFreeAudioBoundary::new(8, graph.initial_parameters().clone()).into_handles();
+    let patch = PatchId::new(1).unwrap();
+    let voice = MidiVoiceId::new(1).unwrap();
+    let initial = OwnedVoiceInitialization::new(
+        midi(MidiMessageKind::NoteOn, 60, 100),
+        OwnedExpressionState::default(),
+        OwnedExpressionState::default(),
+    )
+    .unwrap();
+    producer
+        .push_scheduled(ScheduledEvent::initialized_monitor_voice(
+            0,
+            0,
+            GraphRevision::INITIAL,
+            patch,
+            voice,
+            initial,
+        ))
+        .unwrap();
+    producer
+        .push_scheduled(ScheduledEvent::initialized_voice(
+            3,
+            0,
+            GraphRevision::INITIAL,
+            patch,
+            voice,
+            initial,
+        ))
+        .unwrap();
+    let replacement = ScheduledEvent::initialized_monitor_voice(
+        11,
+        1,
+        GraphRevision::INITIAL,
+        patch,
+        voice,
+        initial,
+    );
+    let (_structural, structural_audio) = LockFreeStructuralGraphBoundary::new(
+        1,
+        1,
+        GraphHandoffStatus::with_active(GraphRevision::INITIAL),
+    )
+    .unwrap()
+    .into_handles();
+    let (writer, observation) = AtomicAudioObservation::default().into_handles();
+    let mut renderer = AudioRenderer::with_observation(
+        MonitorCancellationRace {
+            audio,
+            producer,
+            replacement,
+            polls: 0,
+        },
+        structural_audio,
+        graph,
+        writer,
+    )
+    .with_command_budget(core::num::NonZeroUsize::new(3).unwrap());
+    let mut output = [0.0; 32];
+    ALLOCATIONS.with(|count| count.set(0));
+    DEALLOCATIONS.with(|count| count.set(0));
+    COUNT_MEMORY.with(|enabled| enabled.set(true));
+    renderer.render(&mut output);
+    COUNT_MEMORY.with(|enabled| enabled.set(false));
+    assert_eq!(
+        (ALLOCATIONS.with(Cell::get), DEALLOCATIONS.with(Cell::get)),
+        (0, 0)
+    );
+    let observed = observation.read_latest_on_control();
+    assert_eq!(observed.active_notes(), 2); // New Monitor plus unchanged Playback.
+    assert_eq!(observed.commands_consumed(), 3);
+    assert_eq!(observed.routing_failures(), 0);
+    assert_eq!(observed.scheduled_late_events(), 0);
+    assert!(output.iter().any(|sample| sample.abs() > 1e-7));
 }
 
 struct ScopedRouteWitness {

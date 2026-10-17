@@ -1186,7 +1186,7 @@ where
                 active,
             });
         }
-        let current_epoch = self.scheduled_epoch();
+        let current_epoch = self.scheduled_epoch_for(event.lane());
         if event.epoch() != current_epoch {
             return Err(ScheduledEventRejected::new(
                 event,
@@ -1209,7 +1209,7 @@ where
                     voice,
                     initial,
                 } => Some(AudioCommand::InitializedVoice {
-                    source: crate::synth::MidiSource::Scheduled,
+                    source: event.lane().source(),
                     patch_id: event.patch_id(),
                     voice,
                     initial,
@@ -1219,7 +1219,7 @@ where
                     scope,
                     message,
                 } => Some(AudioCommand::VoiceMidi {
-                    source: crate::synth::MidiSource::Scheduled,
+                    source: event.lane().source(),
                     patch_id: event.patch_id(),
                     voice,
                     scope,
@@ -1251,7 +1251,7 @@ where
                 active,
             });
         }
-        let current_epoch = self.scheduled_epoch();
+        let current_epoch = self.scheduled_epoch_for(event.lane());
         if event.epoch() != current_epoch {
             return Err(ScheduledEventRejected::new(
                 event,
@@ -1295,6 +1295,20 @@ where
     /// Current generation of the cancellable scheduled MIDI transport.
     pub fn scheduled_epoch(&self) -> u64 {
         self.boundary.scheduled_epoch()
+    }
+
+    pub fn scheduled_epoch_for(
+        &self,
+        lane: crate::real_time::scheduled_event::ScheduledLane,
+    ) -> u64 {
+        self.boundary.scheduled_epoch_for(lane)
+    }
+
+    pub fn cancel_scheduled_lane(
+        &mut self,
+        lane: crate::real_time::scheduled_event::ScheduledLane,
+    ) -> Result<u64, ScheduledEventEpochExhausted> {
+        self.boundary.cancel_scheduled_lane(lane)
     }
 
     /// Invalidates queued scheduled events and releases their owned notes at

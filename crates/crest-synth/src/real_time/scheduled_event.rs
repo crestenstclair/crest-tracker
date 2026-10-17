@@ -4,6 +4,29 @@ use crate::real_time::graph_revision::GraphRevision;
 use crate::real_time::send_leases::SendLease;
 use core::fmt;
 
+/// Independent ordering and cancellation domains in the audio-frame clock.
+/// A short-horizon monitor event may precede already published playback events.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum ScheduledLane {
+    Playback,
+    Monitor,
+}
+impl ScheduledLane {
+    pub const ALL: [Self; 2] = [Self::Playback, Self::Monitor];
+    pub(crate) const fn index(self) -> usize {
+        match self {
+            Self::Playback => 0,
+            Self::Monitor => 1,
+        }
+    }
+    pub(crate) const fn source(self) -> crate::synth::MidiSource {
+        match self {
+            Self::Playback => crate::synth::MidiSource::Scheduled,
+            Self::Monitor => crate::synth::MidiSource::Monitor,
+        }
+    }
+}
+
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum ScheduledPayload {
     Midi {
@@ -27,6 +50,7 @@ pub enum ScheduledPayload {
 /// Publication validates the epoch and ordering against the owning producer.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct ScheduledEvent {
+    lane: ScheduledLane,
     absolute_frame: u64,
     epoch: u64,
     graph_revision: GraphRevision,
@@ -43,6 +67,7 @@ impl ScheduledEvent {
         message: MidiMessage,
     ) -> Self {
         Self {
+            lane: ScheduledLane::Playback,
             absolute_frame,
             epoch,
             graph_revision,
@@ -84,6 +109,7 @@ impl ScheduledEvent {
         initial: crate::synth::OwnedVoiceInitialization,
     ) -> Self {
         Self {
+            lane: ScheduledLane::Playback,
             absolute_frame,
             epoch,
             graph_revision,
@@ -99,6 +125,7 @@ impl ScheduledEvent {
         lease: SendLease,
     ) -> Self {
         Self {
+            lane: ScheduledLane::Playback,
             absolute_frame,
             epoch,
             graph_revision,
@@ -114,6 +141,7 @@ impl ScheduledEvent {
         id: crate::real_time::SendLeaseId,
     ) -> Self {
         Self {
+            lane: ScheduledLane::Playback,
             absolute_frame,
             epoch,
             graph_revision,
@@ -123,6 +151,38 @@ impl ScheduledEvent {
     }
     pub const fn payload(self) -> ScheduledPayload {
         self.payload
+    }
+    pub const fn lane(self) -> ScheduledLane {
+        self.lane
+    }
+
+    /// Owned monitoring uses its own queue and epoch, never playback's watermark.
+    pub const fn monitor_voice(
+        frame: u64,
+        epoch: u64,
+        graph: GraphRevision,
+        patch: PatchId,
+        voice: crate::synth::MidiVoiceId,
+        scope: crate::synth::MidiExpressionScope,
+        message: MidiMessage,
+    ) -> Self {
+        let mut event = Self::new(frame, epoch, graph, patch, message)
+            .with_voice(Some(voice))
+            .with_expression_scope(scope);
+        event.lane = ScheduledLane::Monitor;
+        event
+    }
+    pub const fn initialized_monitor_voice(
+        frame: u64,
+        epoch: u64,
+        graph: GraphRevision,
+        patch: PatchId,
+        voice: crate::synth::MidiVoiceId,
+        initial: crate::synth::OwnedVoiceInitialization,
+    ) -> Self {
+        let mut event = Self::initialized_voice(frame, epoch, graph, patch, voice, initial);
+        event.lane = ScheduledLane::Monitor;
+        event
     }
 
     pub const fn absolute_frame(self) -> u64 {

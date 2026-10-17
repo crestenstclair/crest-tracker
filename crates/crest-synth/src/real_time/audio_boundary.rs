@@ -2,7 +2,7 @@ use crate::real_time::audio_command::AudioCommand;
 use crate::real_time::parameter_snapshot::ParameterSnapshot;
 use crate::real_time::scheduled_event::{
     ScheduledEvent, ScheduledEventEpochExhausted, ScheduledEventPoll, ScheduledEventRejected,
-    ScheduledEventRejectionReason,
+    ScheduledEventRejectionReason, ScheduledLane,
 };
 use core::fmt;
 
@@ -66,6 +66,12 @@ pub trait ControlAudioBoundary: Send {
     fn scheduled_epoch(&self) -> u64 {
         0
     }
+    fn scheduled_epoch_for(&self, lane: ScheduledLane) -> u64 {
+        match lane {
+            ScheduledLane::Playback => self.scheduled_epoch(),
+            ScheduledLane::Monitor => 0,
+        }
+    }
 
     fn push_scheduled(&mut self, event: ScheduledEvent) -> Result<(), ScheduledEventRejected> {
         Err(ScheduledEventRejected::new(
@@ -76,6 +82,15 @@ pub trait ControlAudioBoundary: Send {
 
     fn cancel_scheduled(&mut self) -> Result<u64, ScheduledEventEpochExhausted> {
         Ok(0)
+    }
+    fn cancel_scheduled_lane(
+        &mut self,
+        lane: ScheduledLane,
+    ) -> Result<u64, ScheduledEventEpochExhausted> {
+        match lane {
+            ScheduledLane::Playback => self.cancel_scheduled(),
+            ScheduledLane::Monitor => Ok(0),
+        }
     }
 
     fn publish_parameters(&mut self, parameters: ParameterSnapshot);
@@ -90,6 +105,12 @@ pub trait AudioThreadBoundary: Send {
 
     fn scheduled_epoch(&self) -> u64 {
         0
+    }
+    fn scheduled_epoch_for(&self, lane: ScheduledLane) -> u64 {
+        match lane {
+            ScheduledLane::Playback => self.scheduled_epoch(),
+            ScheduledLane::Monitor => 0,
+        }
     }
     /// Producer-sampled occupancy peak; zero for boundaries without a schedule.
     fn scheduled_queue_high_water(&self) -> u64 {

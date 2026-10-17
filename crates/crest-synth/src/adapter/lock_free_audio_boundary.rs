@@ -8,6 +8,7 @@ use crate::real_time::audio_command::AudioCommand;
 use crate::real_time::parameter_snapshot::ParameterSnapshot;
 use crate::real_time::scheduled_event::{
     ScheduledEvent, ScheduledEventEpochExhausted, ScheduledEventPoll, ScheduledEventRejected,
+    ScheduledLane,
 };
 use rtrb::{Consumer, Producer, PushError, RingBuffer};
 use std::sync::atomic::{AtomicU8, Ordering};
@@ -97,6 +98,15 @@ impl LockFreeControlHandle {
 }
 
 impl ControlAudioBoundary for LockFreeControlHandle {
+    fn scheduled_epoch_for(&self, lane: ScheduledLane) -> u64 {
+        self.scheduled.epoch_for(lane)
+    }
+    fn cancel_scheduled_lane(
+        &mut self,
+        lane: ScheduledLane,
+    ) -> Result<u64, ScheduledEventEpochExhausted> {
+        self.scheduled.cancel_lane(lane)
+    }
     fn scheduled_epoch(&self) -> u64 {
         self.scheduled.epoch()
     }
@@ -153,6 +163,9 @@ impl LockFreeAudioHandle {
 }
 
 impl AudioThreadBoundary for LockFreeAudioHandle {
+    fn scheduled_epoch_for(&self, lane: ScheduledLane) -> u64 {
+        self.scheduled.epoch_for(lane)
+    }
     fn scheduled_queue_high_water(&self) -> u64 {
         self.scheduled.queue_high_water()
     }

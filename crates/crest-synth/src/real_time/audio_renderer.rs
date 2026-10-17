@@ -11,7 +11,7 @@ use crate::real_time::graph_revision::GraphRevision;
 use crate::real_time::parameter_snapshot::MAX_ACTIVE_PATCHES;
 use crate::real_time::prepared_engine_rack::RackDispatchError;
 use crate::real_time::prepared_graph::{PreparedGraph, PreviewAudioObservation};
-use crate::real_time::scheduled_event::{ScheduledEvent, ScheduledEventPoll, ScheduledPayload};
+use crate::real_time::scheduled_event::{ScheduledEventPoll, ScheduledLane, ScheduledPayload};
 use crate::real_time::structural_graph_boundary::AudioStructuralGraphBoundary;
 use crate::real_time::PatchEffectObservation;
 use crate::real_time::{SendLeaseError, SendLeases};
@@ -38,10 +38,9 @@ pub struct AudioRenderer<Boundary, Structural, Observation = DiscardAudioObserva
     candidate_pending: bool,
     handoff_status: GraphHandoffStatus,
     active_notes: SourceNoteObservation,
-    scheduled_patches: [Option<PatchId>; MAX_ACTIVE_PATCHES],
-    scheduled_epoch: u64,
+    scheduled_patches: [[Option<PatchId>; MAX_ACTIVE_PATCHES]; 2],
+    scheduled_epoch: [u64; 2],
     send_leases: SendLeases,
-    pending_scheduled: Option<ScheduledEvent>,
     rendered_blocks: u64,
     rendered_frames: u64,
     max_commands_per_block: usize,
@@ -88,7 +87,7 @@ where
     ) -> Self {
         let parameters = initial_graph.initial_parameters().clone();
         let handoff_status = GraphHandoffStatus::with_active(initial_graph.revision());
-        let scheduled_epoch = boundary.scheduled_epoch();
+        let scheduled_epoch = ScheduledLane::ALL.map(|lane| boundary.scheduled_epoch_for(lane));
         structural.publish_status_on_audio(handoff_status);
         Self {
             boundary,
@@ -101,14 +100,13 @@ where
             parameters,
             handoff_status,
             active_notes: SourceNoteObservation::new(),
-            scheduled_patches: [None; MAX_ACTIVE_PATCHES],
+            scheduled_patches: [[None; MAX_ACTIVE_PATCHES]; 2],
             scheduled_epoch,
             send_leases: SendLeases::new(
                 core::num::NonZeroUsize::new(DEFAULT_AUDIO_COMMANDS_PER_BLOCK)
                     .expect("positive default budget"),
             )
             .expect("send lease storage allocation"),
-            pending_scheduled: None,
             rendered_blocks: 0,
             rendered_frames: 0,
             max_commands_per_block: DEFAULT_AUDIO_COMMANDS_PER_BLOCK,
@@ -156,10 +154,8 @@ where
     fn render_bounded_block(&mut self, interleaved_stereo: &mut [f32]) {
         self.apply_structural_handoff();
         self.select_latest_parameters();
-        let epoch = self.boundary.scheduled_epoch();
-        if epoch != self.scheduled_epoch {
-            self.release_scheduled_notes();
-            self.scheduled_epoch = epoch;
+        for lane in ScheduledLane::ALL {
+            self.synchronize_schedule_epoch(lane);
         }
         let remaining_commands = self.drain_immediate_commands();
         let frame_count = interleaved_stereo.len() / 2;
@@ -253,7 +249,7 @@ where
                 AudioCommand::AllNotesOff => {
                     self.active_graph.callback_parts_mut().0.all_notes_off();
                     self.active_notes.clear_all();
-                    self.scheduled_patches.fill(None);
+                    self.scheduled_patches.fill([None; MAX_ACTIVE_PATCHES]);
                     self.send_leases.clear();
                 }
                 AudioCommand::PreviewStart {
@@ -374,7 +370,7 @@ where
                 self.active_notes
                     .observe_patch_message(source, patch_id, message);
                 if source == MidiSource::Scheduled {
-                    self.mark_scheduled_patch(patch_id);
+                    self.mark_scheduled_patch(ScheduledLane::Playback, patch_id);
                 }
                 true
             }
@@ -425,10 +421,7 @@ where
             .saturating_add((output.len() / 2) as u64);
         let mut rendered_samples = 0;
         for _ in 0..command_budget {
-            let polled = self.pending_scheduled.take().map_or_else(
-                || self.boundary.poll_scheduled_before(end_frame),
-                ScheduledEventPoll::Ready,
-            );
+            let polled = self.boundary.poll_scheduled_before(end_frame);
             let event = match polled {
                 ScheduledEventPoll::Empty | ScheduledEventPoll::Future { .. } => break,
                 ScheduledEventPoll::Stale => {
@@ -437,15 +430,11 @@ where
                 }
                 ScheduledEventPoll::Ready(event) => event,
             };
-            // If cancellation races a block, preserve a newly admitted event
-            // until the next block performs old-epoch note cleanup.
-            let epoch = self.boundary.scheduled_epoch();
-            if epoch != self.scheduled_epoch && event.epoch() == epoch {
-                self.pending_scheduled = Some(event);
-                break;
-            }
+            // Observe each lane independently. A newly admitted monitor event
+            // cannot defer unrelated playback while its old voices are released.
+            let epoch = self.synchronize_schedule_epoch(event.lane());
             self.commands_consumed = self.commands_consumed.saturating_add(1);
-            if event.epoch() != self.scheduled_epoch || event.epoch() != epoch {
+            if event.epoch() != epoch {
                 continue;
             }
             if event.graph_revision() != self.active_graph.revision() {
@@ -475,25 +464,29 @@ where
             }
             match event.payload() {
                 ScheduledPayload::InitializedVoice { voice, initial } => {
-                    self.dispatch_initialized_voice(
-                        MidiSource::Scheduled,
+                    if self.dispatch_initialized_voice(
+                        event.lane().source(),
                         event.patch_id(),
                         voice,
                         initial,
-                    );
+                    ) {
+                        self.mark_scheduled_patch(event.lane(), event.patch_id());
+                    }
                 }
                 ScheduledPayload::Midi {
                     message,
                     voice,
                     scope,
                 } => {
-                    self.dispatch_scoped_voice_midi(
-                        MidiSource::Scheduled,
+                    if self.dispatch_scoped_voice_midi(
+                        event.lane().source(),
                         voice,
                         scope,
                         event.patch_id(),
                         message,
-                    );
+                    ) {
+                        self.mark_scheduled_patch(event.lane(), event.patch_id());
+                    }
                 }
                 ScheduledPayload::EndSendLease(id) => {
                     self.send_leases.end(event.patch_id(), id);
@@ -632,15 +625,21 @@ where
         );
     }
 
-    fn mark_scheduled_patch(&mut self, patch_id: PatchId) {
-        if self.scheduled_patches.contains(&Some(patch_id)) {
+    fn synchronize_schedule_epoch(&mut self, lane: ScheduledLane) -> u64 {
+        let epoch = self.boundary.scheduled_epoch_for(lane);
+        if epoch != self.scheduled_epoch[lane.index()] {
+            self.release_schedule_lane(lane);
+            self.scheduled_epoch[lane.index()] = epoch;
+        }
+        epoch
+    }
+
+    fn mark_scheduled_patch(&mut self, lane: ScheduledLane, patch_id: PatchId) {
+        let patches = &mut self.scheduled_patches[lane.index()];
+        if patches.contains(&Some(patch_id)) {
             return;
         }
-        if let Some(slot) = self
-            .scheduled_patches
-            .iter_mut()
-            .find(|slot| slot.is_none())
-        {
+        if let Some(slot) = patches.iter_mut().find(|slot| slot.is_none()) {
             *slot = Some(patch_id);
         }
     }
@@ -670,20 +669,28 @@ where
     /// touched Patches are visited; unrelated legacy instruments never receive
     /// an unsupported source operation. Prepared voice capacity bounds the work.
     fn release_scheduled_notes(&mut self) {
-        self.send_leases.clear();
+        for lane in ScheduledLane::ALL {
+            self.release_schedule_lane(lane);
+        }
+    }
+
+    fn release_schedule_lane(&mut self, lane: ScheduledLane) {
+        if lane == ScheduledLane::Playback {
+            self.send_leases.clear();
+        }
         for index in 0..MAX_ACTIVE_PATCHES {
-            let Some(patch_id) = self.scheduled_patches[index].take() else {
+            let Some(patch_id) = self.scheduled_patches[lane.index()][index].take() else {
                 continue;
             };
             let result = self
                 .active_graph
                 .callback_parts_mut()
                 .0
-                .all_notes_off_for_source(MidiSource::Scheduled, patch_id);
+                .all_notes_off_for_source(lane.source(), patch_id);
             match result {
                 Ok(()) => self
                     .active_notes
-                    .clear_source_patch(MidiSource::Scheduled, patch_id),
+                    .clear_source_patch(lane.source(), patch_id),
                 Err(_) => self.routing_failures = self.routing_failures.saturating_add(1),
             }
         }

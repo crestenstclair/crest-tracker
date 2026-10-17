@@ -341,15 +341,27 @@ Different real-time data has different transport semantics:
 | Data | Transport | Rule |
 | --- | --- | --- |
 | Immediate MIDI, preview, bounded commands | fixed-capacity SPSC event ring | bounded block-start delivery |
-| Scheduled MIDI and temporary controls | separate fixed-capacity ordered event ring | absolute stereo frames; exact render offsets, graph revision and cancellation epoch |
+| Scheduled playback and timed monitoring | independent fixed-capacity ordered event rings | absolute stereo frames; exact render offsets, graph revision and per-lane cancellation epoch |
 | Scalar parameters | triple-buffered `ParameterSnapshot` | latest compatible complete snapshot wins |
 | Structural changes | ownership-transfer queue of prepared graphs/assets | swap at block boundary; retire off-thread |
 | Meters and RT health | atomics/latest `AudioObservationSnapshot` | decimated and polled by UI |
 | Physical MIDI activity | latest compatible control-side snapshot | exact active revision, decimated to at most 30 Hz |
 
-Scheduled deliveries retain future entries and share one per-block work budget
-with immediate commands. The renderer splits at event sample offsets. Cancellation
-invalidates old epochs at consumption and releases only Scheduled voices. Native
+Playback and timed-monitor lanes retain future entries, each with its own ordering
+watermark and cancellation epoch. This admits live events earlier than already
+published clip lookahead. Each lane receives the configured queue capacity; their
+combined occupancy is observed. Heads merge by absolute frame, retaining FIFO
+within a lane and giving playback precedence on ties. Both lanes share one
+per-block work budget with immediate commands. Due events take precedence over
+stale cleanup on the other lane; canceled entries on the same lane still require
+bounded reclamation. The renderer splits at event sample offsets. Cancellation
+invalidates old epochs at consumption and releases that lane's source on touched
+Patches at the next epoch observation: block start or a subsequent event boundary
+within a block. Timed and immediate host monitoring share Monitor ownership, so
+canceling timed monitoring also releases immediate Monitor voices on those touched
+Patches. Playback cancellation leaves Monitor and Immediate voices intact. Graph
+replacement releases both timed lanes. Temporary send leases belong to playback;
+canceling monitoring leaves them intact. Native
 voice banks distinguish Immediate, Scheduled and Monitor sources, MIDI channels,
 and optional attack identities; this protects overlapping same-pitch attacks and
 owned expression. Raw channel controls remain channel-wide. Braids and resident

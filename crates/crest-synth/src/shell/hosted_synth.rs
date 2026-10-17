@@ -17,7 +17,9 @@ use crate::kernel::midi_channel::MidiChannel;
 use crate::kernel::midi_message::MidiMessage;
 use crate::kernel::patch_id::PatchId;
 use crate::real_time::audio_boundary::{BoundaryFull, ControlAudioBoundary};
-use crate::real_time::scheduled_event::{ScheduledEvent, ScheduledEventEpochExhausted};
+use crate::real_time::scheduled_event::{
+    ScheduledEvent, ScheduledEventEpochExhausted, ScheduledLane,
+};
 use crate::real_time::GraphRevision;
 use crate::shell::{SessionLifecycleCoordinator, SessionLifecycleError, SessionLifecycleStage};
 use crate::synth::{MidiSource, MidiVoiceId, OwnedVoiceInitialization};
@@ -515,6 +517,57 @@ impl<'a, Boundary: ControlAudioBoundary> HostedSynthControl<'a, Boundary> {
                 (master.raw14(), master.semitones(), master.cents()),
             )?;
         Ok(())
+    }
+
+    /// A timestamped monitor attack can precede queued clip playback. Each lane
+    /// retains FIFO ties and its own nondecreasing frame watermark.
+    pub fn schedule_initialized_monitor_voice(
+        &mut self,
+        frame: u64,
+        patch: PatchId,
+        voice: MidiVoiceId,
+        initial: OwnedVoiceInitialization,
+    ) -> Result<(), HostedSynthError> {
+        self.validate_initialized_voice(patch, initial)?;
+        let event = ScheduledEvent::initialized_monitor_voice(
+            frame,
+            self.app.scheduled_epoch_for(ScheduledLane::Monitor),
+            self.active_graph_revision(),
+            patch,
+            voice,
+            initial,
+        );
+        self.app
+            .dispatch_scheduled_midi_from(event, EventSource::AutomaticMidi)?;
+        Ok(())
+    }
+
+    pub fn schedule_owned_monitor_midi(
+        &mut self,
+        frame: u64,
+        patch: PatchId,
+        voice: MidiVoiceId,
+        scope: crate::synth::MidiExpressionScope,
+        message: MidiMessage,
+    ) -> Result<(), HostedSynthError> {
+        let event = ScheduledEvent::monitor_voice(
+            frame,
+            self.app.scheduled_epoch_for(ScheduledLane::Monitor),
+            self.active_graph_revision(),
+            patch,
+            voice,
+            scope,
+            message,
+        );
+        self.app
+            .dispatch_scheduled_midi_from(event, EventSource::AutomaticMidi)?;
+        Ok(())
+    }
+
+    /// Invalidates timed monitoring and releases Monitor ownership on its touched
+    /// Patches, including immediate Monitor voices there. Playback remains active.
+    pub fn cancel_monitor_schedule(&mut self) -> Result<u64, HostedSynthError> {
+        Ok(self.app.cancel_scheduled_lane(ScheduledLane::Monitor)?)
     }
 
     /// Delivers host monitoring MIDI with ownership separate from live input and playback.
@@ -1035,6 +1088,7 @@ mod tests {
             for result in [
                 host.send_initialized_monitor_voice(patch, voice, initial),
                 host.schedule_initialized_voice(100, patch, voice, initial),
+                host.schedule_initialized_monitor_voice(100, patch, voice, initial),
             ] {
                 assert!(matches!(
                     result,
@@ -1116,6 +1170,65 @@ mod tests {
             ScheduledEventPoll::Empty
         );
         assert_eq!(host.projection().generation(), generation + 2);
+        assert_eq!(host.capture_saved_session().unwrap(), saved);
+    }
+
+    #[test]
+    fn timed_monitoring_uses_independent_watermark_and_epoch_without_immediate_fallback() {
+        use crate::synth::{MidiExpressionScope, OwnedExpressionState};
+        let (mut app, mut audio) = app();
+        let mut host = HostedSynthControl::new(&mut app, false);
+        let patch = PatchId::new(7).unwrap();
+        let voice = MidiVoiceId::new(1).unwrap();
+        let saved = host.capture_saved_session().unwrap();
+        let initial = OwnedVoiceInitialization::new(
+            note(),
+            OwnedExpressionState::new(9_000, 48, 0, Some(96), Some(25), 0).unwrap(),
+            OwnedExpressionState::default(),
+        )
+        .unwrap();
+        host.schedule_initialized_voice(1_000, patch, voice, initial)
+            .unwrap();
+        host.schedule_initialized_monitor_voice(5, patch, voice, initial)
+            .unwrap();
+        assert_eq!(audio.pop_command(), None);
+        assert_eq!(
+            audio.poll_scheduled_before(6),
+            ScheduledEventPoll::Ready(ScheduledEvent::initialized_monitor_voice(
+                5,
+                0,
+                host.active_graph_revision(),
+                patch,
+                voice,
+                initial
+            ))
+        );
+        assert!(host
+            .schedule_initialized_monitor_voice(4, patch, voice, initial)
+            .is_err());
+        let release = MidiMessage::try_new(
+            MidiChannel::new(0).unwrap(),
+            MidiMessageKind::NoteOff,
+            60,
+            0,
+        )
+        .unwrap();
+        host.schedule_owned_monitor_midi(9, patch, voice, MidiExpressionScope::Member, release)
+            .unwrap();
+        assert_eq!(host.cancel_monitor_schedule().unwrap(), 1);
+        assert_eq!(host.schedule_epoch(), 0);
+        assert_eq!(audio.poll_scheduled_before(10), ScheduledEventPoll::Stale);
+        host.schedule_initialized_monitor_voice(3, patch, voice, initial)
+            .unwrap();
+        assert!(
+            matches!(audio.poll_scheduled_before(4), ScheduledEventPoll::Ready(event)
+            if event.lane() == ScheduledLane::Monitor && event.epoch() == 1)
+        );
+        assert!(
+            matches!(audio.poll_scheduled_before(1_001), ScheduledEventPoll::Ready(event)
+            if event.lane() == ScheduledLane::Playback && event.epoch() == 0)
+        );
+        assert_eq!(audio.pop_command(), None);
         assert_eq!(host.capture_saved_session().unwrap(), saved);
     }
 
