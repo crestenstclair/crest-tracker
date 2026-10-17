@@ -1,9 +1,31 @@
 //! Transient selection and immutable note projection, separate from Song phrases.
 use crest_performance_core::{BeatTime, Note, NoteKey};
 
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub(crate) enum ClipView {
+    #[default]
+    PianoRoll,
+    Tracker,
+}
+impl ClipView {
+    pub fn label(self) -> &'static str {
+        match self {
+            Self::PianoRoll => "Piano roll",
+            Self::Tracker => "Tracker",
+        }
+    }
+    pub fn toggle(&mut self) {
+        *self = match self {
+            Self::PianoRoll => Self::Tracker,
+            Self::Tracker => Self::PianoRoll,
+        };
+    }
+}
+
 #[derive(Debug, Clone)]
 pub(crate) struct ClipEditor {
     pub token: u64,
+    pub view: ClipView,
     pub slot: usize,
     pub length: BeatTime,
     pub notes: Vec<Note>,

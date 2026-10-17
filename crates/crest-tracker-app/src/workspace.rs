@@ -203,6 +203,11 @@ pub fn action(app: &mut App, action: SemanticAction) -> bool {
         SemanticAction::SelectPatch(Direction::Left) => {
             return_to_parent(app);
         }
+        SemanticAction::SelectPatch(Direction::Right)
+            if app.workspace.panel == Some(Panel::PerformanceEdit) =>
+        {
+            app.status = "Clip note deletion is not available yet".into();
+        }
         SemanticAction::SelectPatch(Direction::Right) => app.requests.push(Request::Clear),
         _ => {}
     }
@@ -539,6 +544,10 @@ pub fn event(app: &mut App, event: WorkspaceEvent) {
             .flat_map(|row| &row.cells)
             .find(|cell| cell.id == id)
         {
+            if app.workspace.panel == Some(Panel::PerformanceEdit) {
+                performance_edit::select(app, &cell.id);
+                return;
+            }
             select_cell(app, &cell.id);
             if activate_row && (cell.id.starts_with("piano:") || app.is_drum()) {
                 app.requests.push(Request::Confirm);

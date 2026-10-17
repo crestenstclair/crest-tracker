@@ -84,7 +84,11 @@ simulator's actual firmware, saved/reopened it in Tracker, launched/stopped it b
 a virtual pad, observed the decoded LED change from blue to green and back, and restored
 the stock playing display. This is virtual validation, not physical-device qualification.
 **Edit clip** opens the existing native piano-roll timeline over the library's note
-projection. Select a span or use Previous/Next, then edit pitch, exact start or duration.
+projection. **View** switches between Piano roll and Tracker without changing the clip.
+Tracker shows one row per note with exact start and duration, velocity and expression-point
+count; simultaneous attacks and repeated pitches remain separate rows. Selection survives
+view changes. Select a span, a Tracker cell or Previous/Next, then edit pitch, exact start
+or duration.
 The quarter-beat ruler is visual: controller timing nudges add 1/16 beat to the existing
 time without snapping, and text accepts exact beat fractions representable at 960,000
 ticks per beat. Moving or repitching retains every expression sample, including samples
@@ -92,7 +96,8 @@ at release. Shortening explicitly removes samples at or beyond the new end; **Un
 edit** restores the complete prior clip. Editing stops that clip first, and playing clips
 reject edits until stopped. The editor uses stable note identities, rejects stale commands
 and saves through the existing project lifecycle. It currently edits existing notes;
-adding/removing notes, expression-curve tools and tracker interoperability remain work.
+adding/removing notes, expression-curve tools and conversion into Song phrases remain work.
+The clip's Tracker view does not import, quantize or replace the Song's arrangement.
 Native Sample witnesses cover exact movement, Undo, repitching, save/reopen and audible replay.
 Desktop verification exercised keyboard editing, unchanged expression counts, playback
 rejection while editing, Undo's clean state and reopening the saved repitched clip.

@@ -1,7 +1,7 @@
 //! The native timeline paints library notes directly. Grid divisions are visual;
 //! edits add an explicit interval or accept an exact beat fraction.
 use super::*;
-use crate::performance_editor::{note_id, ClipEditor};
+use crate::performance_editor::{note_id, ClipEditor, ClipView};
 use crest_performance_core::{BeatTime, Note, TICKS_PER_BEAT};
 use crest_synth::shell::webview::host_presentation::{WorkspaceSpan, WorkspaceTimeline};
 
@@ -9,10 +9,11 @@ pub(super) fn rows(app: &App) -> Vec<WorkspaceRow> {
     let Some(editor) = &app.performance_editor else {
         return commands(&[("back", "Reopen a clip to edit")]);
     };
-    let mut rows = commands(&[
+    let mut rows = vec![row("performance_view", "View", editor.view.label())];
+    rows.extend(commands(&[
         ("performance_previous_note", "Previous note"),
         ("performance_next_note", "Next note"),
-    ]);
+    ]));
     if let Some(note) = editor.selected_note() {
         rows.extend([
             row("performance_pitch", "Pitch", pitch_name(app, note.key)),
@@ -57,6 +58,7 @@ pub(super) fn activate(app: &mut App, id: &str) -> bool {
         return false;
     };
     match id {
+        "performance_view" => editor.view.toggle(),
         "performance_previous_note" => editor.select_next(-1),
         "performance_next_note" => editor.select_next(1),
         "performance_undo_edit" => app.requests.push(Request::PerformanceUndo {
@@ -89,9 +91,21 @@ pub(super) fn select(app: &mut App, id: &str) {
     let Some(editor) = &mut app.performance_editor else {
         return;
     };
-    if let Some(note) = editor.notes.iter().find(|note| note_id(note.id) == id) {
+    let (identity, field) = id.split_once('@').unwrap_or((id, "pitch"));
+    if let Some(note) = editor
+        .notes
+        .iter()
+        .find(|note| note_id(note.id) == identity)
+    {
         editor.selected = Some(note.id);
-        app.workspace.focus = Some("performance_pitch".into());
+        app.workspace.focus = Some(
+            match field {
+                "start" => "performance_start",
+                "duration" => "performance_duration",
+                _ => "performance_pitch",
+            }
+            .into(),
+        );
     }
 }
 
@@ -185,13 +199,17 @@ pub(super) fn project(app: &App, view: &mut WorkspaceProjection) {
         return;
     };
     view.context = format!("CLIP {}", editor.slot + 1);
-    view.title = "PIANO ROLL".into();
+    view.title = editor.view.label().to_uppercase();
     view.subtitle = format!(
         "{} notes · {} beats · Free timing",
         editor.notes.len(),
         beat_label(editor.length)
     );
     view.hints = "Select a note or Previous/Next · Edit+direction: pitch / 1/16-beat nudge · Return: exact value · Shortening trims expression; Undo restores".into();
+    if editor.view == ClipView::Tracker {
+        project_tracker(app, editor, view);
+        return;
+    }
     let Some(note) = editor.selected_note() else {
         return;
     };
@@ -216,6 +234,60 @@ pub(super) fn project(app: &App, view: &mut WorkspaceProjection) {
         playhead: None,
     });
     view.compact_grid = true;
+}
+/// Every attack has its own row, even simultaneous or repeated pitches. This
+/// is a view of the same clip, not a conversion to a quantized Song phrase.
+fn project_tracker(app: &App, editor: &ClipEditor, view: &mut WorkspaceProjection) {
+    view.columns = [
+        "Start · beats",
+        "Pitch",
+        "Duration · beats",
+        "Velocity",
+        "Expression",
+    ]
+    .map(str::to_owned)
+    .to_vec();
+    let selected = editor
+        .notes
+        .iter()
+        .position(|note| Some(note.id) == editor.selected)
+        .unwrap_or(0);
+    let start = selected / 12 * 12;
+    view.grid = editor
+        .notes
+        .iter()
+        .enumerate()
+        .skip(start)
+        .take(12)
+        .map(|(index, note)| tracker_row(app, note, index, editor.selected == Some(note.id)))
+        .collect();
+    view.hints = "One row per note · Exact beats retain off-grid timing and polyphony · Select a cell or Previous/Next · Return: exact value · View changes preserve expression".into();
+}
+fn tracker_row(app: &App, note: &Note, index: usize, selected: bool) -> WorkspaceGridRow {
+    let identity = note_id(note.id);
+    let fields = [
+        ("start", beat_label(note.start)),
+        ("pitch", pitch_name(app, note.key)),
+        ("duration", beat_label(note.duration)),
+        ("velocity", note.velocity.to_string()),
+        (
+            "expression",
+            format!("{} points", note.expression.points.len()),
+        ),
+    ];
+    WorkspaceGridRow {
+        id: identity.clone(),
+        label: format!("{index:02}"),
+        cells: fields
+            .into_iter()
+            .map(|(field, value)| {
+                let mut cell = row(format!("{identity}@{field}"), "", value);
+                cell.selected = selected;
+                cell
+            })
+            .collect(),
+        playing: false,
+    }
 }
 fn lane(app: &App, pitch: u8) -> WorkspaceGridRow {
     WorkspaceGridRow {
@@ -281,6 +353,7 @@ mod tests {
         };
         app.performance_editor = Some(ClipEditor {
             token: 9,
+            view: ClipView::PianoRoll,
             slot: 3,
             length: BeatTime(TICKS_PER_BEAT),
             selected: Some(note.id),
@@ -322,6 +395,74 @@ mod tests {
         assert!(submit(&mut app, "performance_value:9:performance_start", "1/7").is_err());
         assert_eq!(app.performance_editor.as_ref().unwrap().notes, original);
     }
+    #[test]
+    fn tracker_view_preserves_polyphony_exact_times_and_selection_without_song_mutation() {
+        let mut app = fixture();
+        app.requests.clear(); // The fixture's initial screen change ends any prior gesture.
+        let editor = app.performance_editor.as_mut().unwrap();
+        let mut second = editor.notes[0].clone();
+        second.id.note = NoteId(7);
+        editor.notes.push(second.clone());
+        let mut third = second;
+        third.id.note = NoteId(8);
+        third.start.0 += 17;
+        editor.notes.push(third);
+        let original = editor.notes.clone();
+        let song_revision = app.editor.revision();
+        event(
+            &mut app,
+            WorkspaceEvent::Activate {
+                id: "performance_view".into(),
+            },
+        );
+        let view = super::super::project(&app).workspace.unwrap();
+        assert_eq!(view.title, "TRACKER");
+        assert!(view.timeline.is_none());
+        assert_eq!(view.grid.len(), 3);
+        assert_eq!(view.grid[0].cells[0].value, view.grid[1].cells[0].value);
+        assert_eq!(
+            parse_time(&view.grid[0].cells[0].value).unwrap(),
+            BeatTime(12_345)
+        );
+        assert_eq!(
+            parse_time(&view.grid[2].cells[0].value).unwrap(),
+            BeatTime(12_362)
+        );
+        assert!(view.grid[0].id.ends_with("18446744073709551615"));
+        event(
+            &mut app,
+            WorkspaceEvent::Activate {
+                id: view.grid[1].cells[2].id.clone(),
+            },
+        );
+        assert_eq!(
+            app.performance_editor.as_ref().unwrap().selected,
+            Some(original[1].id)
+        );
+        assert_eq!(app.workspace.focus.as_deref(), Some("performance_duration"));
+        event(
+            &mut app,
+            WorkspaceEvent::Activate {
+                id: "performance_view".into(),
+            },
+        );
+        let view = super::super::project(&app).workspace.unwrap();
+        assert!(view
+            .timeline
+            .as_ref()
+            .unwrap()
+            .spans
+            .iter()
+            .any(|span| span.id == note_id(original[1].id) && span.selected));
+        action(&mut app, SemanticAction::SelectPatch(Direction::Right));
+        assert!(
+            app.requests.is_empty(),
+            "View and selection must not issue Song edits"
+        );
+        assert_eq!(app.editor.revision(), song_revision);
+        assert_eq!(app.performance_editor.as_ref().unwrap().notes, original);
+    }
+
     #[test]
     fn file_dialog_replaces_clip_projection_without_mutating_notes() {
         let mut app = fixture();

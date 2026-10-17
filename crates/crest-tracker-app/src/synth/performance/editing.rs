@@ -48,8 +48,17 @@ impl Runtime {
             .performance_edit_token
             .checked_add(1)
             .ok_or("Performance editor revision exhausted")?;
+        let display = self
+            .app
+            .borrow()
+            .performance_editor
+            .as_ref()
+            .filter(|editor| editor.slot == slot)
+            .map(|editor| editor.view)
+            .unwrap_or_default();
         let view = ClipEditor {
             token,
+            view: display,
             slot,
             length: clip.length,
             notes,
@@ -177,6 +186,13 @@ mod tests {
     fn clip_edit_retains_exact_curves_reopens_and_undo_restores_authoritative_stream() {
         let mut runtime = fixture();
         let original = runtime.performance_document().unwrap();
+        runtime
+            .app
+            .borrow_mut()
+            .performance_editor
+            .as_mut()
+            .unwrap()
+            .view = crate::performance_editor::ClipView::Tracker;
         let view = runtime.app.borrow().performance_editor.clone().unwrap();
         let note = view.notes[0].clone();
         let start = BeatTime(note.start.0 + 37);
@@ -185,6 +201,7 @@ mod tests {
             .unwrap();
         let edited = runtime.app.borrow().performance_editor.clone().unwrap();
         assert!(edited.can_undo);
+        assert_eq!(edited.view, crate::performance_editor::ClipView::Tracker);
         let changed = edited.notes.iter().find(|n| n.id == note.id).unwrap();
         assert_eq!((changed.start, changed.key), (start, note.key + 1));
         assert_eq!(changed.expression, note.expression);
