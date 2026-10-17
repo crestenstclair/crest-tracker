@@ -681,6 +681,21 @@ fn runtime_external_sources_and_occurrences_keep_distinct_leases_through_monitor
     assert_eq!(runtime.outputs.snapshot().pending, 0);
 }
 
+#[test]
+fn empty_external_batch_needs_no_clock_and_sends_nothing() {
+    let (mut runtime, mut driver) = external_capture();
+    let before = driver.packets();
+    let mut clock = clock();
+    clock.audio_clock = None;
+    let mut batches = BTreeMap::new();
+    runtime
+        .flush_external_expression(Beat::ZERO, &mut batches, clock)
+        .unwrap();
+    flush_driver(&mut driver);
+    assert_eq!(driver.packets(), before);
+    assert_eq!(runtime.outputs.snapshot().pending, 0);
+}
+
 #[cfg(not(target_os = "macos"))]
 #[test]
 fn unsupported_output_clock_rejects_before_consuming_queued_expression() {

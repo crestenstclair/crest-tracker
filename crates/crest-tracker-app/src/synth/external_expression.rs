@@ -157,6 +157,10 @@ impl Runtime {
         batches: &mut BTreeMap<String, Vec<MpeOutputAction>>,
         clock: HostClock,
     ) -> Result<(), String> {
+        // Internal-only event windows have no external clock dependency.
+        if batches.is_empty() {
+            return Ok(());
+        }
         let deadline = deadline_for_frame(clock, self.frame_at_beat(at, clock)?)?;
         self.enqueue_external_expression(batches, deadline)
     }
