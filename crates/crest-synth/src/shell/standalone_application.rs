@@ -1618,7 +1618,6 @@ where
         let runtime = Rc::new(RefCell::new(ControlRuntime {
             host,
             sample_rate: device_config.sample_rate() as u32,
-            latest_audio: Default::default(),
             audio_clock: audio_stream.clock_reader(),
             test_midi: crate::shell::test_midi::TestMidiPattern::default(),
             file_library: crate::shell::file_library::FileLibraryRuntime::new(
@@ -1648,11 +1647,12 @@ where
         }
         let on_input = input_callback(Rc::clone(&runtime));
         let projection = projection_callback(Rc::clone(&runtime));
+        let observation_reader = Rc::new(observation_reader);
+        let display_reader = Rc::clone(&observation_reader);
         let observed_runtime = Rc::clone(&runtime);
         let audio_observation: AudioObservationCallback = Box::new(move || {
-            let snapshot = observation_reader.read_latest_on_control();
+            let snapshot = display_reader.read_latest_on_control();
             let mut runtime = observed_runtime.borrow_mut();
-            runtime.latest_audio = snapshot;
             if let Some(demo) = runtime.full_demo.as_ref() {
                 if let Err(error) = demo.check_audio(snapshot) {
                     runtime.record_error(ApplicationError::FullInstrumentEffectDemo(error));
@@ -1663,7 +1663,7 @@ where
         let midi_activity = midi_activity_observation_callback(Rc::clone(&runtime));
         let on_session_command = session_command_callback(Rc::clone(&runtime));
         let document_projection = document_projection_callback(Rc::clone(&runtime));
-        let on_tick = tick_callback(Rc::clone(&runtime));
+        let on_tick = tick_callback(Rc::clone(&runtime), observation_reader);
         let on_frame: FrameObservationCallback = Box::new(|_observation| {});
 
         let window_result = window.run(
@@ -2619,7 +2619,6 @@ where
 {
     host: Option<Box<dyn ApplicationHost<Boundary>>>,
     sample_rate: u32,
-    latest_audio: crate::real_time::AudioObservationSnapshot,
     audio_clock: Option<crate::shell::audio_output::AudioFrameClockReader>,
     test_midi: crate::shell::test_midi::TestMidiPattern,
     file_library: crate::shell::file_library::FileLibraryRuntime,
@@ -2779,9 +2778,13 @@ where
     })
 }
 
-fn tick_callback<Boundary>(runtime: Rc<RefCell<ControlRuntime<Boundary>>>) -> TickCallback
+fn tick_callback<Boundary, Observation>(
+    runtime: Rc<RefCell<ControlRuntime<Boundary>>>,
+    observation: Rc<Observation>,
+) -> TickCallback
 where
     Boundary: ControlAudioBoundary + 'static,
+    Observation: ControlAudioObservation + 'static,
 {
     Box::new(move |elapsed| {
         let mut runtime = runtime.borrow_mut();
@@ -2800,7 +2803,6 @@ where
             device_status: _,
             host,
             sample_rate,
-            latest_audio,
             audio_clock,
             gamepad,
             file_library,
@@ -2867,7 +2869,9 @@ where
             elapsed,
             control_micros: *midi_clock_micros,
             sample_rate: *sample_rate,
-            audio: *latest_audio,
+            // Scheduling owns its clock read. Display polling can be delayed,
+            // skipped or paused without freezing the native musical timeline.
+            audio: observation.read_latest_on_control(),
             audio_clock: audio_clock
                 .as_ref()
                 .and_then(|reader| reader.read_latest_on_control()),
@@ -3829,6 +3833,53 @@ mod tests {
         )
         .unwrap()
         .with_default_session_blueprint(test_default_session_blueprint())
+    }
+
+    #[test]
+    fn host_clock_reads_audio_without_display_observation_requests() {
+        use crate::control::SessionCommand;
+        use crate::shell::hosted_application::{ApplicationHost, HostClock};
+        use crate::shell::hosted_synth::HostedSynthControl;
+        use crate::shell::SessionDocumentProjection;
+        use std::rc::Rc;
+        struct Host(Rc<std::cell::Cell<u64>>);
+        impl ApplicationHost<TestControl> for Host {
+            fn tick(&mut self, _sound: &mut HostedSynthControl<'_, TestControl>, clock: HostClock) {
+                self.0.set(clock.audio.rendered_frames());
+            }
+            fn document(&self) -> SessionDocumentProjection {
+                SessionDocumentProjection::new(
+                    "Clock test",
+                    false,
+                    crate::shell::SessionDocumentMarker::Ready,
+                    None,
+                    "",
+                    None,
+                )
+            }
+            fn session_command(
+                &mut self,
+                _sound: &mut HostedSynthControl<'_, TestControl>,
+                _command: SessionCommand,
+            ) -> bool {
+                false
+            }
+        }
+        let frames = Rc::new(std::cell::Cell::new(0));
+        // TestOutput renders 256 frames before the window starts. TestWindow
+        // ticks without ever polling its display's audio observation callback.
+        application(
+            Vec::new(),
+            Arc::new(Mutex::new(EngineState::default())),
+            Arc::new(Mutex::new(None)),
+        )
+        .run_with_host(Host(Rc::clone(&frames)))
+        .unwrap();
+        assert_eq!(
+            frames.get(),
+            256,
+            "host timing cannot depend on UI observation polling"
+        );
     }
 
     /// Composes the live application plus its deterministic harness window.

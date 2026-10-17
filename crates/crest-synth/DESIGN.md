@@ -417,6 +417,11 @@ unknown clock domains reject correlation. Allocation audits and native rendering
 witnesses cover these paths; physical end-to-end latency remains a separate
 measurement.
 
+The hosted control tick reads the callback's current audio observation directly. Display
+meter polling shares the same reader but never advances the host clock; hidden, delayed
+or absent display observations cannot leave musical scheduling on an older frame. The
+regression host receives rendered frames without calling the window observation callback.
+
 The pinned Linux backends do not expose a shared epoch: CPAL 0.18.1 ALSA subtracts
 its stream-creation anchor, choosing hardware system/audio-link timing or an
 `Instant` fallback, while midir 0.11.1 reports real time relative to its input
