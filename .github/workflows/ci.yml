@@ -27,6 +27,7 @@ jobs:
       - run: cargo test --locked -p crest-tracker-app
       - run: cargo test --locked -p crest-synth --lib
         working-directory: crates/crest-synth
+      - run: python3 crates/crest-synth/scripts/check_native_audio.py
       - run: >-
           cargo test --locked --release -p crest-tracker-app synth::witness:: -- --ignored --test-threads=1
       - run: python3 scripts/bundle_macos.py --release

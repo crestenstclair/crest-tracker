@@ -122,7 +122,7 @@ impl OwnedExpressionProfile {
     }
 
     /// Independent controls addressed to the same attack, not channel-wide
-    /// broadcasts. Master/member bends add before native quantization;
+    /// broadcasts. Master/member bends add before native conversion;
     /// channel-pressure gains multiply and sustain pedals OR. Master timbre,
     /// key pressure, attacks, releases and other controllers are unsupported.
     /// Both dimensions start centered with a 2-semitone bend range. The host
@@ -134,7 +134,8 @@ impl OwnedExpressionProfile {
     /// Uses the same exact admission rule as native rendering: normalized MIDI,
     /// RPN0 range 0..127 semitones plus 0..99 cents, resulting pitch 0 through
     /// 127.9921875 semitones. Check each event, including range changes at a
-    /// noncentral bend. Validation precedes native 1/128-semitone quantization.
+    /// noncentral bend. Braids quantizes admitted pitch to 1/128 semitone;
+    /// Sample sends the combined offset through sfizz's high-resolution bend.
     /// Initial per-attack range is 2 semitones; raw14 center is 8192.
     pub fn validate_pitch(
         self,
@@ -143,7 +144,7 @@ impl OwnedExpressionProfile {
         semitones: u8,
         cents: u8,
     ) -> Result<(), OwnedExpressionPitchError> {
-        crate::adapter::braids_preparer::owned_pitch_bend_units(note, raw14, semitones, cents)
+        crate::adapter::owned_expression::owned_pitch_bend_units(note, raw14, semitones, cents)
             .map(|_| ())
             .ok_or(OwnedExpressionPitchError {
                 note,
@@ -163,7 +164,7 @@ impl OwnedExpressionProfile {
         member: (u16, u8, u8),
         master: (u16, u8, u8),
     ) -> Result<(), OwnedCombinedExpressionPitchError> {
-        crate::adapter::braids_preparer::owned_combined_pitch_bend_units(note, member, master)
+        crate::adapter::owned_expression::owned_combined_pitch_bend_units(note, member, master)
             .map(|_| ())
             .ok_or(OwnedCombinedExpressionPitchError {
                 note,
@@ -294,9 +295,11 @@ impl<'a, Boundary: ControlAudioBoundary> HostedSynthControl<'a, Boundary> {
         if self.app.capabilities().validate_config(config).is_err() {
             return Err(HostedSynthError::OwnedExpressionNotReady { patch_id });
         }
-        if config.capability_id().as_str()
-            != crate::adapter::braids_capability::BRAIDS_CAPABILITY_ID
-        {
+        if !matches!(
+            config.capability_id().as_str(),
+            crate::adapter::braids_capability::BRAIDS_CAPABILITY_ID
+                | crate::adapter::sample_capability::SAMPLE_CAPABILITY_ID
+        ) {
             return Err(HostedSynthError::OwnedExpressionUnsupported { patch_id });
         }
         Ok(OwnedExpressionProfile {

@@ -59,6 +59,7 @@ float crest_audio_param_max(void*,size_t);
 bool crest_audio_param_stepped(void*,size_t);
 bool crest_audio_set(void*,const float*,size_t);
 void crest_audio_note(void*,int,int,int);
+bool crest_audio_owned_expression(void*,float,int);
 void crest_audio_reset(void*);
 bool crest_audio_process(void*,float*,size_t);
 bool crest_audio_load_sample(void*,const uint8_t*,size_t,size_t);
@@ -218,6 +219,20 @@ int main(){
                 crest_audio_note(p,0xe0,0,0);crest_audio_note(p,0x90,note,127);
                 for(int b=0;b<8;++b){const bool result=crest_audio_process(p,stereo,256);valid &= result;if(!result&&failed_parameter==-2){failed_parameter=-3-note;}}
                 crest_audio_note(p,0x80,note,0);
+            }
+        }
+        if(!std::strcmp(id,"sfizz_Sample")) {
+            // Exercise the complete resident expression path on the measured
+            // callback thread, including initialization and slot reuse.
+            for(int cycle=0;cycle<3;++cycle) {
+                crest_audio_reset(p);valid &= crest_audio_set(p,values.data(),count);
+                valid &= crest_audio_owned_expression(p,0,127);
+                crest_audio_note(p,0x90,60,100);
+                for(int timbre:{0,40,127})for(float bend:{-48.f,0.f,48.f}) {
+                    valid &= crest_audio_owned_expression(p,bend,timbre);
+                    for(int block=0;block<8;++block)valid &= crest_audio_process(p,stereo,256);
+                }
+                crest_audio_note(p,0x80,60,0);
             }
         }
         // The Daisy snare derivatives could diverge only after sustained

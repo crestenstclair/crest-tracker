@@ -86,6 +86,11 @@ bool crest_audio_set(void* h, const float* params, size_t count) noexcept {
     return true;
 }
 void crest_audio_note(void* h, int status, int a, int b) noexcept { auto& v=*static_cast<Handle*>(h); CrestProcessorScope scope(v.state); v.processor->note(status,a,b); }
+bool crest_audio_owned_expression(void* h, float bend_semitones, int timbre) noexcept {
+    if (!h || !std::isfinite(bend_semitones) || std::abs(bend_semitones)>128 || timbre<0 || timbre>127) return false;
+    auto& v=*static_cast<Handle*>(h); CrestProcessorScope scope(v.state);
+    return v.processor->owned_expression(bend_semitones,timbre);
+}
 void crest_audio_reset(void* h) noexcept { auto& v=*static_cast<Handle*>(h); CrestProcessorScope scope(v.state); v.processor->reset(); std::fill(v.parameters.begin(),v.parameters.end(),NAN); }
 bool crest_audio_process(void* h, float* stereo, size_t frames) noexcept {
     auto& v = *static_cast<Handle*>(h); CrestProcessorScope scope(v.state);

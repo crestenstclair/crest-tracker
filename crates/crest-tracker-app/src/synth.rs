@@ -1176,6 +1176,7 @@ impl Runtime {
             | FileAction::Close
             | FileAction::Example
             | FileAction::PerformanceExample
+            | FileAction::PerformanceSampleExample
             | FileAction::Corridors
             | FileAction::ImportMidi => {
                 if self.saving {
@@ -1234,6 +1235,8 @@ impl Runtime {
                     (demo::document()?, None)
                 } else if matches!(action, FileAction::PerformanceExample) {
                     (performance::example_document()?, None)
+                } else if matches!(action, FileAction::PerformanceSampleExample) {
+                    (performance::sample_example_document()?, None)
                 } else if matches!(action, FileAction::New) {
                     let synth = self
                         .initial_sound

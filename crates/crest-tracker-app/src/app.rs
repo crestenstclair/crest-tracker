@@ -424,6 +424,7 @@ pub enum CaptureAction {
 pub enum FileAction {
     Example,
     PerformanceExample,
+    PerformanceSampleExample,
     Corridors,
     ImportMidi,
     CollectAssets,

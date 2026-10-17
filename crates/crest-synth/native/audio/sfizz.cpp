@@ -60,7 +60,30 @@ public:
     float maximum(size_t i) const override{return i==0?127:i==6?200:1;}
     float minimum(size_t) const override{return 0;}
     bool stepped(size_t i) const override{return i==3;}
-    bool load_sample(const uint8_t* data,size_t size,size_t frames) override{sample_frames_=frames;return load(data,size);}
+    bool load_sample(const uint8_t* data,size_t size,size_t frames) override {
+        // Sample owns one region. Prepare its complete filter and bend mapping
+        // off callback; runtime events only update existing controller state.
+        std::string text(reinterpret_cast<const char*>(data),size);
+        text += "\nbend_up=12800 bend_down=-12800 fil_type=lpf_2p cutoff=200 cutoff_oncc74=7972.6274\n";
+        if(!load(reinterpret_cast<const uint8_t*>(text.data()),text.size()) || sfizz_get_num_regions(synth())!=1)return false;
+        sample_frames_=frames;
+        return true;
+    }
+    bool owned_expression(float bend_semitones, int timbre) override {
+        sfizz_send_hd_pitch_wheel(synth(),0,bend_semitones/128.0f);
+        sfizz_send_cc(synth(),0,74,timbre);
+        return true;
+    }
+    void note(int status,int a,int b) override {
+        // The prepared region uses a fixed 128-semitone native range. Ordinary
+        // channel MIDI retains the existing two-semitone default.
+        if(status==0xe0)sfizz_send_hd_pitch_wheel(synth(),0,(a+128*b-8192)*(2.0f/(8192*128)));
+        else SfizzVoice::note(status,a,b);
+    }
+    void reset() override {
+        SfizzVoice::reset();
+        owned_expression(0,127);
+    }
     void set(size_t i,float value) override {
         values_[i]=value;if(!sample_frames_)return;
         sfizz_arg_t args[2]{};

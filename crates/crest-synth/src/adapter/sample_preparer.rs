@@ -293,6 +293,27 @@ impl PreparedInstrument for UpstreamSampleInstrument {
     ) -> Result<(), PreparedInstrumentError> {
         self.inner.dispatch_from(source, message, params)
     }
+    fn dispatch_initialized_voice_from(
+        &mut self,
+        source: MidiSource,
+        id: crate::synth::MidiVoiceId,
+        initial: crate::synth::OwnedVoiceInitialization,
+        params: &RtPatchParameters,
+    ) -> Result<(), PreparedInstrumentError> {
+        self.inner
+            .dispatch_initialized_voice_from(source, id, initial, params)
+    }
+    fn dispatch_scoped_voice_from(
+        &mut self,
+        source: MidiSource,
+        id: crate::synth::MidiVoiceId,
+        scope: crate::synth::MidiExpressionScope,
+        message: MidiMessage,
+        params: &RtPatchParameters,
+    ) -> Result<(), PreparedInstrumentError> {
+        self.inner
+            .dispatch_scoped_voice_from(source, id, scope, message, params)
+    }
     fn render(
         &mut self,
         audio: &mut [f32],
@@ -1043,6 +1064,203 @@ mod tests {
             .unwrap()
             .prepare_patch(patch, 48_000.0, max_frames)
             .unwrap()
+    }
+
+    mod owned_expression_tests {
+        use super::*;
+        use crate::synth::{
+            MidiExpressionScope, MidiVoiceId, OwnedExpressionState, OwnedVoiceInitialization,
+        };
+
+        fn rig() -> (Box<dyn PreparedInstrument>, RtPatchParameters) {
+            let samples = (0..48_000)
+                .map(|frame| {
+                    let phase = std::f32::consts::TAU * 375.0 * frame as f32 / 48_000.0;
+                    0.2 * phase.sin() + 0.1 * (phase * 3.0).sin()
+                })
+                .collect();
+            let fixture = Arc::new(fixture(1, samples));
+            let preparer = SamplePreparer::new(fixture.clone(), fixture).unwrap();
+            let (patch, provider) = patch_with(
+                1,
+                &[(
+                    crate::adapter::sample_capability::SAMPLE_LOOP_MODE_PARAMETER_ID,
+                    ParameterValue::Choice(
+                        crate::adapter::sample_capability::SAMPLE_LOOP_FORWARD_CHOICE_ID.into(),
+                    ),
+                )],
+            );
+            let params = rt(
+                &patch,
+                &provider,
+                VoiceEnvelope::new(0.0, 0.0, 1.0, 20.0).unwrap(),
+            );
+            (preparer.prepare(&patch, 48_000.0, 256).unwrap(), params)
+        }
+
+        fn attack(
+            engine: &mut dyn PreparedInstrument,
+            params: &RtPatchParameters,
+            id: u64,
+            note: u8,
+            member: OwnedExpressionState,
+            master: OwnedExpressionState,
+        ) {
+            engine
+                .dispatch_initialized_voice_from(
+                    MidiSource::Scheduled,
+                    MidiVoiceId::new(id).unwrap(),
+                    OwnedVoiceInitialization::new(
+                        message(MidiMessageKind::NoteOn, note, 100),
+                        member,
+                        master,
+                    )
+                    .unwrap(),
+                    params,
+                )
+                .unwrap();
+        }
+
+        fn event(
+            engine: &mut dyn PreparedInstrument,
+            params: &RtPatchParameters,
+            id: u64,
+            scope: MidiExpressionScope,
+            kind: MidiMessageKind,
+            a: u8,
+            b: u8,
+        ) -> Result<(), PreparedInstrumentError> {
+            engine.dispatch_scoped_voice_from(
+                MidiSource::Scheduled,
+                MidiVoiceId::new(id).unwrap(),
+                scope,
+                message(kind, a, b),
+                params,
+            )
+        }
+
+        fn render(engine: &mut dyn PreparedInstrument, params: &RtPatchParameters) -> Vec<f32> {
+            let mut result = vec![0.0; 48_000];
+            // Let sfizz's controller filters settle before the measured window.
+            for _ in 0..40 {
+                engine.render(&mut result[..512], 256, params).unwrap();
+            }
+            for block in result.chunks_mut(512) {
+                engine.render(block, block.len() / 2, params).unwrap();
+            }
+            result
+        }
+
+        fn magnitude(pcm: &[f32], frequency: f64) -> f64 {
+            let frames = pcm.len() / 2;
+            let mut real = 0.0;
+            let mut imaginary = 0.0;
+            for frame in 0..frames {
+                let phase = std::f64::consts::TAU * frequency * frame as f64 / 48_000.0;
+                let window =
+                    0.5 - 0.5 * (std::f64::consts::TAU * frame as f64 / (frames - 1) as f64).cos();
+                let sample = f64::from(pcm[frame * 2]) * window;
+                real += sample * phase.cos();
+                imaginary += sample * phase.sin();
+            }
+            real.hypot(imaginary) / frames as f64
+        }
+
+        #[test]
+        fn three_sample_voices_have_independent_audible_bend_brightness_and_pressure() {
+            use MidiExpressionScope::Member;
+            use MidiMessageKind::{ChannelPressure, ControlChange, PitchBend};
+            let (mut engine, params) = rig();
+            let initial = OwnedExpressionState::new(8192, 4, 0, Some(127), Some(127), 0).unwrap();
+            for (id, note) in [(1, 60), (2, 65), (3, 71)] {
+                attack(
+                    engine.as_mut(),
+                    &params,
+                    id,
+                    note,
+                    initial,
+                    OwnedExpressionState::default(),
+                );
+            }
+            assert_eq!(engine.active_note_count(), Some(3));
+            let before = render(engine.as_mut(), &params);
+            event(engine.as_mut(), &params, 1, Member, PitchBend, 0, 96).unwrap();
+            let bent = render(engine.as_mut(), &params);
+            event(engine.as_mut(), &params, 2, Member, ControlChange, 74, 40).unwrap();
+            let dark = render(engine.as_mut(), &params);
+            event(engine.as_mut(), &params, 3, Member, ChannelPressure, 32, 0).unwrap();
+            let soft = render(engine.as_mut(), &params);
+            let frequency = |note: f64| 375.0 * 2.0_f64.powf((note - 60.0) / 12.0);
+            let amplitude = |pcm: &[f32], note| magnitude(pcm, frequency(note));
+            assert!(amplitude(&before, 60.0) > 0.001 && amplitude(&bent, 62.0) > 0.001);
+            assert!(amplitude(&bent, 60.0) < amplitude(&before, 60.0) * 0.01);
+            for note in [65.0, 71.0] {
+                assert!((amplitude(&bent, note) / amplitude(&before, note) - 1.0).abs() < 0.02);
+            }
+            let harmonic_ratio =
+                |pcm: &[f32]| magnitude(pcm, frequency(65.0) * 3.0) / amplitude(pcm, 65.0);
+            assert!(harmonic_ratio(&dark) < harmonic_ratio(&bent) * 0.5);
+            for note in [62.0, 71.0] {
+                assert!((amplitude(&dark, note) / amplitude(&bent, note) - 1.0).abs() < 0.02);
+            }
+            assert!((amplitude(&soft, 71.0) / amplitude(&dark, 71.0) - 32.0 / 127.0).abs() < 0.01);
+            for note in [62.0, 65.0] {
+                assert!((amplitude(&soft, note) / amplitude(&dark, note) - 1.0).abs() < 0.02);
+            }
+            engine.all_notes_off_from(MidiSource::Scheduled).unwrap();
+            let stopped = render(engine.as_mut(), &params);
+            assert!(stopped.iter().all(|sample| *sample == 0.0));
+        }
+
+        #[test]
+        fn sample_owned_pedals_ranges_and_reuse_keep_attack_ownership() {
+            use MidiExpressionScope::{Master, Member};
+            use MidiMessageKind::{ControlChange as Cc, NoteOff, PitchBend};
+            let (mut engine, params) = rig();
+            // Opposing large bends must combine before admission. This attack
+            // sounds at its original pitch and retains two independent pedals.
+            let member = OwnedExpressionState::new(14336, 120, 0, Some(96), Some(40), 127).unwrap();
+            let master = OwnedExpressionState::new(2048, 120, 0, Some(64), None, 127).unwrap();
+            attack(engine.as_mut(), &params, 1, 60, member, master);
+            attack(
+                engine.as_mut(),
+                &params,
+                2,
+                60,
+                OwnedExpressionState::default(),
+                OwnedExpressionState::default(),
+            );
+            event(engine.as_mut(), &params, 1, Member, NoteOff, 60, 0).unwrap();
+            event(engine.as_mut(), &params, 1, Member, Cc, 64, 0).unwrap();
+            assert_eq!(engine.active_note_count(), Some(2));
+            event(engine.as_mut(), &params, 1, Master, Cc, 64, 0).unwrap();
+            assert_eq!(engine.active_note_count(), Some(1));
+            render(engine.as_mut(), &params);
+            // Reusing the first native slot must not inherit bend, pressure,
+            // filter, RPN selection or sustain from its prior owner.
+            attack(
+                engine.as_mut(),
+                &params,
+                3,
+                65,
+                OwnedExpressionState::default(),
+                OwnedExpressionState::default(),
+            );
+            assert!(event(engine.as_mut(), &params, 3, Member, Cc, 6, 48).is_err());
+            for (cc, value) in [(101, 0), (100, 0), (6, 48), (38, 50)] {
+                event(engine.as_mut(), &params, 3, Member, Cc, cc, value).unwrap();
+            }
+            event(engine.as_mut(), &params, 3, Member, PitchBend, 0, 96).unwrap();
+            let pcm = render(engine.as_mut(), &params);
+            assert!(magnitude(&pcm, 375.0 * 2.0_f64.powf((65.0 + 24.25 - 60.0) / 12.0)) > 0.001);
+            assert!(
+                magnitude(&pcm, 375.0) > 0.001,
+                "same-pitch second owner must survive the first release"
+            );
+            event(engine.as_mut(), &params, 3, Member, NoteOff, 65, 0).unwrap();
+            assert_eq!(engine.active_note_count(), Some(1));
+            engine.all_notes_off();
+        }
     }
 
     #[test]

@@ -10,6 +10,9 @@ use std::ffi::{c_char, c_void, CStr};
 use std::ptr::NonNull;
 use std::sync::OnceLock;
 
+mod owned;
+use owned::OwnedVoiceExpression;
+
 const MIDI_CHANNEL_COUNT: usize = MidiChannel::MAX as usize + 1;
 
 extern "C" {
@@ -47,11 +50,18 @@ extern "C" {
     fn crest_audio_param_stepped(handle: *mut c_void, index: usize) -> bool;
     fn crest_audio_set(handle: *mut c_void, values: *const f32, count: usize) -> bool;
     fn crest_audio_note(handle: *mut c_void, status: i32, data1: i32, data2: i32);
+    fn crest_audio_owned_expression(handle: *mut c_void, bend: f32, timbre: i32) -> bool;
     fn crest_audio_reset(handle: *mut c_void);
     fn crest_audio_process(handle: *mut c_void, stereo: *mut f32, frames: usize) -> bool;
 }
 
 pub(crate) trait VoiceProcessor: Send {
+    fn supports_owned_expression(&self) -> bool {
+        false
+    }
+    fn owned_expression(&mut self, _bend: f32, _timbre: u8) -> bool {
+        false
+    }
     fn latency(&self) -> usize;
     fn set(&mut self, values: &[f32]) -> bool;
     fn note(&mut self, status: i32, a: u8, b: u8);
@@ -61,6 +71,7 @@ pub(crate) trait VoiceProcessor: Send {
 struct Processor {
     handle: NonNull<c_void>,
     max_frames: usize,
+    owned_expression: bool,
 }
 // Exclusive instance ownership moves to audio after preparation. No upstream
 // object is shared concurrently between the preparation worker and callback.
@@ -70,8 +81,13 @@ impl Processor {
         Self::new_scheduled(index, rate, max_frames, 0)
     }
     fn new_scheduled(index: usize, rate: f32, max_frames: usize, phase: u32) -> Option<Self> {
-        NonNull::new(unsafe { crest_audio_create_scheduled(index, rate, max_frames, phase) })
-            .map(|handle| Self { handle, max_frames })
+        NonNull::new(unsafe { crest_audio_create_scheduled(index, rate, max_frames, phase) }).map(
+            |handle| Self {
+                handle,
+                max_frames,
+                owned_expression: false,
+            },
+        )
     }
     fn load_ir(&mut self, decoded: &DecodedSample) -> bool {
         unsafe {
@@ -106,6 +122,15 @@ impl Processor {
     }
 }
 impl VoiceProcessor for Processor {
+    fn supports_owned_expression(&self) -> bool {
+        self.owned_expression
+    }
+    fn owned_expression(&mut self, bend: f32, timbre: u8) -> bool {
+        self.owned_expression
+            && unsafe {
+                crest_audio_owned_expression(self.handle.as_ptr(), bend, i32::from(timbre))
+            }
+    }
     fn latency(&self) -> usize {
         self.latency()
     }
@@ -139,6 +164,7 @@ pub(crate) fn prepare_voice_bank<P: VoiceProcessor + 'static>(
             processor: create()?,
             source: MidiSource::Immediate,
             voice_id: None,
+            owned: None,
             expression: 1.0,
             pressure: 1.0,
             channel: patch.channel(),
@@ -960,6 +986,7 @@ impl InstrumentPreparer for UpstreamInstrument {
                 processor,
                 source: MidiSource::Immediate,
                 voice_id: None,
+                owned: None,
                 expression: 1.0,
                 pressure: 1.0,
                 channel: patch.channel(),
@@ -986,6 +1013,7 @@ struct Voice<P> {
     processor: P,
     source: MidiSource,
     voice_id: Option<MidiVoiceId>,
+    owned: Option<OwnedVoiceExpression>,
     channel: MidiChannel,
     expression: f32,
     pressure: f32,
@@ -998,6 +1026,12 @@ struct Voice<P> {
 }
 
 impl<P> Voice<P> {
+    fn sustained(&self, channel: bool) -> bool {
+        self.owned.map_or(channel, |owned| {
+            owned.member.sustain.unwrap_or(channel) || owned.master.sustain.unwrap_or(false)
+        })
+    }
+
     fn belongs_to(
         &self,
         source: MidiSource,
@@ -1041,30 +1075,45 @@ impl<P: VoiceProcessor> PreparedVoiceBank<P> {
         &mut self,
         source: MidiSource,
         voice_id: Option<MidiVoiceId>,
-        channel: MidiChannel,
-        note: u8,
-        velocity: u8,
+        message: MidiMessage,
         params: &RtPatchParameters,
+        initial: Option<OwnedVoiceInitialization>,
     ) -> Result<(), PreparedInstrumentError> {
+        let channel = message.channel();
+        let note = message.data1();
         let voice = self
             .voices
             .iter_mut()
             .find(|voice| voice.envelope.is_idle())
             .ok_or(PreparedInstrumentError::DispatchRejected)?;
         let controls = self.controls[source.index()][usize::from(channel.value())];
-        // Reassignment reuses the existing native processor. Reset first,
-        // then restore the new owner's controls; no old source state survives.
+        let owned =
+            OwnedVoiceExpression::for_attack(&voice.processor, voice_id, controls, initial)?;
+        if let Some(owned) = owned {
+            owned.validate(note)?;
+        }
         voice.processor.reset();
         if !voice.processor.set(params.instrument().values()) {
             return Err(PreparedInstrumentError::DispatchRejected);
         }
-        voice.processor.note(0xe0, controls.bend.0, controls.bend.1);
-        voice.processor.note(0x90, note, velocity);
+        if let Some(owned) = owned {
+            owned.apply(&mut voice.processor, note)?;
+        } else {
+            voice.processor.note(0xe0, controls.bend.0, controls.bend.1);
+        }
+        voice.processor.note(0x90, note, message.data2());
         voice.source = source;
         voice.voice_id = voice_id;
+        voice.owned = owned;
         voice.channel = channel;
-        voice.expression = controls.expression;
-        voice.pressure = controls.pressure;
+        voice.expression = if initial.is_some() {
+            1.0
+        } else {
+            controls.expression
+        };
+        voice.pressure = initial.map_or(controls.pressure, |initial| {
+            owned::pressure(initial.member())
+        });
         voice.key_pressure = 1.0;
         voice.delay = voice.processor.latency();
         voice.envelope.note_on(*params.envelope(), self.rate);
@@ -1087,7 +1136,8 @@ impl<P: VoiceProcessor> PreparedVoiceBank<P> {
             voice.belongs_to(source, voice_id, channel) && voice.note == Some(note) && voice.held
         }) {
             voice.held = false;
-            if !self.controls[source.index()][usize::from(channel.value())].sustain {
+            if !voice.sustained(self.controls[source.index()][usize::from(channel.value())].sustain)
+            {
                 voice
                     .envelope
                     .note_off(params.envelope().release_milliseconds(), self.rate);
@@ -1107,11 +1157,13 @@ impl<P: VoiceProcessor> PreparedVoiceBank<P> {
         if enabled {
             return;
         }
-        for voice in self
-            .voices
-            .iter_mut()
-            .filter(|voice| voice.source == source && voice.channel == channel && !voice.held)
-        {
+        for voice in self.voices.iter_mut().filter(|voice| {
+            voice.source == source
+                && voice.channel == channel
+                && !voice.held
+                && !voice.sustained(false)
+                && !voice.envelope.is_releasing()
+        }) {
             voice
                 .envelope
                 .note_off(params.envelope().release_milliseconds(), self.rate);
@@ -1128,7 +1180,15 @@ impl<P: VoiceProcessor> PreparedVoiceBank<P> {
         channel: MidiChannel,
         a: u8,
         b: u8,
-    ) {
+    ) -> Result<(), PreparedInstrumentError> {
+        let raw = u16::from(a) | (u16::from(b) << 7);
+        for voice in self.voices.iter().filter(|voice| {
+            voice.belongs_to(source, voice_id, channel) && !voice.envelope.is_idle()
+        }) {
+            if let (Some(owned), Some(note)) = (voice.owned, voice.note) {
+                owned.member.with_bend(note, raw, owned.master)?;
+            }
+        }
         if voice_id.is_none() {
             self.controls[source.index()][usize::from(channel.value())].bend = (a, b);
         }
@@ -1137,8 +1197,15 @@ impl<P: VoiceProcessor> PreparedVoiceBank<P> {
         for voice in self.voices.iter_mut().filter(|voice| {
             voice.belongs_to(source, voice_id, channel) && !voice.envelope.is_idle()
         }) {
-            voice.processor.note(0xe0, a, b);
+            if let (Some(mut owned), Some(note)) = (voice.owned, voice.note) {
+                owned.member = owned.member.with_bend(note, raw, owned.master)?;
+                owned.apply(&mut voice.processor, note)?;
+                voice.owned = Some(owned);
+            } else {
+                voice.processor.note(0xe0, a, b);
+            }
         }
+        Ok(())
     }
 
     fn silence_channel(&mut self, source: MidiSource, channel: MidiChannel) {
@@ -1171,9 +1238,11 @@ impl<P: VoiceProcessor> PreparedInstrument for PreparedVoiceBank<P> {
                         && !voice.envelope.is_idle()
                         && (voice.held
                             || (!voice.envelope.is_releasing()
-                                && self.controls[voice.source.index()]
-                                    [usize::from(voice.channel.value())]
-                                .sustain))
+                                && voice.sustained(
+                                    self.controls[voice.source.index()]
+                                        [usize::from(voice.channel.value())]
+                                    .sustain,
+                                )))
                 })
                 .count() as u32,
         )
@@ -1205,17 +1274,35 @@ impl<P: VoiceProcessor> PreparedInstrument for PreparedVoiceBank<P> {
         if params.patch_id() != Some(self.patch_id) {
             return Err(PreparedInstrumentError::DispatchRejected);
         }
+        if let Some(id) = voice_id {
+            if matches!(
+                message.kind(),
+                MidiMessageKind::ControlChange | MidiMessageKind::PitchBend
+            ) && self.voices.iter().any(|voice| {
+                voice.belongs_to(source, Some(id), message.channel())
+                    && voice.owned.is_some()
+                    && !voice.envelope.is_idle()
+            }) {
+                return self.dispatch_owned_expression(
+                    source,
+                    id,
+                    MidiExpressionScope::Member,
+                    message,
+                    params,
+                );
+            }
+        }
         let a = message.data1();
         let b = message.data2();
         let channel = message.channel();
         match message.kind() {
             MidiMessageKind::NoteOn if b > 0 => {
-                self.start_note(source, voice_id, channel, a, b, params)?
+                self.start_note(source, voice_id, message, params, None)?
             }
             MidiMessageKind::NoteOn | MidiMessageKind::NoteOff => {
                 self.release_note(source, voice_id, channel, a, params)
             }
-            MidiMessageKind::PitchBend => self.set_bend(source, voice_id, channel, a, b),
+            MidiMessageKind::PitchBend => self.set_bend(source, voice_id, channel, a, b)?,
             MidiMessageKind::PolyPressure => {
                 for voice in &mut self.voices {
                     if voice.belongs_to(source, voice_id, channel) && voice.note == Some(a) {
@@ -1270,6 +1357,36 @@ impl<P: VoiceProcessor> PreparedInstrument for PreparedVoiceBank<P> {
         }
         Ok(())
     }
+    fn dispatch_initialized_voice_from(
+        &mut self,
+        source: MidiSource,
+        id: MidiVoiceId,
+        initial: OwnedVoiceInitialization,
+        params: &RtPatchParameters,
+    ) -> Result<(), PreparedInstrumentError> {
+        if params.patch_id() != Some(self.patch_id) {
+            return Err(PreparedInstrumentError::DispatchRejected);
+        }
+        self.start_note(source, Some(id), initial.message(), params, Some(initial))
+    }
+
+    fn dispatch_scoped_voice_from(
+        &mut self,
+        source: MidiSource,
+        id: MidiVoiceId,
+        scope: MidiExpressionScope,
+        message: MidiMessage,
+        params: &RtPatchParameters,
+    ) -> Result<(), PreparedInstrumentError> {
+        if scope == MidiExpressionScope::Member {
+            return self.dispatch_voice_from(source, Some(id), message, params);
+        }
+        if params.patch_id() != Some(self.patch_id) {
+            return Err(PreparedInstrumentError::DispatchRejected);
+        }
+        self.dispatch_owned_expression(source, id, scope, message, params)
+    }
+
     fn render(
         &mut self,
         stereo: &mut [f32],
@@ -1298,8 +1415,11 @@ impl<P: VoiceProcessor> PreparedInstrument for PreparedVoiceBank<P> {
             // constant gain also permits SIMD mixing without changing the
             // order in which independent voices contribute to the Patch.
             if voice.delay == 0 && voice.envelope.stage() == VoiceEnvelopeStage::Sustain {
-                let gain =
-                    voice.envelope.level() * voice.expression * voice.pressure * voice.key_pressure;
+                let gain = voice.envelope.level()
+                    * voice.expression
+                    * voice.pressure
+                    * voice.key_pressure
+                    * voice.owned.map_or(1.0, |owned| owned.master_pressure);
                 for (input, output) in scratch.iter().zip(stereo.iter_mut()) {
                     *output += input * gain;
                 }
@@ -1315,7 +1435,11 @@ impl<P: VoiceProcessor> PreparedInstrument for PreparedVoiceBank<P> {
                 .zip(stereo.chunks_exact_mut(2))
                 .zip(gains.iter())
             {
-                let gain = gain * voice.expression * voice.pressure * voice.key_pressure;
+                let gain = gain
+                    * voice.expression
+                    * voice.pressure
+                    * voice.key_pressure
+                    * voice.owned.map_or(1.0, |owned| owned.master_pressure);
                 output[0] += input[0] * gain;
                 output[1] += input[1] * gain;
             }
@@ -1439,7 +1563,8 @@ pub(crate) fn prepare_sample_bank(
         .find(|&i| text(unsafe { crest_audio_id(i) }).is_ok_and(|id| id == "sfizz_Sample"))
         .ok_or(failure)?;
     prepare_voice_bank(patch, rate, max_frames, || {
-        let processor = Processor::new(index, rate, max_frames).ok_or(failure)?;
+        let mut processor = Processor::new(index, rate, max_frames).ok_or(failure)?;
+        processor.owned_expression = true;
         if !unsafe {
             crest_audio_load_sample(
                 processor.handle.as_ptr(),
@@ -1509,6 +1634,7 @@ mod tests {
                     processor: SourceProbeProcessor::default(),
                     source: MidiSource::Immediate,
                     voice_id: None,
+                    owned: None,
                     expression: 1.0,
                     pressure: 1.0,
                     channel: MidiChannel::new(0).unwrap(),
@@ -1941,6 +2067,7 @@ mod tests {
                     processor: Recorder::default(),
                     source: MidiSource::Immediate,
                     voice_id: None,
+                    owned: None,
                     expression: 1.0,
                     pressure: 1.0,
                     channel: MidiChannel::new(0).unwrap(),

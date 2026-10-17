@@ -2,7 +2,13 @@
 use super::*;
 
 pub(super) fn rows(app: &App) -> Vec<WorkspaceRow> {
-    let mut rows = commands(&[("performance_example", "Open expressive example")]);
+    let mut rows = commands(&[
+        ("performance_example", "Open expressive example"),
+        (
+            "performance_sample_example",
+            "Open expressive Sample example",
+        ),
+    ]);
     if let Some(slots) = app.performance["session"]["slots"].as_array() {
         rows.extend(slots.iter().enumerate().map(|(slot, state)| {
             let playing = app.performance["playing_slot"].as_u64() == Some(slot as u64);
@@ -39,6 +45,10 @@ pub(super) fn activate(app: &mut App, id: &str) -> bool {
     let request = if id == "performance_example" {
         Request::File {
             action: FileAction::PerformanceExample,
+        }
+    } else if id == "performance_sample_example" {
+        Request::File {
+            action: FileAction::PerformanceSampleExample,
         }
     } else if let Some(slot) = id
         .strip_prefix("performance_audition:")

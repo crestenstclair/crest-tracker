@@ -29,14 +29,18 @@ Open **Menu → Performance clips → Open expressive example**, then return to 
 and audition a clip. Its loop runs through the released library, Tracker's timestamped audio
 scheduler and the embedded Synth's owned-note MIDI boundary. Stop releases its scheduled voices.
 The example uses a firmware-captured phrase from the standalone v0.1.0 release and an existing
-Braids patch. Spectral witnesses verify independent pitch, timbre and pressure in rendered audio,
-along with deadline recovery, unsupported-engine rejection and allocation-free callback work.
+Braids patch. **Open expressive Sample example** uses the same phrase with the installed
+Sample engine and its looping default asset. Sample CC74 controls per-note low-pass brightness
+from 200 Hz to 20 kHz; pressure controls per-note gain. Spectral witnesses verify independent
+pitch, timbre and pressure in Braids and actual resident sfizz audio. Integration witnesses
+cover Sample playback and project save/reopen, deadline recovery and unsupported-engine
+rejection; native heap/lock checks cover callback expression and voice reuse.
 
 Audition uses a disposable clip snapshot, the Song's tempo at start, a 50 ms start lead and the
 existing 100 ms scheduling window. Tempo, graph or sample-rate changes stop it explicitly.
 The first output profile is lower-zone MPE with 15 members and a ±48-semitone range per destination;
-only engines advertising proven owned-expression support are admitted (currently Braids).
-This does not enable integrated live capture, virtual-pad launch/LED feedback, sample MPE or
+only engines advertising proven owned-expression support are admitted (currently Braids and Sample).
+This does not enable integrated live capture, virtual-pad launch/LED feedback or
 Steam Deck qualification. Those remain integration work; the standalone application retains
 its complete firmware-driven record-and-launch workflow.
 

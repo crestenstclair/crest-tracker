@@ -19,6 +19,8 @@ struct CrestProcessor {
     virtual bool healthy() const { return true; }
     virtual void set(size_t index, float value) = 0;
     virtual void note(int status, int a, int b) {}
+    // Per-instance resident Sample expression. Other engines reject explicitly.
+    virtual bool owned_expression(float bend_semitones, int timbre) { return false; }
     // Called only during worker-side asset preparation.
     virtual bool load(const uint8_t*, size_t) { return false; }
     virtual bool load_sample(const uint8_t*, size_t, size_t) { return false; }

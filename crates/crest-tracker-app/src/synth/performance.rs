@@ -150,6 +150,71 @@ pub(super) fn example_document() -> Result<Document, String> {
     Ok(document)
 }
 
+/// The released gesture fixture can drive the installed Sample engine through
+/// the same MIDI boundary. Its catalog owns the default asset and preparation.
+pub(super) fn sample_example_document() -> Result<Document, String> {
+    use crest_synth::adapter::sample_capability::{
+        SAMPLE_CAPABILITY_ID, SAMPLE_LOOP_FORWARD_CHOICE_ID, SAMPLE_LOOP_MODE_PARAMETER_ID,
+    };
+    use crest_synth::synth::{
+        CapabilityId, CapabilityRegistry, DescriptorDefaultConfigFactory, ParameterId,
+        ParameterValue,
+    };
+    let providers = crest_synth::adapter::production_instruments::production_instrument_providers()
+        .map_err(|e| e.to_string())?;
+    let registry = CapabilityRegistry::new(
+        providers
+            .iter()
+            .map(|provider| provider.descriptor())
+            .collect(),
+    )
+    .map_err(|e| e.to_string())?;
+    let factory = DescriptorDefaultConfigFactory::new(registry, providers);
+    let capability = CapabilityId::new(SAMPLE_CAPABILITY_ID).map_err(|e| e.to_string())?;
+    let descriptor = factory
+        .registry()
+        .descriptor(&capability)
+        .ok_or("Sample engine is unavailable")?;
+    let config = factory
+        .create(&capability)
+        .map_err(|e| e.to_string())?
+        .with_scalar_value(
+            descriptor,
+            &ParameterId::new(SAMPLE_LOOP_MODE_PARAMETER_ID).map_err(|e| e.to_string())?,
+            ParameterValue::Choice(SAMPLE_LOOP_FORWARD_CHOICE_ID.into()),
+        )
+        .map_err(|e| e.to_string())?;
+    let mut document = example_document()?;
+    document.song.name = "Expressive Sample performance example".into();
+    let instrument = document
+        .performance
+        .as_ref()
+        .ok_or("Example has no performance")?
+        .routes[0]
+        .instrument;
+    let patch_id = document
+        .installed_patches
+        .get(&instrument)
+        .ok_or("Example has no sound binding")?;
+    let patch = document.synth["patches"]
+        .as_array_mut()
+        .ok_or("Example has no Patches")?
+        .iter_mut()
+        .find(|patch| patch["id"].as_u64() == Some(u64::from(*patch_id)))
+        .ok_or("Example sound binding is missing")?;
+    patch["instrument"] = serde_json::to_value(config).map_err(|e| e.to_string())?;
+    patch["name"] = "Expressive Sample".into();
+    let song_instrument = document
+        .song
+        .instruments
+        .get_mut(&instrument)
+        .ok_or("Example instrument is missing")?;
+    song_instrument.name = "Expressive Sample".into();
+    song_instrument.resource = None;
+    document.validate()?;
+    Ok(document)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

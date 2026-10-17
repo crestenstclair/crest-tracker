@@ -354,3 +354,150 @@ fn verify_independent_audio(pcm: &[f32], anchor: u64) {
         );
     }
 }
+
+struct SampleJourney {
+    stage: u8,
+    started: u64,
+    path: PathBuf,
+    performance: Option<Value>,
+}
+
+impl SampleJourney {
+    fn first_play_and_save(
+        &mut self,
+        runtime: &mut Runtime,
+        audio: AudioObservationSnapshot,
+        evidence: &mut Evidence,
+    ) {
+        use scenarios::{choose, queue};
+        match self.stage {
+            0 if runtime.initial_sound.is_some() => {
+                activate(runtime, "menu");
+                activate(runtime, "performance");
+                activate(runtime, "performance_sample_example");
+                self.stage = 1;
+            }
+            1 if runtime.app.borrow().editor.song().name
+                == "Expressive Sample performance example" =>
+            {
+                self.performance =
+                    Some(serde_json::to_value(runtime.performance_document().unwrap()).unwrap());
+                queue(runtime, Request::PerformanceAudition { slot: 0 });
+                self.stage = 2;
+            }
+            2 if runtime.performance_playback.is_some() => {
+                self.started = audio.rendered_frames();
+                evidence.measured = true;
+                self.stage = 3;
+            }
+            3 if audio.rendered_frames() > self.started + 48_000 * 4 => {
+                assert!(
+                    runtime.app.borrow().playing,
+                    "{}",
+                    runtime.app.borrow().status
+                );
+                queue(runtime, Request::Stop);
+                self.stage = 4;
+            }
+            4 if !runtime.app.borrow().playing && audio.active_notes() == 0 => {
+                queue(
+                    runtime,
+                    Request::File {
+                        action: FileAction::SaveAs,
+                    },
+                );
+                self.stage = 5;
+            }
+            5 if choose(runtime, &self.path) => self.stage = 6,
+            6 if !runtime.saving && runtime.app.borrow().path.as_ref() == Some(&self.path) => {
+                let saved = Document::read(&self.path).unwrap();
+                assert_eq!(
+                    serde_json::to_value(saved.performance).unwrap(),
+                    *self.performance.as_ref().unwrap()
+                );
+                assert_eq!(
+                    saved.synth["patches"][0]["instrument"]["capabilityId"],
+                    "instrument.sample"
+                );
+                queue(
+                    runtime,
+                    Request::File {
+                        action: FileAction::New,
+                    },
+                );
+                self.stage = 7;
+            }
+            _ => {}
+        }
+    }
+
+    fn reopen_and_play(&mut self, runtime: &mut Runtime, audio: AudioObservationSnapshot) -> bool {
+        use scenarios::{choose, queue};
+        match self.stage {
+            7 if runtime.app.borrow().editor.song().name == "Untitled"
+                && runtime.pending_open.is_none() =>
+            {
+                queue(
+                    runtime,
+                    Request::File {
+                        action: FileAction::Open,
+                    },
+                );
+                self.stage = 8;
+            }
+            8 if choose(runtime, &self.path) => self.stage = 9,
+            9 if runtime.app.borrow().editor.song().name
+                == "Expressive Sample performance example"
+                && runtime.pending_open.is_none() =>
+            {
+                assert_eq!(
+                    serde_json::to_value(runtime.performance_document().unwrap()).unwrap(),
+                    *self.performance.as_ref().unwrap()
+                );
+                queue(runtime, Request::PerformanceAudition { slot: 0 });
+                self.stage = 10;
+            }
+            10 if runtime.performance_playback.is_some() => {
+                self.started = audio.rendered_frames();
+                self.stage = 11;
+            }
+            11 if audio.rendered_frames() > self.started + 48_000 * 3 => {
+                assert!(
+                    runtime.app.borrow().playing,
+                    "{}",
+                    runtime.app.borrow().status
+                );
+                queue(runtime, Request::Stop);
+                self.stage = 12;
+            }
+            12 if !runtime.app.borrow().playing && audio.active_notes() == 0 => return true,
+            _ => {}
+        }
+        false
+    }
+}
+
+#[test]
+#[ignore = "production sample DSP, public library and project lifecycle witness"]
+fn firmware_phrase_plays_through_sample_and_survives_project_save_reopen() {
+    let root = scenarios::temp_root("performance-sample");
+    let mut journey = SampleJourney {
+        stage: 0,
+        started: 0,
+        path: root.join("sample.crest-song"),
+        performance: None,
+    };
+    let evidence = run(
+        &root,
+        Box::new(move |runtime, audio, evidence| {
+            journey.first_play_and_save(runtime, audio, evidence);
+            journey.reopen_and_play(runtime, audio)
+        }),
+        Duration::from_secs(90),
+    );
+    evidence.check_cleanup();
+    assert_eq!(evidence.peak_voices, 3);
+    assert!(evidence.audible_tracks[0]);
+    assert!(evidence.scheduled_queue_high_water > 0);
+    std::fs::remove_dir_all(root).unwrap();
+}

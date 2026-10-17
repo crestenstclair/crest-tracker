@@ -24,6 +24,7 @@ pub mod hidef_soundfont_preparer;
 pub mod lock_free_audio_boundary;
 pub mod lock_free_structural_graph_boundary;
 pub mod midir_input_device;
+pub(crate) mod owned_expression;
 pub mod portable_assets;
 pub mod production_effects;
 pub mod production_instruments;

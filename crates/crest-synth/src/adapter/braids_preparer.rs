@@ -5,6 +5,9 @@ use crate::adapter::braids_capability::{
 use crate::adapter::braids_native::{
     BraidsNativeError, BraidsVoiceBank, BRAIDS_INTERNAL_CHUNK_FRAMES, BRAIDS_MODEL_COUNT,
 };
+use crate::adapter::owned_expression::OwnedExpression;
+#[cfg(test)]
+use crate::adapter::owned_expression::{owned_combined_pitch_bend_units, owned_pitch_bend_units};
 use crate::kernel::midi_message::{MidiMessage, MidiMessageKind};
 use crate::kernel::patch_id::PatchId;
 use crate::kernel::MidiChannel;
@@ -16,9 +19,11 @@ use crate::synth::instrument_preparer::{InstrumentPreparationError, InstrumentPr
 use crate::synth::parameter_id::ParameterId;
 use crate::synth::patch::Patch;
 use crate::synth::prepared_instrument::{
-    OwnedExpressionState, OwnedVoiceInitialization, PreparedInstrument, PreparedInstrumentError,
+    OwnedVoiceInitialization, PreparedInstrument, PreparedInstrumentError,
 };
 use crate::synth::voice_envelope_state::VoiceEnvelopeState;
+#[cfg(test)]
+use crate::synth::OwnedExpressionState;
 use crate::synth::{MidiExpressionScope, MidiSource, MidiVoiceId};
 
 pub const BRAIDS_HOST_SAMPLE_RATE: f32 = 48_000.0;
@@ -28,47 +33,7 @@ const NORMALIZED_I16: f32 = 1.0 / 32_768.0;
 const PITCH_UNITS_PER_SEMITONE: i32 = 128;
 const PITCH_BEND_RANGE_SEMITONES: i32 = 2;
 const MIDI_BEND_CENTER: i32 = 8_192;
-// Upstream oscillator frequency tables saturate at 128 semitones. Owned
-// expression rejects pitches outside this interval instead of clipping.
-const MAX_OWNED_PITCH: i32 = 128 * PITCH_UNITS_PER_SEMITONE - 1;
 const MIDI_CHANNEL_COUNT: usize = MidiChannel::MAX as usize + 1;
-
-/// Shared admission for the renderer and its control-side capability contract.
-/// Returns native bend units only for normalized MIDI and an unclipped pitch.
-pub(crate) fn owned_pitch_bend_units(note: u8, raw: u16, semitones: u8, cents: u8) -> Option<i16> {
-    owned_combined_pitch_bend_units(note, (raw, semitones, cents), (8_192, 2, 0))
-}
-
-/// Both dimensions retain their exact raw14 value and range. Sum first, then
-/// admit the resulting pitch and quantize once to native 1/128-semitone units.
-pub(crate) fn owned_combined_pitch_bend_units(
-    note: u8,
-    member: (u16, u8, u8),
-    master: (u16, u8, u8),
-) -> Option<i16> {
-    if note > 127 {
-        return None;
-    }
-    let numerator = owned_bend_numerator(member)? + owned_bend_numerator(master)?;
-    let denominator = i64::from(MIDI_BEND_CENTER * 100);
-    let pitch = i64::from(note) * i64::from(PITCH_UNITS_PER_SEMITONE) * denominator + numerator;
-    if !(0..=i64::from(MAX_OWNED_PITCH) * denominator).contains(&pitch) {
-        return None;
-    }
-    Some((numerator / denominator) as i16)
-}
-
-fn owned_bend_numerator((raw, semitones, cents): (u16, u8, u8)) -> Option<i64> {
-    if raw > 16_383 || semitones > 127 || cents > 99 {
-        return None;
-    }
-    let range_cents = i32::from(semitones) * 100 + i32::from(cents);
-    Some(
-        (i64::from(raw) - i64::from(MIDI_BEND_CENTER))
-            * i64::from(range_cents)
-            * i64::from(PITCH_UNITS_PER_SEMITONE),
-    )
-}
 
 /// Control/worker-side preparer for the pinned Braids capability.
 pub struct BraidsPreparer {
@@ -167,98 +132,6 @@ fn normalized_parameter(value: f32) -> Option<i16> {
         Some((value * f32::from(i16::MAX)).round() as i16)
     } else {
         None
-    }
-}
-
-/// Scalar state belongs to one prepared attack, never a reused member channel.
-#[derive(Clone, Copy, Debug, PartialEq)]
-struct OwnedExpression {
-    bend_raw: u16,
-    bend_semitones: u8,
-    bend_cents: u8,
-    rpn_msb: Option<u8>,
-    rpn_lsb: Option<u8>,
-    timbre: Option<i16>,
-    sustain: Option<bool>,
-}
-
-impl OwnedExpression {
-    const fn new(bend_raw: u16) -> Self {
-        Self {
-            bend_raw,
-            bend_semitones: PITCH_BEND_RANGE_SEMITONES as u8,
-            bend_cents: 0,
-            rpn_msb: None,
-            rpn_lsb: None,
-            timbre: None,
-            sustain: None,
-        }
-    }
-
-    fn from_initial(state: OwnedExpressionState) -> Self {
-        Self {
-            bend_raw: state.raw14(),
-            bend_semitones: state.semitones(),
-            bend_cents: state.cents(),
-            rpn_msb: None,
-            rpn_lsb: None,
-            timbre: state
-                .timbre()
-                .and_then(|value| normalized_parameter(f32::from(value) / 127.0)),
-            sustain: Some(state.pedal() >= 64),
-        }
-    }
-
-    fn bend_units(self, note: u8, other: Self) -> Result<i16, PreparedInstrumentError> {
-        owned_combined_pitch_bend_units(
-            note,
-            (self.bend_raw, self.bend_semitones, self.bend_cents),
-            (other.bend_raw, other.bend_semitones, other.bend_cents),
-        )
-        .ok_or(PreparedInstrumentError::DispatchRejected)
-    }
-
-    fn with_bend(
-        mut self,
-        note: u8,
-        raw: u16,
-        other: Self,
-    ) -> Result<Self, PreparedInstrumentError> {
-        self.bend_raw = raw;
-        self.bend_units(note, other)?;
-        Ok(self)
-    }
-
-    fn with_controller(
-        mut self,
-        note: u8,
-        controller: u8,
-        value: u8,
-        other: Self,
-    ) -> Result<Self, PreparedInstrumentError> {
-        match controller {
-            101 | 100 if matches!(value, 0 | 127) => {
-                if controller == 101 {
-                    self.rpn_msb = Some(value);
-                } else {
-                    self.rpn_lsb = Some(value);
-                }
-            }
-            6 | 38 if self.rpn_msb == Some(0) && self.rpn_lsb == Some(0) => {
-                if controller == 6 {
-                    self.bend_semitones = value;
-                } else if value <= 99 {
-                    self.bend_cents = value;
-                } else {
-                    return Err(PreparedInstrumentError::DispatchRejected);
-                }
-            }
-            74 => self.timbre = normalized_parameter(f32::from(value) / 127.0),
-            64 => self.sustain = Some(value >= 64),
-            _ => return Err(PreparedInstrumentError::DispatchRejected),
-        }
-        self.bend_units(note, other)?;
-        Ok(self)
     }
 }
 
@@ -407,7 +280,11 @@ impl PreparedBraidsInstrument {
                     voice_index,
                     scalars.model,
                     note_pitch(note, voice.pitch_bend),
-                    voice.owned.timbre.unwrap_or(scalars.timbre),
+                    voice
+                        .owned
+                        .timbre
+                        .and_then(|value| normalized_parameter(f32::from(value) / 127.0))
+                        .unwrap_or(scalars.timbre),
                     scalars.color,
                 )
             })
@@ -468,6 +345,7 @@ impl PreparedBraidsInstrument {
             self.voices[voice_index]
                 .owned
                 .timbre
+                .and_then(|value| normalized_parameter(f32::from(value) / 127.0))
                 .unwrap_or(scalars.timbre),
             scalars.color,
         )?;

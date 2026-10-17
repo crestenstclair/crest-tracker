@@ -352,11 +352,14 @@ with immediate commands. The renderer splits at event sample offsets. Cancellati
 invalidates old epochs at consumption and releases only Scheduled voices. Native
 voice banks distinguish Immediate, Scheduled and Monitor sources, MIDI channels,
 and optional attack identities; this protects overlapping same-pitch attacks and
-owned expression. Raw channel controls remain channel-wide. Braids exposes an
-engine-specific owned-expression profile: independent member/master raw14 bend
-and RPN0 ranges add before exact native pitch admission, pressure gains multiply,
+owned expression. Raw channel controls remain channel-wide. Braids and resident
+Sample expose a proven owned-expression profile: independent member/master raw14
+bend and RPN0 ranges add before exact pitch admission, pressure gains multiply,
 member CC74 is absolute, and scoped pedals combine without reviving released
-voices. Unsupported engines and controls reject explicitly. A fixed-size
+voices. Shared MIDI state and admission cover pitches from 0 through 127.9921875;
+Braids converts to native 1/128-semitone units, while Sample retains the combined
+offset through sfizz's high-resolution bend API. Unsupported engines and controls
+reject explicitly. A fixed-size
 initialized-voice command carries the attack and both complete dimensions as one
 budgeted callback operation; no partial initialization can render between packets.
 The host owns MPE source/zone interpretation, allocation and musical lifetimes.
@@ -498,6 +501,14 @@ status and are formatted/handled off callback.
   path. Values still commit only through `AppState::apply` and reach the active
   renderer through compatible snapshots.
 - Sample uses resident sfizz playback, with independently prepared host voices.
+  Owned CC74 controls sfizz's two-pole low-pass cutoff exponentially from 200 Hz
+  to 20 kHz; absent timbre starts at 20 kHz. Member and master pressure multiply
+  the Patch envelope gain. The worker prepares the filter and a fixed native
+  bend range; runtime events update existing sfizz state without parsing or
+  allocation. Ordinary channel MIDI retains its two-semitone bend default.
+  Slot reuse resets pitch and brightness before the next attack. Native heap/
+  lock witnesses cover initialization, expression changes and reuse; rendered
+  spectra independently verify three-note pitch, brightness and gain isolation.
   The upstream voice bank and Braids refuse exhaustion without stealing another
   note. Voice-budget growth prepares a replacement engine through the structural
   lifecycle and commits only after activation; reductions change admission.

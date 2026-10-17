@@ -73,9 +73,7 @@ fn empty_song_sample_notes_render_through_the_production_host() {
                     let app = runtime.app.borrow();
                     let destinations = app.capture["destinations"].as_array().unwrap();
                     assert!(!destinations.is_empty());
-                    assert!(destinations
-                        .iter()
-                        .all(|item| item["mpe_error"].is_string()));
+                    assert!(destinations.iter().all(|item| item["mpe_error"].is_null()));
                     let (_, phrase) = app.selected_phrase().unwrap();
                     assert_eq!(phrase.events.len(), 4);
                     assert!(phrase.events.iter().all(|event| {
