@@ -36,6 +36,17 @@ fn path_for_executable(executable: &Path, relative: &str) -> std::io::Result<Pat
             }
         }
     }
+    // A Unix installation or portable archive owns assets beside its bin/
+    // directory. Select that root by layout, not existence: a missing packaged
+    // asset must never fall back to a developer's source tree.
+    if let Some(bin) = executable
+        .parent()
+        .filter(|path| path.file_name().is_some_and(|name| name == "bin"))
+    {
+        if let (Some(prefix), Some(name)) = (bin.parent(), executable.file_name()) {
+            return Ok(prefix.join("share").join(name).join(relative));
+        }
+    }
     Ok(Path::new(env!("CARGO_MANIFEST_DIR")).join(relative))
 }
 
@@ -69,6 +80,26 @@ mod tests {
                 path_for_executable(Path::new(executable), "./sf2/HiDef.sf2").unwrap(),
                 Path::new(env!("CARGO_MANIFEST_DIR")).join("./sf2/HiDef.sf2"),
             );
+        }
+    }
+
+    #[test]
+    fn unix_assets_resolve_under_installed_prefix_even_when_absent() {
+        for (executable, expected) in [
+            (
+                "/usr/bin/crest-synth",
+                "/usr/share/crest-synth/sf2/HiDef.sf2",
+            ),
+            (
+                "/tmp/Relocated Tracker/bin/crest-tracker-app",
+                "/tmp/Relocated Tracker/share/crest-tracker-app/sf2/HiDef.sf2",
+            ),
+        ] {
+            assert_eq!(
+                path_for_executable(Path::new(executable), "./sf2/HiDef.sf2").unwrap(),
+                Path::new(expected)
+            );
+            assert_rejects_invalid_built_in_paths(Path::new(executable));
         }
     }
 

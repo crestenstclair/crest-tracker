@@ -6,9 +6,19 @@ Crest Synth's complete application is now forked into this repository. Tracker a
 make dev                       # Tracker
 make synth                     # Original standalone Synth
 make bundle ARGS=--release     # target/release/Crest Tracker.app
+python3 scripts/package_linux.py # Linux x86_64 development archive; clean source required
 ```
 
 A fresh checkout needs the pinned Rust 1.96.0 toolchain, the native build prerequisites from [Synth's DESIGN.md](crates/crest-synth/DESIGN.md), and `git lfs pull` for the inherited SoundFont. No sibling checkout or Cargo dependency override is required. Local builds and CI use the same toolchain; compiler and lint upgrades are deliberate changes.
+
+The native Ubuntu 24.04 performance workflow builds and tests the app and embedded-engine
+witnesses. Its package step creates `target/linux-candidate/`, extracts the archive into a
+new directory, verifies checksums and loads the production engine inventory outside the
+checkout. The layout is `bin/crest-tracker-app` plus `share/crest-tracker-app/`; keep both
+together. A missing packaged SoundFont must fail even if the source checkout is still
+available. System GTK3, WebKitGTK 4.1, ALSA and SDL platform libraries remain dependencies.
+This development package's first CI run is pending. It does not qualify Steam Deck hardware,
+physical controls/audio or live Linux MIDI/audio clock correlation.
 
 ## Ownership
 

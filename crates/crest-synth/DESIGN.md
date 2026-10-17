@@ -1329,8 +1329,16 @@ Session file dialogs use the desktop portal (or Zenity); unsaved-change prompts
 require Zenity. Optional JACK is an explicit MIDI packaging choice. Windows
 MIDI defaults to WinMM; optional WinRT is also an explicit choice. Native keyboard
 capture supports macOS and Linux; Windows is not a runnable release target yet.
-Broader packaging remains unverified; maintain platform adapter boundaries
-without assuming a small-device target.
+The built-in resource adapter also recognizes a Unix `prefix/bin/<executable>` layout
+and resolves assets under `prefix/share/<executable>`. Like the macOS app layout, it selects
+the installed root without checking asset existence; missing packaged assets cannot silently
+fall back to the checkout. Unbundled Cargo targets retain the source-root development path.
+Tracker's `scripts/package_linux.py` assembles this layout from the same resource inventory
+as its macOS bundle, extracts the archive to a new directory, validates checksums and runs
+the production inventory outside the checkout. Removing the extracted SoundFont must fail
+while the checkout asset remains available. The native Linux integration workflow exercises
+app and embedded-engine contracts and this packaging path; its first run is pending.
+This does not establish live Linux MIDI/audio clock correlation or Steam Deck qualification.
 `scripts/build_release_macos.sh` builds native Apple Silicon or Intel macOS app
 and DMG bundles with the SoundFont, MIDI fixture, font/audio notices, and Eigen
 source. The manually dispatched `Release binaries` workflow builds both targets

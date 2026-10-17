@@ -32,5 +32,9 @@ jobs:
         run: >-
           cargo test --locked --release -p crest-tracker-app synth::witness::performance
           -- --ignored --test-threads=1
-      - name: Build shipping Linux executable
-        run: cargo build --locked --release -p crest-tracker-app
+      - name: Package and verify relocated shipping executable
+        run: python3 scripts/package_linux.py
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Crest-Tracker-Linux-development
+          path: target/linux-candidate/
