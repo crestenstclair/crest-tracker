@@ -46,6 +46,7 @@ pub(super) struct Output {
     writer: Rc<RefCell<AudioFrameClockWriter>>,
     reader: AudioFrameClockReader,
     frames: Rc<Cell<u64>>,
+    recording: Rc<RefCell<Option<Vec<f32>>>>,
 }
 impl Default for Output {
     fn default() -> Self {
@@ -55,6 +56,7 @@ impl Default for Output {
             writer: Rc::new(RefCell::new(writer)),
             reader,
             frames: Rc::default(),
+            recording: Rc::default(),
         }
     }
 }
@@ -78,6 +80,12 @@ impl NegotiatedAudioOutput for Output {
     }
 }
 impl Output {
+    pub(super) fn record(&self) {
+        *self.recording.borrow_mut() = Some(Vec::new());
+    }
+    pub(super) fn take_recording(&self) -> Vec<f32> {
+        self.recording.borrow_mut().take().unwrap_or_default()
+    }
     pub(super) fn render(&self, buffer: &mut [f32]) -> (u64, (u64, u64)) {
         let mut callback = self.callback.borrow_mut();
         MEMORY.with(|memory| memory.set((0, 0)));
@@ -86,6 +94,10 @@ impl Output {
         callback.as_mut().expect("production callback started")(buffer);
         let elapsed = start.elapsed().as_nanos() as u64;
         MEASURING.with(|active| active.set(false));
+        // This optional witness capture runs outside the callback and its RT audit.
+        if let Some(recording) = &mut *self.recording.borrow_mut() {
+            recording.extend_from_slice(buffer);
+        }
         let frame = self.frames.get();
         let micros = 1_000_000 + frame * 1_000_000 / 48_000;
         self.writer.borrow_mut().publish_from_callback(

@@ -1,8 +1,10 @@
 //! Tracker owns project lifecycle and sound bindings around the released library.
+mod playback;
 use super::*;
 use crest_linnstrument::Geometry;
 use crest_performance_core::Limits;
 use crest_tracker::performance::Performance;
+pub(super) use playback::Playback;
 
 pub(super) struct PendingOpen {
     pub document: Document,
@@ -30,6 +32,55 @@ impl PendingOpen {
 }
 
 impl Runtime {
+    pub(super) fn audition_performance(
+        &mut self,
+        sound: &mut Sound<'_>,
+        clock: HostClock,
+        slot: usize,
+    ) -> Result<(), String> {
+        if self.capture_baseline.is_some() || self.pending_open.is_some() || self.loading.is_some()
+        {
+            return Err(
+                "Finish the current recording or document operation before auditioning".into(),
+            );
+        }
+        if self.sync.external() {
+            return Err("Performance audition requires the local host clock".into());
+        }
+        let document = self
+            .performance_document()?
+            .ok_or("Open a Song containing a performance session first")?;
+        let mut playback = Playback::new(document, slot, &self.app.borrow(), sound, clock)?;
+        self.stop(sound)?;
+        if let Err(error) = playback.advance(sound, clock, &mut self.voices) {
+            let _ = self.stop(sound);
+            return Err(error);
+        }
+        self.performance_playback = Some(playback);
+        self.app.borrow_mut().playing = true;
+        self.app.borrow_mut().status =
+            format!("PERFORMANCE · Auditioning clip {} · Stop to end", slot + 1);
+        Ok(())
+    }
+
+    pub(super) fn advance_performance(
+        &mut self,
+        sound: &mut Sound<'_>,
+        clock: HostClock,
+    ) -> Result<(), String> {
+        if let Some(playback) = &mut self.performance_playback {
+            if playback.tempo_at_start != self.app.borrow().editor.song().tempo {
+                return Err("Tempo changed; restart performance audition at the new tempo".into());
+            }
+            playback.advance(sound, clock, &mut self.voices)?;
+        }
+        self.app.borrow_mut().performance = serde_json::json!({
+            "session":self.performance.as_ref().map(Performance::snapshot),
+            "auditioning":self.performance_playback.is_some(),
+            "playing_slot":self.performance_playback.as_ref().map(|playback| playback.slot),
+        });
+        Ok(())
+    }
     pub(super) fn performance_document(
         &self,
     ) -> Result<Option<crest_tracker::performance::Document>, String> {
@@ -73,6 +124,30 @@ impl Runtime {
         self.pending_open = Some(pending);
         Ok(())
     }
+}
+
+pub(super) fn example_document() -> Result<Document, String> {
+    let mut document = super::demo::document()?;
+    let instrument = *document
+        .song
+        .instruments
+        .keys()
+        .next()
+        .ok_or("Example has no instrument")?;
+    document.song.name = "Expressive performance example".into();
+    let session: crest_performance_core::Session =
+        serde_json::from_str(include_str!("../../../../assets/performance-phrase.json"))
+            .map_err(|e| e.to_string())?;
+    document.performance = Some(crest_tracker::performance::Document {
+        version: 1,
+        session: session.migrate().map_err(|e| e.to_string())?,
+        routes: vec![crest_tracker::performance::Route {
+            destination: crest_performance_core::DestinationId(1),
+            instrument,
+        }],
+    });
+    document.validate()?;
+    Ok(document)
 }
 
 #[cfg(test)]

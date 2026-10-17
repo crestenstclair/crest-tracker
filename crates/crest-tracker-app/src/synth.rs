@@ -103,6 +103,11 @@ impl Default for ScheduledVoices {
     }
 }
 impl ScheduledVoices {
+    fn allocate(&mut self) -> Result<MidiVoiceId, String> {
+        let id = MidiVoiceId::new(self.next).ok_or("Voice identity exhausted")?;
+        self.next = self.next.checked_add(1).ok_or("Voice identity exhausted")?;
+        Ok(id)
+    }
     fn voice_for(&mut self, event: &TimedEvent) -> Result<Option<MidiVoiceId>, String> {
         if self.at != Some(event.at) {
             self.entries
@@ -111,8 +116,7 @@ impl ScheduledVoices {
         }
         match event.message {
             Message::NoteOn { .. } => {
-                let id = MidiVoiceId::new(self.next).ok_or("Voice identity exhausted")?;
-                self.next = self.next.checked_add(1).ok_or("Voice identity exhausted")?;
+                let id = self.allocate()?;
                 self.entries.insert(event.owner.clone(), (id, None));
                 Ok(Some(id))
             }
@@ -199,6 +203,7 @@ struct Runtime {
     pending_open: Option<PendingOpen>,
     performance: Option<crest_tracker::performance::Performance>,
     saved_performance: Option<crest_tracker::performance::Document>,
+    performance_playback: Option<performance::Playback>,
     loading: Option<(LoadWorker, PathBuf)>,
     resource_candidate: Option<resources::repair::Candidate>,
     repairing_resource: Option<std::sync::mpsc::Receiver<Result<Document, String>>>,
@@ -297,6 +302,7 @@ impl Runtime {
             pending_open: None,
             performance: None,
             saved_performance: None,
+            performance_playback: None,
             loading: None,
             resource_candidate: None,
             repairing_resource: None,
@@ -393,9 +399,10 @@ impl Runtime {
         self.external_expression.clear();
         self.send_leases.clear();
         self.playback = None;
+        let performance_was_playing = self.performance_playback.take().is_some();
         let mut app = self.app.borrow_mut();
         app.playing = false;
-        if app.status == "PLAYING" {
+        if app.status == "PLAYING" || performance_was_playing {
             app.status = "STOPPED".into();
         }
         app.play_row = None;
@@ -780,6 +787,7 @@ impl Runtime {
             return Err("Finish or cancel asset repair before changing the Song".into());
         }
         match request {
+            Request::PerformanceAudition { slot } => self.audition_performance(sound, clock, slot),
             Request::FileBrowse { token, directory } => self.file_browse(token, directory),
             Request::FileChoose {
                 token,
@@ -1167,6 +1175,7 @@ impl Runtime {
             | FileAction::Open
             | FileAction::Close
             | FileAction::Example
+            | FileAction::PerformanceExample
             | FileAction::Corridors
             | FileAction::ImportMidi => {
                 if self.saving {
@@ -1223,6 +1232,8 @@ impl Runtime {
                 }
                 let (document, path) = if matches!(action, FileAction::Example) {
                     (demo::document()?, None)
+                } else if matches!(action, FileAction::PerformanceExample) {
+                    (performance::example_document()?, None)
                 } else if matches!(action, FileAction::New) {
                     let synth = self
                         .initial_sound
@@ -2614,6 +2625,7 @@ impl ApplicationHost<LockFreeControlHandle> for Runtime {
             self.poll_chord_library();
             self.advance_capture(sound, clock)?;
             self.advance(sound, clock)?;
+            self.advance_performance(sound, clock)?;
             self.poll_recovery(clock)?;
             self.elapsed_since_capture += clock.elapsed;
             if self.elapsed_since_capture >= std::time::Duration::from_millis(300) {

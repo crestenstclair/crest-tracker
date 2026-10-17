@@ -10,6 +10,7 @@ mod library;
 mod midi;
 mod minimap;
 mod notes;
+mod performance;
 mod phrase;
 mod projection;
 mod settings;
@@ -53,6 +54,7 @@ enum Panel {
     Expression,
     Library,
     ChordLibrary,
+    Performance,
     Repair,
     Midi,
     MidiBinding,
@@ -177,6 +179,13 @@ pub fn action(app: &mut App, action: SemanticAction) -> bool {
         SemanticAction::NavigatePage(direction) => navigate_page(app, direction),
         SemanticAction::Adjust(direction) => adjust(app, direction),
         SemanticAction::Activate => activate_focused(app),
+        SemanticAction::PreviewStart if app.workspace.panel == Some(Panel::Performance) => {
+            app.requests.push(if app.playing {
+                Request::Stop
+            } else {
+                Request::PerformanceAudition { slot: 0 }
+            });
+        }
         SemanticAction::PreviewStart => app.requests.push(Request::Play),
         SemanticAction::PreviewStop => {}
         SemanticAction::ToggleTestMidi => open(app, Some(Panel::Menu)),

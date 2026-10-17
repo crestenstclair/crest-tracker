@@ -35,7 +35,8 @@ pub(super) fn activate(app: &mut App, id: &str) {
         chord_action(app, id);
         return;
     }
-    if arrangement::activate(app, id)
+    if performance::activate(app, id)
+        || arrangement::activate(app, id)
         || library::activate(app, id)
         || midi::activate(app, id)
         || generator::activate(app, id)
@@ -79,6 +80,7 @@ fn navigate_command(app: &mut App, id: &str) -> bool {
         "expression" => Some(Panel::Expression),
         "library" => Some(Panel::Library),
         "chord_library" => Some(Panel::ChordLibrary),
+        "performance" => Some(Panel::Performance),
         "repair" => Some(Panel::Repair),
         "midi_outputs" => Some(Panel::Midi),
         "chords" => Some(Panel::Chords),

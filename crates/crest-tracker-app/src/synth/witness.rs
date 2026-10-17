@@ -4,6 +4,7 @@ mod audio;
 mod controller;
 mod corridors;
 mod live;
+mod performance;
 mod recording_edits;
 mod replacement;
 mod scenarios;
@@ -209,11 +210,28 @@ fn run_with_devices(
     capability: &str,
     system_devices: bool,
 ) -> Evidence {
+    run_with_output(
+        root,
+        step,
+        wall_limit,
+        capability,
+        system_devices,
+        audio::Output::default(),
+    )
+}
+
+fn run_with_output(
+    root: &std::path::Path,
+    step: Step,
+    wall_limit: Duration,
+    capability: &str,
+    system_devices: bool,
+    output: audio::Output,
+) -> Evidence {
     let app = Rc::new(RefCell::new(App::new()));
     let runtime = Rc::new(RefCell::new(
         Runtime::with_data_directory(app, root.join("machine")).unwrap(),
     ));
-    let output = audio::Output::default();
     let evidence = Rc::new(RefCell::new(Evidence::default()));
     let window = Window {
         runtime: runtime.clone(),

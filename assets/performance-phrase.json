@@ -1,0 +1,301 @@
+{
+  "version": 1,
+  "tracks": [
+    {
+      "id": 1,
+      "name": "LinnStrument",
+      "instrument": {
+        "destination": 1,
+        "reference": "capture://main"
+      }
+    }
+  ],
+  "slots": [
+    {
+      "track": 1,
+      "clip": {
+        "length": 1344018,
+        "events": [
+          {
+            "at": 5970,
+            "note": {
+              "source": 1,
+              "track": 1,
+              "note": 1
+            },
+            "gesture": {
+              "type": "on",
+              "key": 63,
+              "velocity": 125,
+              "expression": {
+                "pitch": 0,
+                "pressure": 0,
+                "timbre": 32509
+              }
+            }
+          },
+          {
+            "at": 15370,
+            "note": {
+              "source": 1,
+              "track": 1,
+              "note": 2
+            },
+            "gesture": {
+              "type": "on",
+              "key": 43,
+              "velocity": 116,
+              "expression": {
+                "pitch": 0,
+                "pressure": 0,
+                "timbre": 32509
+              }
+            }
+          },
+          {
+            "at": 24730,
+            "note": {
+              "source": 1,
+              "track": 1,
+              "note": 3
+            },
+            "gesture": {
+              "type": "on",
+              "key": 53,
+              "velocity": 123,
+              "expression": {
+                "pitch": 0,
+                "pressure": 0,
+                "timbre": 32509
+              }
+            }
+          },
+          {
+            "at": 29764,
+            "note": {
+              "source": 1,
+              "track": 1,
+              "note": 1
+            },
+            "gesture": {
+              "type": "expression",
+              "expression": {
+                "pitch": 0,
+                "pressure": 61406,
+                "timbre": 32509
+              }
+            }
+          },
+          {
+            "at": 31150,
+            "note": {
+              "source": 1,
+              "track": 1,
+              "note": 2
+            },
+            "gesture": {
+              "type": "expression",
+              "expression": {
+                "pitch": 0,
+                "pressure": 47990,
+                "timbre": 32509
+              }
+            }
+          },
+          {
+            "at": 32550,
+            "note": {
+              "source": 1,
+              "track": 1,
+              "note": 3
+            },
+            "gesture": {
+              "type": "expression",
+              "expression": {
+                "pitch": 0,
+                "pressure": 57794,
+                "timbre": 32509
+              }
+            }
+          },
+          {
+            "at": 577433,
+            "note": {
+              "source": 1,
+              "track": 1,
+              "note": 2
+            },
+            "gesture": {
+              "type": "expression",
+              "expression": {
+                "pitch": 246093,
+                "pressure": 47990,
+                "timbre": 32509
+              }
+            }
+          },
+          {
+            "at": 578834,
+            "note": {
+              "source": 1,
+              "track": 1,
+              "note": 3
+            },
+            "gesture": {
+              "type": "expression",
+              "expression": {
+                "pitch": 0,
+                "pressure": 57794,
+                "timbre": 52118
+              }
+            }
+          },
+          {
+            "at": 580069,
+            "note": {
+              "source": 1,
+              "track": 1,
+              "note": 1
+            },
+            "gesture": {
+              "type": "expression",
+              "expression": {
+                "pitch": 0,
+                "pressure": 63470,
+                "timbre": 32509
+              }
+            }
+          },
+          {
+            "at": 596886,
+            "note": {
+              "source": 1,
+              "track": 1,
+              "note": 1
+            },
+            "gesture": {
+              "type": "expression",
+              "expression": {
+                "pitch": 0,
+                "pressure": 65535,
+                "timbre": 32509
+              }
+            }
+          },
+          {
+            "at": 962564,
+            "note": {
+              "source": 1,
+              "track": 1,
+              "note": 2
+            },
+            "gesture": {
+              "type": "expression",
+              "expression": {
+                "pitch": 246093,
+                "pressure": 0,
+                "timbre": 32509
+              }
+            }
+          },
+          {
+            "at": 967976,
+            "note": {
+              "source": 1,
+              "track": 1,
+              "note": 2
+            },
+            "gesture": {
+              "type": "off",
+              "velocity": 127
+            }
+          },
+          {
+            "at": 973043,
+            "note": {
+              "source": 1,
+              "track": 1,
+              "note": 3
+            },
+            "gesture": {
+              "type": "expression",
+              "expression": {
+                "pitch": 0,
+                "pressure": 0,
+                "timbre": 52118
+              }
+            }
+          },
+          {
+            "at": 978463,
+            "note": {
+              "source": 1,
+              "track": 1,
+              "note": 3
+            },
+            "gesture": {
+              "type": "off",
+              "velocity": 127
+            }
+          },
+          {
+            "at": 983534,
+            "note": {
+              "source": 1,
+              "track": 1,
+              "note": 1
+            },
+            "gesture": {
+              "type": "expression",
+              "expression": {
+                "pitch": 0,
+                "pressure": 0,
+                "timbre": 32509
+              }
+            }
+          },
+          {
+            "at": 988954,
+            "note": {
+              "source": 1,
+              "track": 1,
+              "note": 1
+            },
+            "gesture": {
+              "type": "off",
+              "velocity": 127
+            }
+          }
+        ]
+      }
+    },
+    {
+      "track": 1,
+      "clip": null
+    },
+    {
+      "track": 1,
+      "clip": null
+    },
+    {
+      "track": 1,
+      "clip": null
+    },
+    {
+      "track": 1,
+      "clip": null
+    },
+    {
+      "track": 1,
+      "clip": null
+    },
+    {
+      "track": 1,
+      "clip": null
+    },
+    {
+      "track": 1,
+      "clip": null
+    }
+  ]
+}

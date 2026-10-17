@@ -8,7 +8,7 @@ make synth                     # Original standalone Synth
 make bundle ARGS=--release     # target/release/Crest Tracker.app
 ```
 
-A fresh checkout needs Rust, the native build prerequisites from [Synth's DESIGN.md](crates/crest-synth/DESIGN.md), and `git lfs pull` for the inherited SoundFont. No sibling checkout or Cargo dependency override is required.
+A fresh checkout needs the pinned Rust 1.96.0 toolchain, the native build prerequisites from [Synth's DESIGN.md](crates/crest-synth/DESIGN.md), and `git lfs pull` for the inherited SoundFont. No sibling checkout or Cargo dependency override is required. Local builds and CI use the same toolchain; compiler and lint upgrades are deliberate changes.
 
 ## Ownership
 
@@ -25,8 +25,20 @@ the library session and instrument bindings; save, sound import and recovery ret
 Library validation and engine allocation precede sound replacement. Format 1 Songs upgrade
 in memory without changing their source files; older applications reject format 2 rather than
 discarding performance state. Keep the original file when sharing with an older application.
-Application scheduling and the performance workspace are still being connected; this adapter
-alone does not establish audible Synth or Steam Deck qualification.
+Open **Menu → Performance clips → Open expressive example**, then return to Performance clips
+and audition a clip. Its loop runs through the released library, Tracker's timestamped audio
+scheduler and the embedded Synth's owned-note MIDI boundary. Stop releases its scheduled voices.
+The example uses a firmware-captured phrase from the standalone v0.1.0 release and an existing
+Braids patch. Spectral witnesses verify independent pitch, timbre and pressure in rendered audio,
+along with deadline recovery, unsupported-engine rejection and allocation-free callback work.
+
+Audition uses a disposable clip snapshot, the Song's tempo at start, a 50 ms start lead and the
+existing 100 ms scheduling window. Tempo, graph or sample-rate changes stop it explicitly.
+The first output profile is lower-zone MPE with 15 members and a ±48-semitone range per destination;
+only engines advertising proven owned-expression support are admitted (currently Braids).
+This does not enable integrated live capture, virtual-pad launch/LED feedback, sample MPE or
+Steam Deck qualification. Those remain integration work; the standalone application retains
+its complete firmware-driven record-and-launch workflow.
 
 Edit both packages in this checkout. One diff and commit can contain a cross-boundary change. The original sibling Synth checkout remains untouched. [FORK.json](crates/crest-synth/FORK.json) records the imported working-tree source and hashes, including the uncommitted fixes present at import.
 

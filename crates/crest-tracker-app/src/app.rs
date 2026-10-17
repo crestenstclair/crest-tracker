@@ -59,6 +59,9 @@ pub enum TransportScope {
 #[derive(Clone, Debug, Deserialize)]
 #[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
 pub enum Request {
+    PerformanceAudition {
+        slot: usize,
+    },
     View {
         view: View,
     },
@@ -420,6 +423,7 @@ pub enum CaptureAction {
 #[serde(rename_all = "snake_case")]
 pub enum FileAction {
     Example,
+    PerformanceExample,
     Corridors,
     ImportMidi,
     CollectAssets,
@@ -561,6 +565,7 @@ pub struct App {
     pub edit_held: bool,
     pub shift_held: bool,
     pub capture: Value,
+    pub performance: Value,
     pub outputs: Value,
     pub recovery: Value,
     pub resource_repair: Value,
@@ -629,6 +634,7 @@ impl App {
             edit_held: false,
             shift_held: false,
             capture: json!({"state":"idle"}),
+            performance: Value::Null,
             outputs: json!({}),
             recovery: Value::Null,
             resource_repair: Value::Null,
@@ -1023,7 +1029,8 @@ impl App {
                 root,
                 source,
             } => self.apply_chord(revision, occurrence, event, slot, root, source)?,
-            Request::Play
+            Request::PerformanceAudition { .. }
+            | Request::Play
             | Request::Example
             | Request::StartAt { .. }
             | Request::Stop
