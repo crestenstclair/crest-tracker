@@ -19,6 +19,20 @@ pub(crate) struct PreparedEngineSlot {
 }
 
 impl PreparedEngineSlot {
+    fn validate_voice_group(
+        &self,
+        voice: Option<crate::synth::MidiVoiceId>,
+    ) -> Result<(), RackDispatchError> {
+        if voice.and_then(crate::synth::MidiVoiceId::group).is_some()
+            && !self.instrument.supports_voice_groups()
+        {
+            return Err(RackDispatchError::Instrument {
+                patch_id: self.patch_id,
+                source: PreparedInstrumentError::UnsupportedVoiceGroup,
+            });
+        }
+        Ok(())
+    }
     pub(crate) fn new(
         patch_id: PatchId,
         scalar_count: usize,
@@ -210,6 +224,7 @@ impl PreparedEngineRack {
         {
             return Err(RackDispatchError::ParameterLayoutMismatch { patch_id });
         }
+        slot.validate_voice_group(voice)?;
         let result = match voice {
             Some(voice) => slot.instrument.dispatch_scoped_voice_from(
                 midi_source,
@@ -242,6 +257,7 @@ impl PreparedEngineRack {
         {
             return Err(RackDispatchError::ParameterLayoutMismatch { patch_id });
         }
+        slot.validate_voice_group(Some(voice))?;
         slot.instrument
             .dispatch_initialized_voice_from(source, voice, initial, parameters)
             .map_err(|source| RackDispatchError::Instrument { patch_id, source })
@@ -548,6 +564,28 @@ mod tests {
             Ok(())
         }
 
+        fn dispatch_scoped_voice_from(
+            &mut self,
+            _: MidiSource,
+            _: crate::synth::MidiVoiceId,
+            _: crate::synth::MidiExpressionScope,
+            _: MidiMessage,
+            _: &RtPatchParameters,
+        ) -> Result<(), PreparedInstrumentError> {
+            self.fill += 1.0;
+            Ok(())
+        }
+        fn dispatch_initialized_voice_from(
+            &mut self,
+            _: MidiSource,
+            _: crate::synth::MidiVoiceId,
+            _: crate::synth::OwnedVoiceInitialization,
+            _: &RtPatchParameters,
+        ) -> Result<(), PreparedInstrumentError> {
+            self.fill += 1.0;
+            Ok(())
+        }
+
         fn render(
             &mut self,
             output: &mut [f32],
@@ -601,6 +639,76 @@ mod tests {
 
     fn rendered_fill(rack: &mut PreparedEngineRack) -> f32 {
         rendered_fills(rack)[0]
+    }
+
+    #[test]
+    fn owned_attack_support_does_not_imply_selective_cancellation_support() {
+        use crate::kernel::{midi_channel::MidiChannel, midi_message::MidiMessageKind};
+        use crate::synth::{MidiVoiceId, OwnedExpressionState, OwnedVoiceInitialization};
+        let mut rack = rack(0.25, "instrument.alpha");
+        let patch_id = PatchId::new(1).unwrap();
+        let parameters = RtPatchParameters::new(patch_id, PatchOutput::default());
+        let (mut groups, _) =
+            crate::adapter::scheduled_event_boundary::ScheduledEventBoundary::new(1)
+                .unwrap()
+                .into_handles();
+        let group = groups.create_voice_group().unwrap();
+        let voice = MidiVoiceId::new(1).unwrap();
+        let note = MidiMessage::try_new(
+            MidiChannel::new(0).unwrap(),
+            MidiMessageKind::NoteOn,
+            60,
+            100,
+        )
+        .unwrap();
+        let initial = OwnedVoiceInitialization::new(
+            note,
+            OwnedExpressionState::default(),
+            OwnedExpressionState::default(),
+        )
+        .unwrap();
+        let expected = Err(RackDispatchError::Instrument {
+            patch_id,
+            source: PreparedInstrumentError::UnsupportedVoiceGroup,
+        });
+        assert_eq!(
+            rack.dispatch_voice_from(
+                MidiSource::Scheduled,
+                Some(voice.with_group(group)),
+                patch_id,
+                note,
+                &parameters
+            ),
+            expected
+        );
+        assert_eq!(
+            rack.dispatch_initialized_voice_from(
+                MidiSource::Scheduled,
+                voice.with_group(group),
+                patch_id,
+                initial,
+                &parameters
+            ),
+            expected
+        );
+        assert_eq!(
+            rendered_fill(&mut rack),
+            0.25,
+            "refusal precedes instrument mutation"
+        );
+        rack.dispatch_voice_from(
+            MidiSource::Scheduled,
+            Some(voice),
+            patch_id,
+            note,
+            &parameters,
+        )
+        .unwrap();
+        assert_eq!(
+            rendered_fill(&mut rack),
+            1.25,
+            "existing ungrouped owned delivery remains supported"
+        );
     }
 
     #[test]

@@ -262,6 +262,10 @@ struct UpstreamSampleInstrument {
     _pcm: Arc<PreparedSamplePcm>,
 }
 impl PreparedInstrument for UpstreamSampleInstrument {
+    fn supports_voice_groups(&self) -> bool {
+        self.inner.supports_voice_groups()
+    }
+
     fn patch_id(&self) -> PatchId {
         self.inner.patch_id()
     }

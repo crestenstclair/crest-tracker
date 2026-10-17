@@ -193,6 +193,12 @@ pub trait PreparedInstrument: Send {
     /// Returns the immutable Patch identity prepared into this instrument.
     fn patch_id(&self) -> PatchId;
 
+    /// Immutable prepared capability. Grouped attacks are refused before any
+    /// dispatch unless selective held/sustained cleanup is implemented.
+    fn supports_voice_groups(&self) -> bool {
+        false
+    }
+
     /// Static prepared note mapping; unmapped/empty pads do not consume note admission.
     fn accepts_note(&self, _note: u8) -> bool {
         true

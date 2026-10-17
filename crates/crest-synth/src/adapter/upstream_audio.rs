@@ -1234,6 +1234,10 @@ impl<P: VoiceProcessor> PreparedVoiceBank<P> {
 }
 
 impl<P: VoiceProcessor> PreparedInstrument for PreparedVoiceBank<P> {
+    fn supports_voice_groups(&self) -> bool {
+        true
+    }
+
     fn patch_id(&self) -> PatchId {
         self.patch_id
     }

@@ -374,7 +374,9 @@ groups intact; whole playback cancellation retires all of them. The renderer
 observes coalesced ownership changes at block/event boundaries using fixed storage,
 and rejected/stale events retain the shared work-budget rules. Braids and resident
 Sample implement selective cleanup without changing unrelated channel baselines,
-voices or expression. Other prepared instruments reject unsupported group cleanup.
+voices or expression. The prepared rack requires an explicit immutable group-cleanup
+capability before admitting grouped attacks; ordinary owned-voice support alone is
+insufficient. Unsupported engines reject before mutation, including initialized attacks.
 Native waveform comparisons and the scheduling fixture's allocation audit cover
 this boundary; the Tracker performance bank adapter remains a separate consumer.
 
