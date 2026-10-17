@@ -1,7 +1,7 @@
 //! Tracker controls select settings; the library owns chord rendering and voice
 //! lifetime, including delayed articulation on the native host clock.
 use super::*;
-use crate::app::{PerformanceHarmonyEdit as Edit, PerformanceInputMode};
+use crate::app::{PerformanceChordEdit, PerformanceHarmonyEdit as Edit, PerformanceInputMode};
 use crest_performance_core::{
     Articulation, ChordExtension, Command, ExpressionPolicy, HarmonyPlaying, HarmonySettings,
     HarmonySource, Scale, Suspension,
@@ -80,6 +80,40 @@ fn edited(mut settings: HarmonySettings, edit: Edit) -> Result<HarmonySettings, 
 }
 
 impl Runtime {
+    pub(in crate::synth) fn edit_performance_chord(
+        &mut self,
+        edit: PerformanceChordEdit,
+    ) -> Result<(), String> {
+        self.require_performance_change()?;
+        let engine = self
+            .performance_live
+            .as_mut()
+            .map(|live| &mut live.engine)
+            .or(self.performance.as_mut())
+            .ok_or("Open a performance session first")?;
+        match edit {
+            PerformanceChordEdit::LearnHeld => {
+                engine.learn_held_chord().map_err(|e| e.to_string())?;
+            }
+            PerformanceChordEdit::RestoreDiatonic => {
+                let degree = engine.snapshot().harmony.degree;
+                engine
+                    .command(Command::ClearLearnedChord { degree })
+                    .map_err(|e| e.to_string())?;
+            }
+        }
+        // The library owns one Undo history across chord-bank and clip edits.
+        self.app.borrow_mut().performance_editor = None;
+        self.performance_edit_committed(match edit {
+            PerformanceChordEdit::LearnHeld => {
+                "CHORD LEARNED · Selected degree · Lowest held note is root · Held voices unchanged"
+            }
+            PerformanceChordEdit::RestoreDiatonic => {
+                "DIATONIC RESTORED · Selected degree · Held voices unchanged"
+            }
+        })
+    }
+
     pub(in crate::synth) fn set_performance_input_mode(
         &mut self,
         sound: &mut Sound<'_>,

@@ -1,6 +1,6 @@
 //! Semantic controls shared by mouse, keyboard and controller navigation.
 use super::*;
-use crate::app::{PerformanceHarmonyEdit as Edit, PerformanceInputMode};
+use crate::app::{PerformanceChordEdit, PerformanceHarmonyEdit as Edit, PerformanceInputMode};
 use crest_performance_core::{
     Articulation, BeatTime, ChordExtension, ExpressionPolicy, HarmonyPlaying, HarmonySettings,
     Scale, StrumDirection, Suspension, TICKS_PER_BEAT,
@@ -38,11 +38,36 @@ pub(super) fn rows(app: &App) -> Vec<WorkspaceRow> {
         ));
     }
     rows.extend(chord_controls(settings));
+    rows.extend(learned_controls(settings));
     rows.extend(playing_controls(settings));
     rows.extend(commands(&[
         ("harmony_input", "Enable LinnStrument MPE input"),
         ("back", "Back"),
     ]));
+    rows
+}
+
+fn learned_controls(settings: HarmonySettings) -> Vec<WorkspaceRow> {
+    let value = match settings.learned.get(usize::from(settings.degree)) {
+        Some(Some(chord)) => format!("{:?} · ROOT {}", chord.notes(), chord.root()),
+        Some(None) => "DIATONIC".into(),
+        None => "UNAVAILABLE".into(),
+    };
+    let mut rows = vec![row(
+        "harmony_learned",
+        "Selected degree · stored chord",
+        value,
+    )];
+    rows.extend(commands(&[
+        ("harmony_learn", "Learn held notes into selected degree"),
+        ("harmony_restore", "Restore selected degree to diatonic"),
+        ("harmony_undo", "Undo last clip or chord bank edit"),
+    ]));
+    rows.push(row(
+        "harmony_learn_help",
+        "Chord capture",
+        "Play mode · Enable MPE input · Hold 1–5 notes · Lowest note becomes root; bends are not stored",
+    ));
     rows
 }
 
@@ -133,7 +158,7 @@ fn playing_controls(settings: HarmonySettings) -> Vec<WorkspaceRow> {
             .map(|(degree, label)| {
                 let mut item = row(
                     format!("harmony_degree:{degree}"),
-                    format!("Select degree {label} · strumplate harmony"),
+                    format!("Select degree {label} · chord bank / strumplate"),
                     if usize::from(settings.degree) == degree {
                         "SELECTED"
                     } else {
@@ -226,6 +251,13 @@ pub(super) fn activate(app: &mut App, id: &str) -> bool {
             mode: PerformanceInputMode::Chords,
         },
         "harmony_input" => Request::PerformanceInput,
+        "harmony_learn" => Request::PerformanceChord {
+            edit: PerformanceChordEdit::LearnHeld,
+        },
+        "harmony_restore" => Request::PerformanceChord {
+            edit: PerformanceChordEdit::RestoreDiatonic,
+        },
+        "harmony_undo" => Request::PerformanceUndoClipChange,
         _ => {
             let Some(edit) = edit(id) else {
                 return false;
@@ -296,6 +328,42 @@ fn direction(id: &str) -> StrumDirection {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn learned_bank_controls_show_fixed_pitches_and_dispatch_without_stale_settings() {
+        let mut app = App::new();
+        app.workspace.panel = Some(Panel::PerformanceHarmony);
+        let mut settings = HarmonySettings {
+            degree: 4,
+            ..Default::default()
+        };
+        settings.learned[4] =
+            Some(crest_performance_core::LearnedChord::new(&[60, 63, 70], 60).unwrap());
+        app.performance = serde_json::json!({"session":{"mode":"play","harmony":settings}});
+        let projected = rows(&app);
+        assert!(projected
+            .iter()
+            .any(|row| row.id == "harmony_learned" && row.value == "[60, 63, 70] · ROOT 60"));
+        assert!(projected
+            .iter()
+            .any(|row| row.id == "harmony_voicing" && row.value == "[60, 63, 70]"));
+        for (id, expected) in [
+            ("harmony_learn", PerformanceChordEdit::LearnHeld),
+            ("harmony_restore", PerformanceChordEdit::RestoreDiatonic),
+        ] {
+            assert!(activate(&mut app, id));
+            assert!(
+                matches!(app.requests.pop(), Some(Request::PerformanceChord { edit }) if edit == expected)
+            );
+        }
+        assert!(activate(&mut app, "harmony_undo"));
+        assert!(matches!(
+            app.requests.pop(),
+            Some(Request::PerformanceUndoClipChange)
+        ));
+        app.workspace.panel = Some(Panel::Performance);
+        assert!(!activate(&mut app, "harmony_learn"));
+    }
+
     #[test]
     fn controls_preserve_navigation_and_dispatch_typed_edits() {
         let mut app = App::new();

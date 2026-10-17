@@ -25,6 +25,99 @@ fn adapter() -> Performance {
 }
 
 #[test]
+fn learned_input_keeps_unisons_expression_and_releases_without_advancing_time() {
+    let mut tracker = adapter();
+    let settings = library::HarmonySettings {
+        degree: 4,
+        ..Default::default()
+    };
+    tracker.command(Command::SetHarmony(settings)).unwrap();
+    for (channel, key) in [(1, 60), (2, 60), (3, 70)] {
+        tracker
+            .accept_midi(Beat::ZERO, &[0x90 | channel, key, 100])
+            .unwrap();
+    }
+    let attacks: Vec<_> = tracker.drain_output().collect();
+    tracker
+        .accept_midi(Beat::new(1, 8).unwrap(), &[0xe1, 0, 65])
+        .unwrap();
+    let before = tracker.snapshot();
+    tracker.learn_held_chord().unwrap();
+    let learned = tracker.document().unwrap();
+    let chord = learned.session.harmony.learned[4].unwrap();
+    assert_eq!(chord.notes(), &[60, 60, 70]);
+    assert_eq!(chord.root(), 60);
+    assert_eq!(tracker.snapshot().at, before.at);
+    assert_eq!(tracker.snapshot().active_voices, 3);
+    assert_eq!(
+        tracker.drain_output().count(),
+        1,
+        "learning emits no musical events"
+    );
+    tracker
+        .command(Command::ClearLearnedChord { degree: 4 })
+        .unwrap();
+    tracker.command(Command::Undo).unwrap();
+    assert_eq!(tracker.document().unwrap(), learned);
+    tracker
+        .accept_midi(Beat::new(1, 4).unwrap(), &[0xb2, 74, 110, 0xd3, 90])
+        .unwrap();
+    let expression: Vec<_> = tracker.drain_output().collect();
+    assert_eq!(expression.len(), 2);
+    assert_eq!(expression[0].voice, attacks[1].voice);
+    assert_eq!(expression[1].voice, attacks[2].voice);
+    for (channel, key) in [(3, 70), (1, 60), (2, 60)] {
+        tracker
+            .accept_midi(Beat::new(1, 2).unwrap(), &[0x80 | channel, key, 0])
+            .unwrap();
+    }
+    let releases: Vec<_> = tracker.drain_output().map(|e| e.voice).collect();
+    assert_eq!(
+        releases,
+        [attacks[2].voice, attacks[0].voice, attacks[1].voice]
+    );
+    assert_eq!(tracker.snapshot().active_voices, 0);
+    let mut reopened = Performance::new(
+        serde_json::from_slice(&serde_json::to_vec(&learned).unwrap()).unwrap(),
+        Geometry::Pads200,
+        Limits::default(),
+    )
+    .unwrap();
+    reopened
+        .command(Command::SetMode(SurfaceMode::Chords))
+        .unwrap();
+    reopened.accept_midi(Beat::ZERO, &[0x91, 34, 100]).unwrap();
+    let pitches: Vec<_> = reopened
+        .drain_output()
+        .filter_map(|event| match event.gesture {
+            Gesture::On { key, .. } => Some(key),
+            _ => None,
+        })
+        .collect();
+    assert_eq!(pitches, [60, 60, 70]);
+}
+
+#[test]
+fn chord_bank_edits_reject_armed_and_active_takes_without_mutation() {
+    let mut tracker = adapter();
+    assert!(tracker.learn_held_chord().is_err());
+    for active in [false, true] {
+        tracker.arm_recording(0).unwrap();
+        if active {
+            tracker.accept_midi(Beat::ZERO, &[0x91, 60, 100]).unwrap();
+        }
+        let before = serde_json::to_value(tracker.snapshot()).unwrap();
+        assert!(tracker.learn_held_chord().is_err());
+        assert!(tracker
+            .command(Command::ClearLearnedChord { degree: 0 })
+            .is_err());
+        assert_eq!(serde_json::to_value(tracker.snapshot()).unwrap(), before);
+        tracker.command(Command::CancelRecord).unwrap();
+        tracker.command(Command::Stop).unwrap();
+    }
+}
+
+#[test]
 fn schema2_fixture_migrates_losslessly_and_keeps_accepted_playback_trace() {
     // This fixture and its playback came from the previous independent API-2
     // Git consumer, not the implementation performing this migration.

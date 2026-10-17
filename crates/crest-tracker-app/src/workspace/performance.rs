@@ -86,7 +86,7 @@ pub(super) fn rows(app: &App) -> Vec<WorkspaceRow> {
         }));
         rows.extend(commands(&[(
             "performance_undo_clip",
-            "Undo last clip change",
+            "Undo last clip or chord bank edit",
         )]));
         rows.extend(slots.iter().enumerate().map(|(slot, state)| {
             row(

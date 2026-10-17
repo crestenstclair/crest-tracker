@@ -25,6 +25,8 @@ pub enum Error {
 }
 type Result<T> = std::result::Result<T, Error>;
 
+const MIDI_INPUT_SOURCE: SourceId = SourceId(1);
+
 /// Exact view conversion, including off-grid attacks and expression points.
 pub fn tracker_time(at: BeatTime) -> Result<Beat> {
     Ok(Beat::new(at.0, TICKS_PER_BEAT)?)
@@ -125,7 +127,7 @@ impl Performance {
         Ok(Self {
             engine: Engine::new(library::API_VERSION, document.session, limits)?,
             routes: document.routes,
-            input: NoteInput::mpe(MpeZone::lower(), SourceId(1), track),
+            input: NoteInput::mpe(MpeZone::lower(), MIDI_INPUT_SOURCE, track),
             parser: MidiParser::default(),
             geometry,
             leds: LedRenderer::new(geometry),
@@ -249,13 +251,25 @@ impl Performance {
                 .any(|state| matches!(state, SlotState::Recording | SlotState::Overdubbing))
         {
             return Err(Error::Binding(
-                "finish or discard the current take before changing clips",
+                "finish or discard the current take before editing clips or chord banks",
             ));
         }
         Ok(())
     }
     pub fn armed_slot(&self) -> Option<usize> {
         self.armed_slot
+    }
+    /// Capture only this adapter's held input notes into the selected degree.
+    /// The library preserves unisons, ignores bends and chooses the lowest root.
+    /// Learning does not release notes or advance the input clock.
+    pub fn learn_held_chord(&mut self) -> Result<()> {
+        self.command(Command::LearnChord {
+            source: MIDI_INPUT_SOURCE,
+            track: self.engine.session().tracks[0].id,
+            degree: self.engine.session().harmony.degree,
+            root: None,
+        })?;
+        Ok(())
     }
     pub fn instrument(&self, destination: DestinationId) -> Result<InstrumentId> {
         self.routes
@@ -333,7 +347,13 @@ impl Performance {
         if let Command::Launch { slot, .. } = command {
             self.require_playable_clip(slot)?;
         }
-        if matches!(command, Command::CaptureRecent { .. } | Command::Undo) {
+        if matches!(
+            command,
+            Command::CaptureRecent { .. }
+                | Command::LearnChord { .. }
+                | Command::ClearLearnedChord { .. }
+                | Command::Undo
+        ) {
             self.require_idle_recorder()?;
         }
         self.engine.command(command)?;

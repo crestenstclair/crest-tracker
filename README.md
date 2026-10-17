@@ -112,6 +112,26 @@ produced the independently expected `[76, 84, 91]` voicing while existing loops 
 The local evidence project is `target/dev/firmware-harmony.crest-song`; native automated
 witnesses provide reproducible assertions separately from this manual capture.
 
+The Harmony panel also captures a custom voicing into the selected degree. In Play mode,
+enable MPE input, hold 1–5 notes and choose **Learn held notes into selected degree**.
+The lowest note becomes its root; unisons remain separate voices and pitch bends are not
+baked into stored pitches. Release the fingers, then select Chords to play that entry.
+Inversion, register, spread, articulation and expression still apply. **Restore selected
+degree to diatonic** clears that entry. **Undo last clip or chord bank edit** shares the
+library's single edit history; ordinary harmony settings are outside that history.
+Armed or active recording rejects bank edits. Learning, restoring and Undo keep existing
+notes and other playing clips intact. Bank entries persist in the unchanged project schema.
+The native Sample witness verifies learning, restore/Undo, exact project reopening,
+expressive chord recording and replay beside another looping clip, with no late events
+or callback allocations/deallocations.
+
+The macOS desktop also learned `[42, 43, 44]` from three latched firmware contacts while
+the original clip looped, restored/undid the bank edit, then recorded that learned chord
+with X/Y/Z from a single firmware trigger. The reopened project retained its bank and
+21 ordered events with three balanced voice lifetimes; both clips launched together.
+Local evidence is `target/dev/firmware-learned-chord.crest-song`. The app was saved and
+closed with input and playback stopped.
+
 Live chord pads support the library's delayed strum, repeating arpeggio and seeded humanized
 articulations. The Harmony panel offers ascending/descending strum and arpeggio presets with
 1/8-beat spacing (arpeggio gate 1/16 beat), plus humanization up to 1/16 beat with ±8 velocity
@@ -176,8 +196,8 @@ with zero late events and zero callback allocations/deallocations.
 With MPE input enabled, **Capture last 4 beats to clip N** recovers up to four beats
 since input activation, ending at the current audio boundary. It preserves free timing
 and per-note expression; held notes close only in the copied clip. Original live notes
-continue, and already timestamped packets before the cutoff remain valid. **Undo last
-clip change** restores the previous clip. An armed/active take, interrupted input or expired
+continue, and already timestamped packets before the cutoff remain valid. **Undo last clip
+or chord bank edit** restores the previous clip. An armed/active take, interrupted input or expired
 history rejects capture without changing the previous clip. Existing playback uses its
 already launched snapshot until relaunch. Captured clips save with the ordinary project;
 this operation does not arm recording or change the audio clock.

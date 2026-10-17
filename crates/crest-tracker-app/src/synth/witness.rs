@@ -8,6 +8,7 @@ mod performance;
 mod performance_articulation;
 mod performance_bank;
 mod performance_harmony;
+mod performance_learned;
 mod performance_live;
 mod performance_parameters;
 mod performance_quantized;

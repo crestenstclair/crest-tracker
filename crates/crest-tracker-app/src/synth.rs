@@ -797,6 +797,7 @@ impl Runtime {
         match request {
             Request::PerformanceInputMode { mode } => self.set_performance_input_mode(sound, mode),
             Request::PerformanceHarmony { edit } => self.edit_performance_harmony(edit),
+            Request::PerformanceChord { edit } => self.edit_performance_chord(edit),
             Request::PerformanceLaunchGrid { grid } => {
                 self.performance_launch_grid = grid;
                 Ok(())

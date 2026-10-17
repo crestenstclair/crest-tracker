@@ -122,6 +122,13 @@ pub enum PerformanceHarmonyEdit {
     BlockArticulation,
 }
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum PerformanceChordEdit {
+    LearnHeld,
+    RestoreDiatonic,
+}
+
 #[derive(Clone, Debug, Deserialize)]
 #[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
 pub enum Request {
@@ -130,6 +137,9 @@ pub enum Request {
     },
     PerformanceHarmony {
         edit: PerformanceHarmonyEdit,
+    },
+    PerformanceChord {
+        edit: PerformanceChordEdit,
     },
     PerformanceLaunchGrid {
         grid: PerformanceLaunchGrid,
@@ -1142,6 +1152,7 @@ impl App {
             } => self.apply_chord(revision, occurrence, event, slot, root, source)?,
             Request::PerformanceInputMode { .. }
             | Request::PerformanceHarmony { .. }
+            | Request::PerformanceChord { .. }
             | Request::PerformanceAudition { .. }
             | Request::PerformanceLaunchGrid { .. }
             | Request::PerformanceClips { .. }

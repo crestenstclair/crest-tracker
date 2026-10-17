@@ -50,7 +50,7 @@ impl Runtime {
         engine.command(Command::Undo).map_err(|e| e.to_string())?;
         self.app.borrow_mut().performance_editor = None;
         self.performance_edit_committed(
-            "CLIP CHANGE UNDONE · Previous clip restored · Live input continues",
+            "PERFORMANCE CHANGE UNDONE · Previous state restored · Live input continues",
         )
     }
 }
