@@ -11,18 +11,27 @@ permissions:
 jobs:
   probe:
     runs-on: ubuntu-24.04
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
-      - name: Install ALSA probe dependencies
-        run: sudo apt-get update && sudo apt-get install -y build-essential libasound2-dev acl
-      - name: Enable virtual sequencer and high-resolution timer
+      - name: Install ALSA probe and generic guest kernel
+        # The hosted Azure kernel has no sequencer modules. Boot the standard
+        # distro kernel under QEMU; do not skip kernel MIDI checks on this runner.
+        run: >-
+          sudo apt-get update && sudo apt-get install -y --no-install-recommends
+          build-essential libasound2-dev busybox-static virtme qemu-system-x86
+          linux-image-generic
+      - name: Measure real kernel queue timing in a private guest
         run: |
-          sudo modprobe snd-seq
-          sudo modprobe snd-hrtimer
-          sudo setfacl -m "u:$(id -un):rw" /dev/snd/seq /dev/snd/timer
-          cat /proc/asound/timers
-      - name: Measure queue time and verify delayed receipt and restart
-        run: python3 scripts/linux_midi_clock_probe.py
+          kernel_image=$(ls -1 /boot/vmlinuz-*-generic | sort -V | tail -n 1)
+          kernel_version=${kernel_image##*/vmlinuz-}
+          mkdir -p target/linux-midi-clock-evidence
+          # Root and checkout are read-only in the guest. Only evidence is shared
+          # writable; no network, sound card or physical MIDI endpoint is attached.
+          sudo timeout 180 virtme-run --installed-kernel "$kernel_version" \
+            --memory 512M --pwd --rwdir="$PWD/target/linux-midi-clock-evidence" \
+            --script-sh 'modprobe snd-seq && modprobe snd-hrtimer && python3 scripts/linux_midi_clock_probe.py'
+          python3 -c 'import json; from pathlib import Path; p=Path("target/linux-midi-clock-evidence/result.json"); r=json.loads(p.read_text()); assert r["probe_passed"] and not r["live_capture_qualified"]; print(p.read_text())'
       - uses: actions/upload-artifact@v4
         if: always()
         with:

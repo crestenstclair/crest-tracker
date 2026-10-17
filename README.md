@@ -396,7 +396,9 @@ using private virtual ports. It needs a C compiler, `libasound2-dev`, loaded
 `snd-seq`/`snd-hrtimer` modules and access to `/dev/snd/seq`. The separate Linux
 MIDI clock feasibility workflow runs the same probe. Its retained trace checks
 delayed reads and queue restart; a passing probe does not qualify live MIDI/audio
-correlation or physical hardware.
+correlation or physical hardware. Hosted CI boots a generic Ubuntu kernel under
+QEMU because the runner's Azure kernel omits ALSA sequencer modules; the guest
+has no network or hardware devices and only its evidence directory is writable.
 
 ```sh
 make test                      # Pure sequencing + application contracts, packaging checks
