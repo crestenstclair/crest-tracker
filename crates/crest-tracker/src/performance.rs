@@ -58,11 +58,19 @@ pub struct Document {
     pub routes: Vec<Route>,
 }
 impl Document {
+    pub fn migrate(mut self) -> Result<Self> {
+        self.session = self.session.migrate()?;
+        self.validate()?;
+        Ok(self)
+    }
     pub fn validate(&self) -> Result<()> {
         if self.version != 1 {
             return Err(Error::Binding("unsupported performance binding version"));
         }
         self.session.validate()?;
+        if self.session.tracks.is_empty() {
+            return Err(Error::Binding("performance session needs an input track"));
+        }
         let destinations: BTreeSet<_> = self
             .session
             .tracks
@@ -105,9 +113,8 @@ pub struct Performance {
     pub launch_quantum: BeatTime,
 }
 impl Performance {
-    pub fn new(mut document: Document, geometry: Geometry, limits: Limits) -> Result<Self> {
-        document.session = document.session.migrate()?;
-        document.validate()?;
+    pub fn new(document: Document, geometry: Geometry, limits: Limits) -> Result<Self> {
+        let document = document.migrate()?;
         let track = document
             .session
             .tracks

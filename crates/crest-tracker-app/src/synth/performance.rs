@@ -1,0 +1,218 @@
+//! Tracker owns project lifecycle and sound bindings around the released library.
+use super::*;
+use crest_linnstrument::Geometry;
+use crest_performance_core::Limits;
+use crest_tracker::performance::Performance;
+
+pub(super) struct PendingOpen {
+    pub document: Document,
+    pub path: Option<PathBuf>,
+    pub performance: Option<Performance>,
+}
+impl PendingOpen {
+    /// All library validation and allocation precedes sound graph publication.
+    fn prepare(document: Document, path: Option<PathBuf>) -> Result<Self, String> {
+        let document = document.into_current()?;
+        let performance = document
+            .performance
+            .clone()
+            .map(|state| {
+                Performance::new(state, Geometry::Pads200, Limits::default())
+                    .map_err(|e| e.to_string())
+            })
+            .transpose()?;
+        Ok(Self {
+            document,
+            path,
+            performance,
+        })
+    }
+}
+
+impl Runtime {
+    pub(super) fn performance_document(
+        &self,
+    ) -> Result<Option<crest_tracker::performance::Document>, String> {
+        self.performance
+            .as_ref()
+            .map(Performance::document)
+            .transpose()
+            .map_err(|e| e.to_string())
+    }
+
+    /// One composite capture path for normal save, sound import and recovery.
+    pub(super) fn capture_document(&self, synth: Value) -> Result<Document, String> {
+        let app = self.app.borrow();
+        let mut document = Document::new(app.editor.song().clone(), synth, app.mappings.clone());
+        document.performance = self.performance_document()?;
+        document.pinned_sounds = self.pinned_sounds.clone();
+        document.resources = self.resources.clone();
+        document.validate()?;
+        Ok(document)
+    }
+
+    pub(super) fn stage_document(
+        &mut self,
+        sound: &mut Sound<'_>,
+        document: Document,
+        path: Option<PathBuf>,
+    ) -> Result<(), String> {
+        let pending = PendingOpen::prepare(document, path)?;
+        let required = pending
+            .document
+            .installed_patches
+            .values()
+            .map(|id| PatchId::new(*id).map_err(|e| e.to_string()))
+            .collect::<Result<Vec<_>, _>>()?;
+        sound
+            .request_restore_json_requiring_patches(
+                serde_json::to_vec(&pending.document.synth).map_err(|e| e.to_string())?,
+                required,
+            )
+            .map_err(|e| e.to_string())?;
+        self.pending_open = Some(pending);
+        Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crest_performance_core::{
+        self as library, BeatTime, Command, DestinationId, Engine, Session,
+    };
+    use crest_performance_testkit::{expressive_phrase, CaptureSink};
+    use crest_tracker::performance::Route;
+
+    fn document() -> Document {
+        let mut engine =
+            Engine::new(library::API_VERSION, Session::default(), Limits::default()).unwrap();
+        engine.command(Command::BeginRecord { slot: 0 }).unwrap();
+        expressive_phrase(
+            &mut engine,
+            &mut CaptureSink::default(),
+            &mut crest_linnstrument::MpeOutput::new(
+                DestinationId(1),
+                crest_linnstrument::MpeZone::lower(),
+            ),
+        )
+        .unwrap();
+        engine.advance(BeatTime(library::TICKS_PER_BEAT)).unwrap();
+        engine.command(Command::FinishRecord).unwrap();
+        let id = InstrumentId::new(1).unwrap();
+        let mut song = Song::default();
+        song.instruments.insert(
+            id,
+            InstrumentUse {
+                name: "Expressive patch".into(),
+                resource: None,
+            },
+        );
+        let mut document = Document::new(
+            song,
+            super::super::demo::document().unwrap().synth,
+            [(id, 7)].into(),
+        );
+        document.performance = Some(crest_tracker::performance::Document {
+            version: 1,
+            session: engine.save_session().unwrap(),
+            routes: vec![Route {
+                destination: DestinationId(1),
+                instrument: id,
+            }],
+        });
+        document
+    }
+
+    #[test]
+    fn project_worker_roundtrip_retains_released_expression_and_exact_note_times() {
+        let mut document = document();
+        resources::prepare_save(&mut document, None).unwrap();
+        let root =
+            std::env::temp_dir().join(format!("crest-performance-save-{}", uuid::Uuid::new_v4()));
+        std::fs::create_dir(&root).unwrap();
+        let path = root.join("phrase.crest-song");
+        let saver = SaveWorker::new();
+        saver
+            .submit(path.clone(), document.clone(), SaveMode::Normal)
+            .unwrap();
+        let deadline = std::time::Instant::now() + std::time::Duration::from_secs(5);
+        loop {
+            if let Some(result) = saver.poll() {
+                result.unwrap().result.unwrap();
+                break;
+            }
+            assert!(
+                std::time::Instant::now() < deadline,
+                "save worker timed out"
+            );
+            std::thread::sleep(std::time::Duration::from_millis(2));
+        }
+        let restored = Document::read(&path).unwrap();
+        assert_eq!(
+            serde_json::to_value(&restored).unwrap(),
+            serde_json::to_value(&document).unwrap()
+        );
+        let prepared = PendingOpen::prepare(restored, Some(path)).unwrap();
+        let mut performance = prepared.performance.unwrap();
+        performance
+            .command(Command::Launch {
+                slot: 0,
+                quantum: BeatTime(0),
+            })
+            .unwrap();
+        performance
+            .advance(Beat::new(740_014, library::TICKS_PER_BEAT).unwrap())
+            .unwrap();
+        let events: Vec<_> = performance.drain_output().collect();
+        assert_eq!(events.len(), 9);
+        assert_eq!(events[3].at, BeatTime(240_001));
+        assert!(
+            matches!(events[3].gesture, library::Gesture::Expression { expression } if expression.pitch == 750_000)
+        );
+        assert!(
+            matches!(events[4].gesture, library::Gesture::Expression { expression } if expression.timbre == 56_762)
+        );
+        assert!(
+            matches!(events[5].gesture, library::Gesture::Expression { expression } if expression.pressure == 46_442)
+        );
+        std::fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn invalid_performance_is_rejected_before_replacement_can_be_staged() {
+        let mut empty = document();
+        let session = &mut empty.performance.as_mut().unwrap().session;
+        session.tracks.clear();
+        session.slots.clear();
+        empty.performance.as_mut().unwrap().routes.clear();
+        assert!(matches!(PendingOpen::prepare(empty, None), Err(e) if e.contains("input track")));
+        let mut absent = document();
+        absent.performance.as_mut().unwrap().routes[0].instrument = InstrumentId::new(99).unwrap();
+        assert!(
+            matches!(PendingOpen::prepare(absent, None), Err(e) if e.contains("absent Tracker instrument"))
+        );
+        let mut future = document();
+        future.performance.as_mut().unwrap().session.version = 99;
+        assert!(PendingOpen::prepare(future, None).is_err());
+    }
+
+    #[test]
+    fn legacy_song_migrates_in_memory_and_old_versions_cannot_hide_performance() {
+        let mut legacy = document();
+        legacy.version = 1;
+        assert!(legacy.clone().into_current().is_err());
+        legacy.performance = None;
+        let original = serde_json::to_value(&legacy).unwrap();
+        let current = legacy.into_current().unwrap();
+        assert_eq!(current.version, 2);
+        assert!(current.performance.is_none());
+        let mut restored = serde_json::to_value(&current).unwrap();
+        restored["version"] = 1.into();
+        assert_eq!(restored, original);
+        assert_eq!(
+            serde_json::to_value(current.clone().into_current().unwrap()).unwrap(),
+            serde_json::to_value(current).unwrap()
+        );
+    }
+}

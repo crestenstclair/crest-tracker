@@ -18,6 +18,8 @@ pub struct Document {
     pub song: Song,
     pub synth: Value,
     pub installed_patches: BTreeMap<InstrumentId, u32>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub performance: Option<crest_tracker::performance::Document>,
     #[serde(default)]
     pub pinned_sounds: Vec<crate::library::PinnedSound>,
     #[serde(default)]
@@ -27,17 +29,26 @@ impl Document {
     pub fn new(song: Song, synth: Value, installed_patches: BTreeMap<InstrumentId, u32>) -> Self {
         Self {
             format: "crest-tracker-song".into(),
-            version: 1,
+            version: 2,
             song,
             synth,
             installed_patches,
+            performance: None,
             pinned_sounds: Vec::new(),
             resources: Vec::new(),
         }
     }
     pub fn validate(&self) -> Result<(), String> {
-        if self.format != "crest-tracker-song" || self.version != 1 {
+        if self.format != "crest-tracker-song" || !matches!(self.version, 1 | 2) {
             return Err("Unsupported Song format or version".into());
+        }
+        if self.version == 1 && self.performance.is_some() {
+            return Err("Performance state requires Song format version 2".into());
+        }
+        if let Some(performance) = &self.performance {
+            performance
+                .validate_instruments(&self.song)
+                .map_err(|e| e.to_string())?;
         }
         crate::synth::resources::validate(&self.resources)?;
         for pinned in &self.pinned_sounds {
@@ -72,6 +83,18 @@ impl Document {
         }
         Ok(())
     }
+    /// Version 1 had no performance state. Upgrade in memory; the source file
+    /// remains untouched until an explicit save. Older readers reject version 2.
+    pub fn into_current(mut self) -> Result<Self, String> {
+        self.performance = self
+            .performance
+            .map(crest_tracker::performance::Document::migrate)
+            .transpose()
+            .map_err(|e| e.to_string())?;
+        self.validate()?;
+        self.version = 2;
+        Ok(self)
+    }
     pub fn read(path: &Path) -> Result<Self, String> {
         let mut bytes = Vec::new();
         File::open(path)
@@ -83,8 +106,7 @@ impl Document {
             return Err("Song exceeds the 64 MiB document admission budget".into());
         }
         let value: Self = serde_json::from_slice(&bytes).map_err(|v| v.to_string())?;
-        value.validate()?;
-        Ok(value)
+        value.into_current()
     }
 }
 

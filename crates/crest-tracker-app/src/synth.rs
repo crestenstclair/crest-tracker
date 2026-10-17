@@ -10,6 +10,8 @@ mod file_runtime;
 mod fixture_authoring;
 mod inventory;
 mod midi_controls;
+mod performance;
+use performance::PendingOpen;
 #[cfg(test)]
 mod mpe_tests;
 pub(crate) mod resources;
@@ -194,7 +196,9 @@ struct Runtime {
     graph_revision: u64,
     saved_sound: Option<Value>,
     initial_sound: Option<Value>,
-    pending_open: Option<(Document, Option<PathBuf>)>,
+    pending_open: Option<PendingOpen>,
+    performance: Option<crest_tracker::performance::Performance>,
+    saved_performance: Option<crest_tracker::performance::Document>,
     loading: Option<(LoadWorker, PathBuf)>,
     resource_candidate: Option<resources::repair::Candidate>,
     repairing_resource: Option<std::sync::mpsc::Receiver<Result<Document, String>>>,
@@ -291,6 +295,8 @@ impl Runtime {
             saved_sound: None,
             initial_sound: None,
             pending_open: None,
+            performance: None,
+            saved_performance: None,
             loading: None,
             resource_candidate: None,
             repairing_resource: None,
@@ -1143,12 +1149,7 @@ impl Runtime {
                 let synth =
                     serde_json::to_value(sound.capture_saved_session().map_err(|v| v.to_string())?)
                         .map_err(|v| v.to_string())?;
-                let app = self.app.borrow();
-                let mut document =
-                    Document::new(app.editor.song().clone(), synth, app.mappings.clone());
-                document.pinned_sounds = self.pinned_sounds.clone();
-                document.resources = self.resources.clone();
-                drop(app);
+                let document = self.capture_document(synth)?;
                 let mode = if collect {
                     SaveMode::Collect
                 } else if matches!(action, FileAction::Save)
@@ -1244,18 +1245,7 @@ impl Runtime {
                     self.app.borrow_mut().status = "READING SONG".into();
                     return Ok(false);
                 };
-                let required = document
-                    .installed_patches
-                    .values()
-                    .map(|id| PatchId::new(*id).map_err(|e| e.to_string()))
-                    .collect::<Result<Vec<_>, _>>()?;
-                sound
-                    .request_restore_json_requiring_patches(
-                        serde_json::to_vec(&document.synth).map_err(|v| v.to_string())?,
-                        required,
-                    )
-                    .map_err(|v| v.to_string())?;
-                self.pending_open = Some((document, path));
+                self.stage_document(sound, document, path)?;
                 self.app.borrow_mut().status = "PREPARING SONG".into();
             }
             FileAction::ExportSynth => {
@@ -1370,6 +1360,9 @@ impl Runtime {
             serde_json::to_value(sound.capture_saved_session().map_err(|v| v.to_string())?)
                 .map_err(|v| v.to_string())?;
         self.app.borrow_mut().sound_dirty = self.saved_sound.as_ref() != Some(&current);
+        self.app.borrow_mut().performance_dirty = self
+            .performance_document()
+            .map_or(true, |current| current != self.saved_performance);
         Ok(())
     }
     fn recovery_action(&mut self, sound: &mut Sound<'_>, action: &str) -> Result<(), String> {
@@ -1543,18 +1536,7 @@ impl Runtime {
             self.recovery_preparing = None;
             let snapshot = result?;
             let document = snapshot.baseline().clone();
-            let required = document
-                .installed_patches
-                .values()
-                .map(|id| PatchId::new(*id).map_err(|e| e.to_string()))
-                .collect::<Result<Vec<_>, _>>()?;
-            sound
-                .request_restore_json_requiring_patches(
-                    serde_json::to_vec(&document.synth).map_err(|e| e.to_string())?,
-                    required,
-                )
-                .map_err(|e| e.to_string())?;
-            self.pending_open = Some((document, None));
+            self.stage_document(sound, document, None)?;
             self.recovering = Some(snapshot);
             self.app.borrow_mut().status = "PREPARING RECORDED SONG AND SOUND".into();
         }
@@ -1637,14 +1619,11 @@ impl Runtime {
                     self.resource_candidate = Some(candidate);
                     return Ok(());
                 }
-                Loaded::Synth(synth) => {
-                    let app = self.app.borrow();
-                    let mut document =
-                        Document::new(app.editor.song().clone(), synth, app.mappings.clone());
-                    document.pinned_sounds = self.pinned_sounds.clone();
-                    document.resources = self.resources.clone();
-                    (document, app.path.clone(), true)
-                }
+                Loaded::Synth(synth) => (
+                    self.capture_document(synth)?,
+                    self.app.borrow().path.clone(),
+                    true,
+                ),
             };
             let path = if let Some(candidate) = self.resource_candidate.take() {
                 self.app.borrow_mut().resource_repair = Value::Null;
@@ -1657,20 +1636,9 @@ impl Runtime {
             } else {
                 path
             };
-            let required = document
-                .installed_patches
-                .values()
-                .map(|id| PatchId::new(*id).map_err(|v| v.to_string()))
-                .collect::<Result<Vec<_>, _>>()?;
-            sound
-                .request_restore_json_requiring_patches(
-                    serde_json::to_vec(&document.synth).map_err(|v| v.to_string())?,
-                    required,
-                )
-                .map_err(|v| v.to_string())?;
+            self.stage_document(sound, document, path)?;
             self.importing = importing;
             self.replacement_dirty |= fresh_import;
-            self.pending_open = Some((document, path));
         }
 
         if let Some(result) = self.saver.poll() {
@@ -1678,6 +1646,9 @@ impl Runtime {
             let next = self.after_save.take();
             let result = result?;
             result.result?;
+            self.saved_performance = result.document.performance;
+            self.app.borrow_mut().performance_dirty =
+                self.performance_document()? != self.saved_performance;
             self.saved_sound = Some(result.document.synth);
             self.resources = result.document.resources;
             let mut app = self.app.borrow_mut();
@@ -1692,7 +1663,11 @@ impl Runtime {
         if self.pending_open.is_some() {
             match sound.replacement_status() {
                 Ok(true) => {
-                    let (document, path) = self.pending_open.take().expect("pending checked");
+                    let PendingOpen {
+                        document,
+                        path,
+                        performance,
+                    } = self.pending_open.take().expect("pending checked");
                     if self.importing {
                         self.importing = false;
                         self.app.borrow_mut().sound_dirty = true;
@@ -1700,6 +1675,9 @@ impl Runtime {
                         self.synchronize_catalog(sound)?;
                         return Ok(());
                     }
+                    self.saved_performance = document.performance;
+                    self.performance = performance;
+                    self.app.borrow_mut().performance_dirty = false;
                     self.pinned_sounds = document.pinned_sounds;
                     self.resources = document.resources;
                     self.saved_sound = Some(document.synth);
@@ -1721,16 +1699,12 @@ impl Runtime {
                     self.replacement_dirty = false;
                     drop(app);
                     if let Some(snapshot) = self.recovering.take() {
-                        let mut baseline = Document::new(
-                            self.app.borrow().editor.song().clone(),
+                        let baseline = self.capture_document(
                             serde_json::to_value(
-                                sound.capture_saved_session().map_err(|v| v.to_string())?,
+                                sound.capture_saved_session().map_err(|e| e.to_string())?,
                             )
-                            .map_err(|v| v.to_string())?,
-                            self.app.borrow().mappings.clone(),
-                        );
-                        baseline.pinned_sounds = self.pinned_sounds.clone();
-                        baseline.resources = self.resources.clone();
+                            .map_err(|e| e.to_string())?,
+                        )?;
                         self.recorder = snapshot.restore(&baseline, &self.app.borrow().editor)?;
                         if let Some(draft) = self.recorder.draft() {
                             self.phrase_loop = Some(draft.occurrence);
@@ -2026,13 +2000,8 @@ impl Runtime {
         self.capture_monitor = monitor;
         self.capture_end = None;
         self.capture_last = Beat::ZERO;
-        let mut baseline = Document::new(
-            app.editor.song().clone(),
-            synth_baseline,
-            app.mappings.clone(),
-        );
-        baseline.pinned_sounds = self.pinned_sounds.clone();
-        baseline.resources = self.resources.clone();
+        drop(app);
+        let mut baseline = self.capture_document(synth_baseline)?;
         self.capture_baseline = Some(baseline.clone());
         let (send, receive) = std::sync::mpsc::sync_channel(1);
         std::thread::spawn(move || {
@@ -2041,7 +2010,7 @@ impl Runtime {
         });
         self.capture_preparing = Some(receive);
         self.checkpoint_dirty = false;
-        app.status = "PREPARING RECORDING · Verifying asset content".into();
+        self.app.borrow_mut().status = "PREPARING RECORDING · Verifying asset content".into();
         Ok(())
     }
     fn next_capture_start(&self, after: Beat) -> Result<Beat, String> {

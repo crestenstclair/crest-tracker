@@ -27,7 +27,8 @@ jobs:
       - run: cargo test --locked -p crest-tracker-app
       - run: cargo test --locked -p crest-synth --lib
         working-directory: crates/crest-synth
-      - run: cargo test --locked --release -p crest-tracker-app synth::witness:: -- --ignored --test-threads=1
+      - run: >-
+          cargo test --locked --release -p crest-tracker-app synth::witness:: -- --ignored --test-threads=1
       - run: python3 scripts/bundle_macos.py --release
       - uses: actions/upload-artifact@v4
         with:

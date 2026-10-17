@@ -20,9 +20,13 @@ The independent [Crest Performance v0.1.0](https://github.com/crestenstclair/cre
 library is consumed by its Git tag and lockfile, without a sibling checkout. The Tracker-owned
 `performance` adapter provides exact rational/fixed-point time conversion, instrument bindings,
 public commands, timestamped MIDI input, versioned state and separate LED feedback. Shared
-contract fixtures verify expressive record/reopen/playback equivalence. Application scheduling,
-project embedding and the performance workspace are still being connected; this adapter alone
-does not establish audible Synth or Steam Deck qualification.
+contract fixtures verify expressive record/reopen/playback equivalence. Song format 2 embeds
+the library session and instrument bindings; save, sound import and recovery retain that state.
+Library validation and engine allocation precede sound replacement. Format 1 Songs upgrade
+in memory without changing their source files; older applications reject format 2 rather than
+discarding performance state. Keep the original file when sharing with an older application.
+Application scheduling and the performance workspace are still being connected; this adapter
+alone does not establish audible Synth or Steam Deck qualification.
 
 Edit both packages in this checkout. One diff and commit can contain a cross-boundary change. The original sibling Synth checkout remains untouched. [FORK.json](crates/crest-synth/FORK.json) records the imported working-tree source and hashes, including the uncommitted fixes present at import.
 

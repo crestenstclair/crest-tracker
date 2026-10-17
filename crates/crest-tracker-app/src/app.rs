@@ -554,6 +554,7 @@ pub struct App {
     pub controls_focused: bool,
     pub sound_dirty: bool,
     pub capture_dirty: bool,
+    pub performance_dirty: bool,
     pub path: Option<std::path::PathBuf>,
     pub mappings: BTreeMap<InstrumentId, u32>,
     pub requests: Vec<Request>,
@@ -621,6 +622,7 @@ impl App {
             controls_focused: false,
             sound_dirty: false,
             capture_dirty: false,
+            performance_dirty: false,
             path: None,
             mappings: BTreeMap::new(),
             requests: Vec::new(),
@@ -662,7 +664,7 @@ impl App {
         }
     }
     pub fn dirty(&self) -> bool {
-        self.editor.dirty() || self.sound_dirty || self.capture_dirty
+        self.editor.dirty() || self.sound_dirty || self.capture_dirty || self.performance_dirty
     }
     /// Drop event IDs when the host replaces the entire editor document.
     pub fn clear_event_selection(&mut self) {

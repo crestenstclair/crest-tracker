@@ -6,6 +6,8 @@ publish.workspace = true
 
 [dependencies]
 crest-tracker.workspace = true
+crest-performance-core.workspace = true
+crest-linnstrument.workspace = true
 crest-synth.workspace = true
 serde.workspace = true
 serde_json.workspace = true
@@ -16,4 +18,5 @@ sha2 = "0.10"
 uuid = { version = "1", features = ["v4"] }
 
 [dev-dependencies]
+crest-performance-testkit.workspace = true
 sdl3 = { version = "0.20", features = ["build-from-source-static"] }

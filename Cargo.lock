@@ -992,6 +992,9 @@ dependencies = [
 name = "crest-tracker-app"
 version = "0.1.0"
 dependencies = [
+ "crest-linnstrument",
+ "crest-performance-core",
+ "crest-performance-testkit",
  "crest-synth",
  "crest-tracker",
  "midir",

@@ -59,8 +59,9 @@ impl RecoverySnapshot {
     pub fn restore(&self, current: &Document, editor: &Editor) -> Result<Recorder, String> {
         self.validate()?;
         current.validate()?;
-        if serde_json::to_value(current).map_err(|e| e.to_string())?
-            != serde_json::to_value(&self.baseline).map_err(|e| e.to_string())?
+        if serde_json::to_value(current.clone().into_current()?).map_err(|e| e.to_string())?
+            != serde_json::to_value(self.baseline.clone().into_current()?)
+                .map_err(|e| e.to_string())?
             || current.song != *editor.song()
         {
             return Err("Recording recovery belongs to a different composite Song baseline".into());
@@ -81,6 +82,7 @@ impl RecoverySnapshot {
     /// Verify and normalize native asset identities before any recovery graph
     /// can activate. Composition and the take checkpoint remain byte-for-byte.
     pub fn resolve_resources(mut self) -> Result<Self, String> {
+        self.baseline = self.baseline.into_current()?;
         self.validate()?;
         for resource in &mut self.baseline.resources {
             resource.file = None;
@@ -444,6 +446,18 @@ mod tests {
         assert!(legacy
             .restore(&baseline, &Editor::new(baseline.song.clone()).unwrap())
             .is_ok());
+    }
+
+    #[test]
+    fn legacy_recovery_baseline_matches_its_lossless_current_song_version() {
+        let (mut baseline, recorder) = fixture();
+        baseline.version = 1;
+        let snapshot = RecoverySnapshot::new(baseline.clone(), recorder.checkpoint()).unwrap();
+        let current = baseline.into_current().unwrap();
+        assert!(snapshot
+            .restore(&current, &Editor::new(current.song.clone()).unwrap())
+            .is_ok());
+        assert_eq!(snapshot.baseline().version, 1);
     }
 
     #[test]
