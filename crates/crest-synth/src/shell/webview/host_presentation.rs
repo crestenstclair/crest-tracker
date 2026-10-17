@@ -25,6 +25,9 @@ pub struct WorkspaceGridRow {
 #[serde(rename_all = "camelCase")]
 pub struct WorkspaceTextEntry {
     pub id: String,
+    /// Opaque host replacement identity, including across document resets.
+    /// Keyboard echoes retain it; opening an editor or controller edits change it.
+    pub revision: String,
     pub label: String,
     pub value: String,
     pub submit_label: String,
@@ -107,10 +110,22 @@ impl HostView {
 #[derive(Clone, Debug, Deserialize)]
 #[serde(tag = "kind", rename_all = "camelCase", deny_unknown_fields)]
 pub enum WorkspaceEvent {
-    Focus { id: String },
-    Activate { id: String },
-    Submit { id: String, value: String },
-    TextChanged { id: String, value: String },
+    Focus {
+        id: String,
+    },
+    Activate {
+        id: String,
+    },
+    Submit {
+        id: String,
+        revision: String,
+        value: String,
+    },
+    TextChanged {
+        id: String,
+        revision: String,
+        value: String,
+    },
 }
 
 #[derive(Clone)]

@@ -567,6 +567,7 @@ fn submit_clip_value(runtime: &Runtime, field: &str, value: &str) {
     crate::workspace::event(
         &mut runtime.app.borrow_mut(),
         WorkspaceEvent::Submit {
+            revision: entry.revision,
             id: entry.id,
             value: value.into(),
         },

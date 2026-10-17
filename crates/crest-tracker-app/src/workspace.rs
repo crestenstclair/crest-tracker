@@ -457,16 +457,33 @@ fn activate_focused(app: &mut App) {
 }
 
 pub fn event(app: &mut App, event: WorkspaceEvent) {
-    if let WorkspaceEvent::TextChanged { id, value } = event {
+    if let WorkspaceEvent::TextChanged {
+        id,
+        revision,
+        value,
+    } = event
+    {
         if let Some(entry) = &mut app.workspace.text {
-            if entry.id == id {
+            if entry.id == id && entry.revision == revision {
                 entry.value = value;
             }
         }
         return;
     }
-    if let WorkspaceEvent::Submit { id, value } = event {
-        submit(app, &id, value);
+    if let WorkspaceEvent::Submit {
+        id,
+        revision,
+        value,
+    } = event
+    {
+        if app
+            .workspace
+            .text
+            .as_ref()
+            .is_some_and(|entry| entry.id == id && entry.revision == revision)
+        {
+            submit(app, &id, value);
+        }
         return;
     }
     let (id, activate_row) = match event {

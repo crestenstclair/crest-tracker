@@ -2847,10 +2847,10 @@
     });
     var form = window.document.getElementById("workspace-text-form");
     if (form) {
-      form.elements.value.oninput = function () { emitWorkspace({kind: "textChanged", id: form.dataset.id, value: form.elements.value.value}); };
+      form.elements.value.oninput = function () { emitWorkspace({kind: "textChanged", id: form.dataset.id, revision: form.dataset.revision, value: form.elements.value.value}); };
       form.onsubmit = function (event) {
         event.preventDefault();
-        emitWorkspace({kind: "submit", id: form.dataset.id, value: form.elements.value.value});
+        emitWorkspace({kind: "submit", id: form.dataset.id, revision: form.dataset.revision, value: form.elements.value.value});
       };
     }
   }
@@ -2865,7 +2865,7 @@
   function renderWorkspace(workspace) {
     var doc = window.document;
     var previous = doc.getElementById("workspace-text-form");
-    var draft = previous ? {id: previous.dataset.id, value: previous.elements.value.value, baseline: previous.dataset.value, start: previous.elements.value.selectionStart} : null;
+    var draft = previous ? {id: previous.dataset.id, revision: previous.dataset.revision, value: previous.elements.value.value, start: previous.elements.value.selectionStart, end: previous.elements.value.selectionEnd} : null;
     doc.body.classList.remove("settings-active", "sends-active");
     doc.body.classList.add("workspace-active");
     doc.body.dataset.workspaceContext = workspace.context;
@@ -2882,8 +2882,11 @@
     }
     if (workspace.textEntry) {
       var entry = workspace.textEntry;
-      var value = draft && draft.id === entry.id && draft.baseline === entry.value ? draft.value : entry.value;
-      body = '<form id="workspace-text-form" data-value="' + escapeHtml(entry.value) + '" data-id="' + escapeHtml(entry.id) + '"><label class="type-label">' + escapeHtml(entry.label) + '<input name="value" aria-label="' + escapeHtml(entry.label) + '" value="' + escapeHtml(value) + '" /></label><button type="submit">' + escapeHtml(entry.submitLabel) + '</button></form>' + body;
+      // Keyboard echoes may lag newer DOM edits. Only a host replacement
+      // (new editor or controller action) may replace that live browser draft.
+      var keepDraft = draft && draft.id === entry.id && draft.revision === entry.revision;
+      var value = keepDraft ? draft.value : entry.value;
+      body = '<form id="workspace-text-form" data-revision="' + escapeHtml(entry.revision) + '" data-id="' + escapeHtml(entry.id) + '"><label class="type-label">' + escapeHtml(entry.label) + '<input name="value" aria-label="' + escapeHtml(entry.label) + '" value="' + escapeHtml(value) + '" /></label><button type="submit">' + escapeHtml(entry.submitLabel) + '</button></form>' + body;
     }
     doc.getElementById("workspace").innerHTML = '<div class="workspace-page">' + body + '</div>';
     doc.getElementById("inspector").innerHTML = '';
@@ -2894,7 +2897,7 @@
     var focused = doc.querySelector('[data-workspace-id="' + CSS.escape(workspace.focus) + '"]');
     if (focused) focused.scrollIntoView({block: "nearest", inline: "nearest"});
     var input = doc.querySelector('#workspace-text-form input');
-    if (input) { input.focus({preventScroll: true}); if (draft && draft.start !== null) input.setSelectionRange(draft.start, draft.start); }
+    if (input) { input.focus({preventScroll: true}); if (keepDraft && draft.start !== null) input.setSelectionRange(draft.start, draft.end); else input.setSelectionRange(input.value.length, input.value.length); }
   }
 
   function observeWorkspace(view) {

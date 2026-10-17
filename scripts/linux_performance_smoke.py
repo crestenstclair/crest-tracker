@@ -47,6 +47,11 @@ class Desktop:
         self.evidence = evidence
 
     def frame(self):
+        # Deliver AT-SPI cache invalidations before walking WebKit's current tree.
+        # The application has its own process and clock; this only pumps observation.
+        context = GLib.MainContext.default()
+        while context.pending():
+            context.iteration(False)
         return next((window for pid, window in windows()
                      if pid == self.process.pid and window.getRole() == pyatspi.ROLE_FRAME), None)
 

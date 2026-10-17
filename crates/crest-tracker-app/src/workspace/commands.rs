@@ -283,6 +283,7 @@ pub(super) fn text_entry(app: &mut App, id: &str, label: &str, value: &str) {
     app.workspace.character = 0;
     app.workspace.text = Some(WorkspaceTextEntry {
         id: id.into(),
+        revision: uuid::Uuid::new_v4().to_string(),
         label: label.into(),
         value: value.into(),
         submit_label: if id.starts_with("filename:") && app.file_dialog["mode"] == "open" {
@@ -586,8 +587,11 @@ fn text_action(app: &mut App, id: &str) {
             entry.value.pop();
         }
         "text_clear" => entry.value.clear(),
-        _ => {}
+        _ => return,
     }
+    // Replacement identity also survives document/navigation resets without
+    // reviving delayed browser events from an earlier editor of the same field.
+    entry.revision = uuid::Uuid::new_v4().to_string();
 }
 pub(super) fn parse_numbers<T: std::str::FromStr>(value: &str) -> Result<Vec<T>, String> {
     let values = value

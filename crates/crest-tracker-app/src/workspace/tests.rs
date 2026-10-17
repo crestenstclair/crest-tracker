@@ -602,9 +602,11 @@ fn native_file_projection_rejects_stale_click_and_preserves_original_document() 
             id: "dialog:9:2:filename".into(),
         },
     );
+    let revision = app.workspace.text.as_ref().unwrap().revision.clone();
     event(
         &mut app,
         WorkspaceEvent::Submit {
+            revision,
             id: "filename:9".into(),
             value: "/tmp/test.crest-song".into(),
         },
@@ -685,9 +687,11 @@ fn native_navigation_falls_through_and_global_settings_restores_focus() {
     );
     click(&mut app, "song_settings");
     click(&mut app, "name");
+    let revision = app.workspace.text.as_ref().unwrap().revision.clone();
     event(
         &mut app,
         WorkspaceEvent::Submit {
+            revision,
             id: "name".into(),
             value: "Controller Song".into(),
         },
@@ -719,6 +723,78 @@ fn controller_text_entry_updates_draft_and_cancel_preserves_name() {
     click(&mut app, "back");
     assert_eq!(app.editor.song().name, "A");
 }
+#[test]
+fn text_echoes_retain_revision_and_replacements_reject_late_edits_and_submits() {
+    let mut app = fixture();
+    let original = app.editor.song().name.clone();
+    action(&mut app, SemanticAction::NavigatePage(Direction::Up));
+    click(&mut app, "song_settings");
+    click(&mut app, "name");
+    let first = app.workspace.text.as_ref().unwrap().revision.clone();
+    event(
+        &mut app,
+        WorkspaceEvent::TextChanged {
+            id: "name".into(),
+            revision: first.clone(),
+            value: "Keyboard draft".into(),
+        },
+    );
+    let draft = app.workspace.text.as_ref().unwrap();
+    assert_eq!(draft.value, "Keyboard draft");
+    assert_eq!(
+        draft.revision, first,
+        "keyboard echoes cannot replace newer DOM edits"
+    );
+    click(&mut app, "text_clear");
+    let cleared = app.workspace.text.as_ref().unwrap().revision.clone();
+    assert_ne!(cleared, first);
+    event(
+        &mut app,
+        WorkspaceEvent::TextChanged {
+            id: "name".into(),
+            revision: first.clone(),
+            value: "Late keyboard echo".into(),
+        },
+    );
+    event(
+        &mut app,
+        WorkspaceEvent::Submit {
+            id: "name".into(),
+            revision: first,
+            value: "Late submit".into(),
+        },
+    );
+    apply_pending(&mut app);
+    assert_eq!(app.workspace.text.as_ref().unwrap().value, "");
+    assert_eq!(app.editor.song().name, original);
+    click(&mut app, "back");
+    click(&mut app, "name");
+    let reopened = app.workspace.text.as_ref().unwrap().revision.clone();
+    assert_ne!(
+        reopened, cleared,
+        "reopening the same field needs new ownership"
+    );
+    event(
+        &mut app,
+        WorkspaceEvent::Submit {
+            id: "name".into(),
+            revision: cleared,
+            value: "Canceled editor".into(),
+        },
+    );
+    assert_eq!(app.editor.song().name, original);
+    event(
+        &mut app,
+        WorkspaceEvent::Submit {
+            id: "name".into(),
+            revision: reopened,
+            value: "Complete keyboard value".into(),
+        },
+    );
+    apply_pending(&mut app);
+    assert_eq!(app.editor.song().name, "Complete keyboard value");
+}
+
 #[test]
 fn chord_editor_uses_interval_keys_and_saves_only_to_shared_library() {
     let mut app = note_fixture();
@@ -947,9 +1023,11 @@ fn triplet_grid_entry_preserves_notes_and_returns_to_selection_tools() {
     click(&mut app, "notes");
     click(&mut app, "notes_selection");
     click(&mut app, "notes_grid");
+    let revision = app.workspace.text.as_ref().unwrap().revision.clone();
     event(
         &mut app,
         WorkspaceEvent::Submit {
+            revision,
             id: "notes_grid".into(),
             value: "1/3".into(),
         },
@@ -1034,9 +1112,11 @@ fn exact_note_start_edit_preserves_selection_and_rejects_out_of_phrase_time() {
     click(&mut app, "notes_values");
     let selected = app.selected_event_ids();
     click(&mut app, "notes_start");
+    let revision = app.workspace.text.as_ref().unwrap().revision.clone();
     event(
         &mut app,
         WorkspaceEvent::Submit {
+            revision,
             id: "notes_start".into(),
             value: "1/3".into(),
         },
@@ -1049,9 +1129,11 @@ fn exact_note_start_edit_preserves_selection_and_rejects_out_of_phrase_time() {
     assert_eq!(app.selected_event_ids(), selected);
     let original = app.editor.song().clone();
     click(&mut app, "notes_start");
+    let revision = app.workspace.text.as_ref().unwrap().revision.clone();
     event(
         &mut app,
         WorkspaceEvent::Submit {
+            revision,
             id: "notes_start".into(),
             value: "10000".into(),
         },
@@ -1110,9 +1192,11 @@ fn expression_text_edits_preserve_exact_raw_values_and_reject_outside_note() {
     click(&mut app, "expr_new");
     for (id, value) in [("expr_offset", "1/12"), ("expr_value", "117")] {
         click(&mut app, id);
+        let revision = app.workspace.text.as_ref().unwrap().revision.clone();
         event(
             &mut app,
             WorkspaceEvent::Submit {
+                revision,
                 id: id.into(),
                 value: value.into(),
             },
@@ -1131,9 +1215,11 @@ fn expression_text_edits_preserve_exact_raw_values_and_reject_outside_note() {
     );
     let song = app.editor.song().clone();
     click(&mut app, "expr_offset");
+    let revision = app.workspace.text.as_ref().unwrap().revision.clone();
     event(
         &mut app,
         WorkspaceEvent::Submit {
+            revision,
             id: "expr_offset".into(),
             value: "9".into(),
         },
@@ -1401,4 +1487,26 @@ fn piano_right_stick_velocity_uses_coarse_and_fine_events_without_transposing() 
         &roll,
     );
     assert!(!app.fine_held);
+}
+
+#[test]
+fn document_replacement_does_not_reuse_browser_edit_ownership() {
+    let mut app = fixture();
+    commands::text_entry(&mut app, "name", "Name", "Before");
+    let previous = app.workspace.text.as_ref().unwrap().revision.clone();
+    app.reset_document_editors();
+    commands::text_entry(&mut app, "name", "Name", "After");
+    let current = app.workspace.text.as_ref().unwrap().revision.clone();
+    assert_ne!(previous, current);
+    event(
+        &mut app,
+        WorkspaceEvent::Submit {
+            id: "name".into(),
+            revision: previous,
+            value: "Stale document name".into(),
+        },
+    );
+    apply_pending(&mut app);
+    assert_eq!(app.editor.song().name, "Untitled");
+    assert_eq!(app.workspace.text.as_ref().unwrap().value, "After");
 }
