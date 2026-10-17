@@ -58,5 +58,7 @@ pub use structural_graph_coordinator::{
 };
 
 pub mod scheduled_event;
+pub mod voice_group;
+pub use voice_group::{VoiceGroupError, VoiceGroupId};
 pub mod send_leases;
 pub use send_leases::{SendLease, SendLeaseError, SendLeaseId, SendLeases};

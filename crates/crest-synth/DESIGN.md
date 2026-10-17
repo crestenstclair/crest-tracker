@@ -361,7 +361,24 @@ within a block. Timed and immediate host monitoring share Monitor ownership, so
 canceling timed monitoring also releases immediate Monitor voices on those touched
 Patches. Playback cancellation leaves Monitor and Immediate voices intact. Graph
 replacement releases both timed lanes. Temporary send leases belong to playback;
-canceling monitoring leaves them intact. Native
+canceling monitoring leaves them intact.
+
+Playback may additionally own independent voice groups from a configurable,
+preallocated boundary budget. A group is runtime ownership, never a clip or track
+type. Its opaque token is attached to native voice identities; cancellation
+invalidates that group's queued events without needing free ring capacity and
+silences only its held/sustained voices on touched Patches. Tokens never repeat
+within the process, so recycling storage cannot revive canceled lookahead or let
+a late cancellation affect a replacement owner. Monitoring cancellation leaves
+groups intact; whole playback cancellation retires all of them. The renderer
+observes coalesced ownership changes at block/event boundaries using fixed storage,
+and rejected/stale events retain the shared work-budget rules. Braids and resident
+Sample implement selective cleanup without changing unrelated channel baselines,
+voices or expression. Other prepared instruments reject unsupported group cleanup.
+Native waveform comparisons and the scheduling fixture's allocation audit cover
+this boundary; the Tracker performance bank adapter remains a separate consumer.
+
+Native
 voice banks distinguish Immediate, Scheduled and Monitor sources, MIDI channels,
 and optional attack identities; this protects overlapping same-pitch attacks and
 owned expression. Raw channel controls remain channel-wide. Braids and resident

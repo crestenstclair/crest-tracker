@@ -49,3 +49,4 @@ pub mod sfz_library;
 mod rustysynth_voice;
 
 pub mod scheduled_event_boundary;
+mod scheduled_voice_groups;

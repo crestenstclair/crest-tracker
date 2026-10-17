@@ -4,6 +4,7 @@ use crate::real_time::scheduled_event::{
     ScheduledEvent, ScheduledEventEpochExhausted, ScheduledEventPoll, ScheduledEventRejected,
     ScheduledEventRejectionReason, ScheduledLane,
 };
+use crate::real_time::{VoiceGroupError, VoiceGroupId};
 use core::fmt;
 
 /// Returned when the bounded command queue cannot accept another command.
@@ -43,6 +44,12 @@ impl std::error::Error for BoundaryFull {}
 /// publisher side of a latest-wins snapshot transfer. Structural graph
 /// ownership and retirement use `StructuralGraphBoundary` instead.
 pub trait ControlAudioBoundary: Send {
+    fn create_voice_group(&mut self) -> Result<VoiceGroupId, VoiceGroupError> {
+        Err(VoiceGroupError::Unsupported)
+    }
+    fn cancel_voice_group(&mut self, _group: VoiceGroupId) -> Result<(), VoiceGroupError> {
+        Err(VoiceGroupError::Unsupported)
+    }
     fn push_command(&mut self, command: AudioCommand) -> Result<(), BoundaryFull>;
 
     /// Publishes the coalesced global recovery command through its reserved
@@ -101,6 +108,18 @@ pub trait ControlAudioBoundary: Send {
 /// Implementations must make every method allocation-free, lock-free,
 /// non-blocking, and free of I/O, logging, formatting, and destruction.
 pub trait AudioThreadBoundary: Send {
+    fn voice_group_capacity(&self) -> usize {
+        0
+    }
+    fn take_voice_groups_changed(&self) -> bool {
+        false
+    }
+    fn voice_group_at(&self, _index: usize) -> Option<VoiceGroupId> {
+        None
+    }
+    fn voice_group_is_current(&self, _group: VoiceGroupId) -> bool {
+        false
+    }
     fn pop_command(&mut self) -> Option<AudioCommand>;
 
     fn scheduled_epoch(&self) -> u64 {

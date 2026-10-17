@@ -30,16 +30,28 @@ impl MidiSource {
 
 /// Host articulation identity, independent of MIDI channel/pitch and musical track concepts.
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd, Hash)]
-pub struct MidiVoiceId(core::num::NonZeroU64);
+pub struct MidiVoiceId {
+    value: core::num::NonZeroU64,
+    group: Option<crate::real_time::VoiceGroupId>,
+}
 impl MidiVoiceId {
     pub const fn new(value: u64) -> Option<Self> {
         match core::num::NonZeroU64::new(value) {
-            Some(value) => Some(Self(value)),
+            Some(value) => Some(Self { value, group: None }),
             None => None,
         }
     }
     pub const fn get(self) -> u64 {
-        self.0.get()
+        self.value.get()
+    }
+    /// A group scopes cancellation; the articulation's numeric identity stays
+    /// unique. Use a token issued by the destination audio boundary.
+    pub const fn with_group(mut self, group: crate::real_time::VoiceGroupId) -> Self {
+        self.group = Some(group);
+        self
+    }
+    pub const fn group(self) -> Option<crate::real_time::VoiceGroupId> {
+        self.group
     }
 }
 
@@ -300,6 +312,16 @@ pub trait PreparedInstrument: Send {
         }
     }
 
+    /// Silences only this group's held/sustained voices in one delivery source.
+    /// Other groups and channel-wide controller baselines must remain untouched.
+    fn all_notes_off_for_group(
+        &mut self,
+        _source: MidiSource,
+        _group: crate::real_time::VoiceGroupId,
+    ) -> Result<(), PreparedInstrumentError> {
+        Err(PreparedInstrumentError::UnsupportedVoiceGroup)
+    }
+
     /// Reports one immutable shared prepared asset to the worker-side graph
     /// builder. Callback rendering never calls this method. The generic
     /// reference and numeric preparation key let the builder deduplicate and
@@ -361,6 +383,7 @@ pub enum PreparedInstrumentError {
     UnsupportedMidiKind { kind: MidiMessageKind },
     UnsupportedMidiSource { source: MidiSource },
     UnsupportedVoiceIdentity,
+    UnsupportedVoiceGroup,
     UnsupportedExpressionScope,
     DispatchRejected,
     RenderRejected,
@@ -382,6 +405,9 @@ impl fmt::Display for PreparedInstrumentError {
             }
             Self::UnsupportedVoiceIdentity => {
                 formatter.write_str("prepared instrument does not support host voice identity")
+            }
+            Self::UnsupportedVoiceGroup => {
+                formatter.write_str("prepared instrument does not support voice-group cancellation")
             }
             Self::UnsupportedExpressionScope => {
                 formatter.write_str("prepared instrument does not support scoped master expression")

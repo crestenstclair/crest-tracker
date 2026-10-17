@@ -1043,6 +1043,15 @@ impl<P> Voice<P> {
             && voice_id.is_none_or(|id| self.voice_id == Some(id))
     }
 }
+impl<P: VoiceProcessor> Voice<P> {
+    fn clear(&mut self) {
+        self.envelope = VoiceEnvelopeState::IDLE;
+        self.note = None;
+        self.voice_id = None;
+        self.held = false;
+        self.processor.reset();
+    }
+}
 struct PreparedVoiceBank<P> {
     patch_id: PatchId,
     voices: Vec<Voice<P>>,
@@ -1449,11 +1458,7 @@ impl<P: VoiceProcessor> PreparedInstrument for PreparedVoiceBank<P> {
     }
     fn all_notes_off(&mut self) {
         for voice in &mut self.voices {
-            voice.envelope = VoiceEnvelopeState::IDLE;
-            voice.note = None;
-            voice.voice_id = None;
-            voice.held = false;
-            voice.processor.reset();
+            voice.clear();
         }
         for controls in self.controls.iter_mut().flatten() {
             controls.sustain = false;
@@ -1466,14 +1471,23 @@ impl<P: VoiceProcessor> PreparedInstrument for PreparedVoiceBank<P> {
             .iter_mut()
             .filter(|voice| voice.source == source)
         {
-            voice.envelope = VoiceEnvelopeState::IDLE;
-            voice.note = None;
-            voice.voice_id = None;
-            voice.held = false;
-            voice.processor.reset();
+            voice.clear();
         }
         for controls in &mut self.controls[source.index()] {
             controls.sustain = false;
+        }
+        Ok(())
+    }
+    fn all_notes_off_for_group(
+        &mut self,
+        source: MidiSource,
+        group: crate::real_time::VoiceGroupId,
+    ) -> Result<(), PreparedInstrumentError> {
+        for voice in &mut self.voices {
+            if voice.source == source && voice.voice_id.and_then(MidiVoiceId::group) == Some(group)
+            {
+                voice.clear();
+            }
         }
         Ok(())
     }

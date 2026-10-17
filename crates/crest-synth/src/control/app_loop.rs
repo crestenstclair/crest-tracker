@@ -1322,6 +1322,18 @@ where
     pub fn cancel_scheduled_midi(&mut self) -> Result<u64, ScheduledEventEpochExhausted> {
         self.boundary.cancel_scheduled()
     }
+    /// Runtime scheduling ownership, separate from saved product state.
+    pub fn create_voice_group(
+        &mut self,
+    ) -> Result<crate::real_time::VoiceGroupId, crate::real_time::VoiceGroupError> {
+        self.boundary.create_voice_group()
+    }
+    pub fn cancel_voice_group(
+        &mut self,
+        group: crate::real_time::VoiceGroupId,
+    ) -> Result<(), crate::real_time::VoiceGroupError> {
+        self.boundary.cancel_voice_group(group)
+    }
 
     /// Fans one normalized MIDI message out to every current channel
     /// subscriber in stable Patch installation order.

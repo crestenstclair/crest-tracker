@@ -33,18 +33,25 @@ pub struct LockFreeAudioBoundary {
 impl LockFreeAudioBoundary {
     /// Allocates all boundary storage before either handle reaches the audio callback.
     pub fn new(command_capacity: usize, initial_parameters: ParameterSnapshot) -> Self {
-        assert!(
-            command_capacity >= 2,
-            "the audio command boundary requires one normal slot and one recovery reserve"
-        );
-        let (scheduled_control, scheduled_audio) = ScheduledEventBoundary::new(command_capacity)
-            .expect("validated capacity")
-            .into_handles();
+        Self::with_voice_group_capacity(command_capacity, command_capacity, initial_parameters)
+            .expect("audio boundary storage requires a recovery reserve and nonzero budgets")
+    }
+    pub fn with_voice_group_capacity(
+        command_capacity: usize,
+        groups: usize,
+        initial_parameters: ParameterSnapshot,
+    ) -> Result<Self, crate::real_time::VoiceGroupError> {
+        if command_capacity < 2 {
+            return Err(crate::real_time::VoiceGroupError::InvalidCapacity);
+        }
+        let (scheduled_control, scheduled_audio) =
+            ScheduledEventBoundary::with_voice_group_capacity(command_capacity, groups)?
+                .into_handles();
         let (command_producer, command_consumer) = RingBuffer::new(command_capacity);
         let (parameter_input, parameter_output) = triple_buffer(&initial_parameters);
         let recovery_pending = Arc::new(AtomicU8::new(0));
 
-        Self {
+        Ok(Self {
             control: LockFreeControlHandle {
                 scheduled: scheduled_control,
                 commands: command_producer,
@@ -57,7 +64,7 @@ impl LockFreeAudioBoundary {
                 parameters: parameter_output,
                 recovery_pending,
             },
-        }
+        })
     }
 }
 
@@ -98,6 +105,17 @@ impl LockFreeControlHandle {
 }
 
 impl ControlAudioBoundary for LockFreeControlHandle {
+    fn create_voice_group(
+        &mut self,
+    ) -> Result<crate::real_time::VoiceGroupId, crate::real_time::VoiceGroupError> {
+        self.scheduled.create_voice_group()
+    }
+    fn cancel_voice_group(
+        &mut self,
+        group: crate::real_time::VoiceGroupId,
+    ) -> Result<(), crate::real_time::VoiceGroupError> {
+        self.scheduled.cancel_voice_group(group)
+    }
     fn scheduled_epoch_for(&self, lane: ScheduledLane) -> u64 {
         self.scheduled.epoch_for(lane)
     }
@@ -163,6 +181,18 @@ impl LockFreeAudioHandle {
 }
 
 impl AudioThreadBoundary for LockFreeAudioHandle {
+    fn voice_group_capacity(&self) -> usize {
+        self.scheduled.voice_group_capacity()
+    }
+    fn take_voice_groups_changed(&self) -> bool {
+        self.scheduled.take_voice_groups_changed()
+    }
+    fn voice_group_at(&self, index: usize) -> Option<crate::real_time::VoiceGroupId> {
+        self.scheduled.voice_group_at(index)
+    }
+    fn voice_group_is_current(&self, group: crate::real_time::VoiceGroupId) -> bool {
+        self.scheduled.voice_group_is_current(group)
+    }
     fn scheduled_epoch_for(&self, lane: ScheduledLane) -> u64 {
         self.scheduled.epoch_for(lane)
     }

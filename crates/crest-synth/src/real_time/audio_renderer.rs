@@ -40,6 +40,7 @@ pub struct AudioRenderer<Boundary, Structural, Observation = DiscardAudioObserva
     active_notes: SourceNoteObservation,
     scheduled_patches: [[Option<PatchId>; MAX_ACTIVE_PATCHES]; 2],
     scheduled_epoch: [u64; 2],
+    voice_groups: Box<[VoiceGroupObservation]>,
     send_leases: SendLeases,
     rendered_blocks: u64,
     rendered_frames: u64,
@@ -52,6 +53,18 @@ pub struct AudioRenderer<Boundary, Structural, Observation = DiscardAudioObserva
     last_unknown_patch_id: Option<PatchId>,
 }
 
+#[derive(Clone, Copy)]
+struct VoiceGroupObservation {
+    id: Option<crate::real_time::VoiceGroupId>,
+    patches: [Option<PatchId>; MAX_ACTIVE_PATCHES],
+}
+impl VoiceGroupObservation {
+    const EMPTY: Self = Self {
+        id: None,
+        patches: [None; MAX_ACTIVE_PATCHES],
+    };
+}
+
 /// Whether this message starts a note.
 ///
 /// MIDI spells a note-off two ways, and only the sounding one is subject to the
@@ -59,6 +72,15 @@ pub struct AudioRenderer<Boundary, Structural, Observation = DiscardAudioObserva
 /// refused, exactly like an explicit `NoteOff`.
 fn starts_a_note(message: crate::kernel::midi_message::MidiMessage) -> bool {
     message.kind() == MidiMessageKind::NoteOn && message.data2() > 0
+}
+
+fn mark_patch(patches: &mut [Option<PatchId>], patch: PatchId) {
+    if patches.contains(&Some(patch)) {
+        return;
+    }
+    if let Some(slot) = patches.iter_mut().find(|slot| slot.is_none()) {
+        *slot = Some(patch);
+    }
 }
 
 impl<Boundary, Structural> AudioRenderer<Boundary, Structural, DiscardAudioObservation>
@@ -88,6 +110,8 @@ where
         let parameters = initial_graph.initial_parameters().clone();
         let handoff_status = GraphHandoffStatus::with_active(initial_graph.revision());
         let scheduled_epoch = ScheduledLane::ALL.map(|lane| boundary.scheduled_epoch_for(lane));
+        let voice_groups =
+            vec![VoiceGroupObservation::EMPTY; boundary.voice_group_capacity()].into_boxed_slice();
         structural.publish_status_on_audio(handoff_status);
         Self {
             boundary,
@@ -102,6 +126,7 @@ where
             active_notes: SourceNoteObservation::new(),
             scheduled_patches: [[None; MAX_ACTIVE_PATCHES]; 2],
             scheduled_epoch,
+            voice_groups,
             send_leases: SendLeases::new(
                 core::num::NonZeroUsize::new(DEFAULT_AUDIO_COMMANDS_PER_BLOCK)
                     .expect("positive default budget"),
@@ -157,6 +182,7 @@ where
         for lane in ScheduledLane::ALL {
             self.synchronize_schedule_epoch(lane);
         }
+        self.synchronize_voice_groups();
         let remaining_commands = self.drain_immediate_commands();
         let frame_count = interleaved_stereo.len() / 2;
         if frame_count == 0 {
@@ -332,6 +358,9 @@ where
         message: MidiMessage,
         initial: Option<crate::synth::OwnedVoiceInitialization>,
     ) -> bool {
+        if !self.admit_voice_group(source, voice) {
+            return false;
+        }
         let matching_parameters = self.parameters.patch(patch_id);
         if matches!(
             message.kind(),
@@ -371,6 +400,10 @@ where
                     .observe_patch_message(source, patch_id, message);
                 if source == MidiSource::Scheduled {
                     self.mark_scheduled_patch(ScheduledLane::Playback, patch_id);
+                    self.mark_voice_group_patch(
+                        voice.and_then(crate::synth::MidiVoiceId::group),
+                        patch_id,
+                    );
                 }
                 true
             }
@@ -394,6 +427,24 @@ where
                 false
             }
         }
+    }
+
+    fn admit_voice_group(
+        &mut self,
+        source: MidiSource,
+        voice: Option<crate::synth::MidiVoiceId>,
+    ) -> bool {
+        let Some(group) = voice.and_then(crate::synth::MidiVoiceId::group) else {
+            return true;
+        };
+        self.synchronize_voice_groups();
+        if source != MidiSource::Scheduled {
+            self.routing_failures = self.routing_failures.saturating_add(1);
+            return false;
+        }
+        // Cancellation may race the queue poll. It is intentional silence,
+        // not late delivery or an instrument routing failure.
+        self.boundary.voice_group_is_current(group)
     }
 
     fn observed_note_count(&self, patch_id: PatchId) -> u32 {
@@ -433,8 +484,13 @@ where
             // Observe each lane independently. A newly admitted monitor event
             // cannot defer unrelated playback while its old voices are released.
             let epoch = self.synchronize_schedule_epoch(event.lane());
+            self.synchronize_voice_groups();
             self.commands_consumed = self.commands_consumed.saturating_add(1);
-            if event.epoch() != epoch {
+            if event.epoch() != epoch
+                || event
+                    .voice_group()
+                    .is_some_and(|group| !self.boundary.voice_group_is_current(group))
+            {
                 continue;
             }
             if event.graph_revision() != self.active_graph.revision() {
@@ -634,14 +690,64 @@ where
         epoch
     }
 
-    fn mark_scheduled_patch(&mut self, lane: ScheduledLane, patch_id: PatchId) {
-        let patches = &mut self.scheduled_patches[lane.index()];
-        if patches.contains(&Some(patch_id)) {
+    /// Changed owner slots are scanned only on publication/cancellation, with
+    /// a fixed budget prepared off callback. A canceled group never clears a
+    /// channel baseline or the observation for another group's same-pitch note.
+    fn synchronize_voice_groups(&mut self) {
+        if !self.boundary.take_voice_groups_changed() {
             return;
         }
-        if let Some(slot) = patches.iter_mut().find(|slot| slot.is_none()) {
-            *slot = Some(patch_id);
+        for index in 0..self.voice_groups.len() {
+            let current = self.boundary.voice_group_at(index);
+            if current != self.voice_groups[index].id {
+                if self.voice_groups[index].id.is_some() {
+                    self.release_voice_group(index);
+                }
+                self.voice_groups[index] = VoiceGroupObservation {
+                    id: current,
+                    ..VoiceGroupObservation::EMPTY
+                };
+            }
         }
+    }
+
+    fn release_voice_group(&mut self, index: usize) {
+        let observed = &self.voice_groups[index];
+        let Some(group) = observed.id else {
+            return;
+        };
+        for patch_id in observed.patches.iter().flatten() {
+            if self
+                .active_graph
+                .callback_parts_mut()
+                .0
+                .all_notes_off_for_group(MidiSource::Scheduled, *patch_id, group)
+                .is_err()
+            {
+                self.routing_failures = self.routing_failures.saturating_add(1);
+            }
+        }
+    }
+
+    fn mark_voice_group_patch(
+        &mut self,
+        group: Option<crate::real_time::VoiceGroupId>,
+        patch: PatchId,
+    ) {
+        let Some(group) = group else {
+            return;
+        };
+        if let Some(observed) = self
+            .voice_groups
+            .iter_mut()
+            .find(|observed| observed.id == Some(group))
+        {
+            mark_patch(&mut observed.patches, patch);
+        }
+    }
+
+    fn mark_scheduled_patch(&mut self, lane: ScheduledLane, patch_id: PatchId) {
+        mark_patch(&mut self.scheduled_patches[lane.index()], patch_id);
     }
 
     /// Physical input loss must not invalidate the host's queued owned expression.
@@ -677,6 +783,9 @@ where
     fn release_schedule_lane(&mut self, lane: ScheduledLane) {
         if lane == ScheduledLane::Playback {
             self.send_leases.clear();
+            for observed in &mut self.voice_groups {
+                observed.patches.fill(None);
+            }
         }
         for index in 0..MAX_ACTIVE_PATCHES {
             let Some(patch_id) = self.scheduled_patches[lane.index()][index].take() else {

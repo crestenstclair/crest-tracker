@@ -215,6 +215,8 @@ pub enum HostedSynthError {
     Scheduled(#[from] ScheduledEventDispatchError),
     #[error(transparent)]
     ScheduleEpoch(#[from] ScheduledEventEpochExhausted),
+    #[error(transparent)]
+    VoiceGroup(#[from] crate::real_time::VoiceGroupError),
     #[error("this control callback has no session lifecycle")]
     LifecycleUnavailable,
     #[error(transparent)]
@@ -691,6 +693,22 @@ impl<'a, Boundary: ControlAudioBoundary> HostedSynthControl<'a, Boundary> {
     pub fn cancel_scheduled(&mut self) -> Result<u64, HostedSynthError> {
         Ok(self.app.cancel_scheduled_midi()?)
     }
+    /// Allocates one cancellation owner from the boundary's configured budget.
+    /// Attach it to fresh MidiVoiceIds before scheduling initialized attacks.
+    pub fn create_voice_group(
+        &mut self,
+    ) -> Result<crate::real_time::VoiceGroupId, HostedSynthError> {
+        Ok(self.app.create_voice_group()?)
+    }
+    /// Invalidates pending attacks and releases only this group's sounding or
+    /// sustained playback voices at the next callback observation. Queue space
+    /// is not required. Whole playback cancellation also retires every group.
+    pub fn cancel_voice_group(
+        &mut self,
+        group: crate::real_time::VoiceGroupId,
+    ) -> Result<(), HostedSynthError> {
+        Ok(self.app.cancel_voice_group(group)?)
+    }
 
     /// Captures a complete settled sound state for a composite host document.
     pub fn capture_saved_session(&self) -> Result<SavedSession, HostedSynthError> {
@@ -1124,6 +1142,58 @@ mod tests {
             audio.poll_scheduled_before(6),
             ScheduledEventPoll::Ready(_)
         ));
+    }
+
+    #[test]
+    fn hosted_voice_group_cancellation_preserves_other_owners_and_saved_state() {
+        use crate::real_time::VoiceGroupError;
+        use crate::synth::OwnedExpressionState;
+
+        let (mut app, mut audio) = app();
+        let mut host = HostedSynthControl::new(&mut app, false);
+        let saved = host.capture_saved_session().unwrap();
+        let patch = PatchId::new(7).unwrap();
+        let first = host.create_voice_group().unwrap();
+        let second = host.create_voice_group().unwrap();
+        let initial = OwnedVoiceInitialization::new(
+            note(),
+            OwnedExpressionState::default(),
+            OwnedExpressionState::default(),
+        )
+        .unwrap();
+        host.schedule_initialized_voice(
+            10,
+            patch,
+            MidiVoiceId::new(1).unwrap().with_group(first),
+            initial,
+        )
+        .unwrap();
+        let survivor = MidiVoiceId::new(2).unwrap().with_group(second);
+        host.schedule_initialized_voice(11, patch, survivor, initial)
+            .unwrap();
+        host.cancel_voice_group(first).unwrap();
+        assert_eq!(audio.poll_scheduled_before(12), ScheduledEventPoll::Stale);
+        assert!(
+            matches!(audio.poll_scheduled_before(12), ScheduledEventPoll::Ready(event)
+            if event.voice_group() == Some(second))
+        );
+        assert!(matches!(
+            host.cancel_voice_group(first),
+            Err(HostedSynthError::VoiceGroup(VoiceGroupError::Unknown))
+        ));
+        host.cancel_monitor_schedule().unwrap();
+        host.schedule_initialized_voice(12, patch, survivor, initial)
+            .unwrap();
+        assert!(matches!(
+            audio.poll_scheduled_before(13),
+            ScheduledEventPoll::Ready(_)
+        ));
+        host.cancel_scheduled().unwrap();
+        assert!(matches!(
+            host.cancel_voice_group(second),
+            Err(HostedSynthError::VoiceGroup(VoiceGroupError::Unknown))
+        ));
+        assert_eq!(host.capture_saved_session().unwrap(), saved);
     }
 
     #[test]

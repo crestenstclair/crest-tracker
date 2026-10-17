@@ -152,6 +152,15 @@ impl ScheduledEvent {
     pub const fn payload(self) -> ScheduledPayload {
         self.payload
     }
+    pub const fn voice_group(self) -> Option<crate::real_time::VoiceGroupId> {
+        match self.payload {
+            ScheduledPayload::InitializedVoice { voice, .. }
+            | ScheduledPayload::Midi {
+                voice: Some(voice), ..
+            } => voice.group(),
+            _ => None,
+        }
+    }
     pub const fn lane(self) -> ScheduledLane {
         self.lane
     }
@@ -217,6 +226,7 @@ pub enum ScheduledEventRejectionReason {
     Unsupported,
     OutOfOrder { last_frame: u64 },
     StaleEpoch { current_epoch: u64 },
+    StaleVoiceGroup,
     EpochExhausted,
 }
 
@@ -255,6 +265,9 @@ impl fmt::Display for ScheduledEventRejected {
             }
             ScheduledEventRejectionReason::StaleEpoch { .. } => {
                 formatter.write_str("scheduled event belongs to a different cancellation epoch")
+            }
+            ScheduledEventRejectionReason::StaleVoiceGroup => {
+                formatter.write_str("scheduled event belongs to a canceled or foreign voice group")
             }
             ScheduledEventRejectionReason::EpochExhausted => {
                 formatter.write_str("scheduled event cancellation epochs are exhausted")

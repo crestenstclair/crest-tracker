@@ -802,6 +802,22 @@ impl PreparedInstrument for PreparedBraidsInstrument {
         }
         Ok(())
     }
+    fn all_notes_off_for_group(
+        &mut self,
+        source: MidiSource,
+        group: crate::real_time::VoiceGroupId,
+    ) -> Result<(), PreparedInstrumentError> {
+        for (index, voice) in self.voices.iter_mut().enumerate() {
+            if voice.source == source && voice.voice_id.and_then(MidiVoiceId::group) == Some(group)
+            {
+                voice.clear();
+                self.bank
+                    .reset(index)
+                    .map_err(|_| PreparedInstrumentError::DispatchRejected)?;
+            }
+        }
+        Ok(())
+    }
 }
 
 #[derive(Clone, Copy, Debug, PartialEq)]

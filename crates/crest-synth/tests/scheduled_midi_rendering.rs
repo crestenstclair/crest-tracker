@@ -1415,6 +1415,69 @@ fn atomic_owned_attacks_render_complete_initial_expression_with_one_command_budg
 }
 
 #[test]
+fn native_voice_groups_cancel_sustained_and_future_notes_without_touching_other_owners() {
+    use MidiMessageKind::{ControlChange as Cc, NoteOff, NoteOn, PitchBend};
+    let mut mixed = native_braids_fixture();
+    let mut references = std::array::from_fn(|_| native_braids_fixture());
+    let group_a = mixed.control.create_voice_group().unwrap();
+    let group_b = mixed.control.create_voice_group().unwrap();
+    let a = MidiVoiceId::new(1).unwrap().with_group(group_a);
+    let b = MidiVoiceId::new(2).unwrap().with_group(group_b);
+    let attack = midi(NoteOn, 60, 100);
+    for reference in &mut references {
+        reference.immediate(1, attack);
+        // Keep the native render segmentation identical at A's physical
+        // release. This no-op never changes the reference's held note.
+        reference.schedule_message(8, 1, midi(Cc, 1, 0));
+    }
+    mixed.immediate(1, attack);
+    mixed
+        .control
+        .push_command(AudioCommand::OwnedMidi {
+            source: MidiSource::Monitor,
+            patch_id: PatchId::new(1).unwrap(),
+            message: attack,
+        })
+        .unwrap();
+    mixed.schedule_voice(0, 1, Some(a), attack);
+    mixed.schedule_voice(0, 1, Some(a), midi(Cc, 64, 127));
+    mixed.schedule_voice(0, 1, Some(b), attack);
+    mixed.schedule_voice(8, 1, Some(a), midi(NoteOff, 60, 0));
+    assert_native_mix(&mut mixed, &mut references, 4);
+    mixed.schedule_voice(48, 1, Some(a), midi(NoteOn, 64, 100));
+    mixed.schedule_voice(48, 1, Some(b), midi(PitchBend, 0, 96));
+    mixed.control.cancel_voice_group(group_a).unwrap();
+    references[0]
+        .control
+        .push_command(AudioCommand::all_notes_off())
+        .unwrap();
+    assert_native_mix(&mut mixed, &mut references, 3); // frame 16: sustained A canceled
+    assert_native_mix(&mut mixed, &mut references, 3); // frame 32
+    references[1].immediate(1, midi(PitchBend, 0, 96));
+    assert_native_mix(&mut mixed, &mut references, 3); // frame 48: future A suppressed, B bends
+
+    let replacement = mixed.control.create_voice_group().unwrap();
+    assert_ne!(replacement, group_a);
+    let c = MidiVoiceId::new(3).unwrap().with_group(replacement);
+    mixed.schedule_voice(64, 1, Some(c), attack);
+    assert!(mixed.control.cancel_voice_group(group_a).is_err());
+    references[0].immediate(1, attack);
+    assert_native_mix(&mut mixed, &mut references, 4);
+    mixed.control.cancel_voice_group(group_b).unwrap();
+    references[1]
+        .control
+        .push_command(AudioCommand::all_notes_off())
+        .unwrap();
+    assert_native_mix(&mut mixed, &mut references, 3);
+    mixed.control.cancel_scheduled().unwrap();
+    references[0]
+        .control
+        .push_command(AudioCommand::all_notes_off())
+        .unwrap();
+    assert_native_mix(&mut mixed, &mut references, 2); // Immediate and Monitor survive
+}
+
+#[test]
 fn native_scheduled_voice_ids_preserve_same_pitch_expression_release_and_source_cleanup() {
     let mut mixed = native_braids_fixture();
     let mut references = std::array::from_fn(|_| native_braids_fixture());

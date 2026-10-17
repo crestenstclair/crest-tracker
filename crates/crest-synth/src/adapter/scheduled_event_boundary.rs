@@ -1,7 +1,9 @@
+use super::scheduled_voice_groups::{self, GroupAudio, GroupControl};
 use crate::real_time::scheduled_event::{
     ScheduledEvent, ScheduledEventEpochExhausted, ScheduledEventPoll, ScheduledEventRejected,
     ScheduledEventRejectionReason, ScheduledLane,
 };
+use crate::real_time::{VoiceGroupError, VoiceGroupId};
 use core::fmt;
 use rtrb::{Consumer, Producer, PushError, RingBuffer};
 use std::sync::atomic::{AtomicU64, Ordering};
@@ -24,15 +26,26 @@ pub struct ScheduledEventBoundary {
 impl ScheduledEventBoundary {
     /// Allocates `capacity` slots per lane before callback ownership.
     pub fn new(capacity: usize) -> Result<Self, ScheduledEventCapacityError> {
+        Self::with_voice_group_capacity(capacity, capacity).map_err(|_| ScheduledEventCapacityError)
+    }
+
+    /// Independent resource budget for cancellable voice owners. All storage
+    /// is prepared off callback; no product clip count is encoded here.
+    pub fn with_voice_group_capacity(
+        capacity: usize,
+        groups: usize,
+    ) -> Result<Self, VoiceGroupError> {
         if capacity == 0 {
-            return Err(ScheduledEventCapacityError);
+            return Err(VoiceGroupError::InvalidCapacity);
         }
+        let (group_control, group_audio) = scheduled_voice_groups::new(groups)?;
         let [(playback_producer, playback_consumer), (monitor_producer, monitor_consumer)] =
             ScheduledLane::ALL.map(|_| RingBuffer::new(capacity));
         let epoch = Arc::new([AtomicU64::new(0), AtomicU64::new(0)]);
         let high_water = Arc::new(AtomicU64::new(0));
         Ok(Self {
             control: ScheduledEventControlHandle {
+                groups: group_control,
                 events: [playback_producer, monitor_producer],
                 published_epoch: Arc::clone(&epoch),
                 epoch: [0; 2],
@@ -41,6 +54,7 @@ impl ScheduledEventBoundary {
                 capacity,
             },
             audio: ScheduledEventAudioHandle {
+                groups: group_audio,
                 events: [playback_consumer, monitor_consumer],
                 epoch,
                 high_water,
@@ -59,7 +73,7 @@ pub struct ScheduledEventCapacityError;
 
 impl fmt::Display for ScheduledEventCapacityError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        formatter.write_str("scheduled MIDI queue capacity must be nonzero")
+        formatter.write_str("scheduled storage requires nonzero capacities and sufficient memory")
     }
 }
 
@@ -67,6 +81,7 @@ impl std::error::Error for ScheduledEventCapacityError {}
 
 /// Sole producer of independently ordered, cancellable playback and monitor lanes.
 pub struct ScheduledEventControlHandle {
+    groups: GroupControl,
     events: [Producer<ScheduledEvent>; 2],
     published_epoch: Arc<[AtomicU64; 2]>,
     epoch: [u64; 2],
@@ -76,6 +91,12 @@ pub struct ScheduledEventControlHandle {
 }
 
 impl ScheduledEventControlHandle {
+    pub fn create_voice_group(&mut self) -> Result<VoiceGroupId, VoiceGroupError> {
+        self.groups.create()
+    }
+    pub fn cancel_voice_group(&mut self, id: VoiceGroupId) -> Result<(), VoiceGroupError> {
+        self.groups.cancel(id)
+    }
     pub const fn epoch(&self) -> u64 {
         self.epoch_for(ScheduledLane::Playback)
     }
@@ -89,7 +110,14 @@ impl ScheduledEventControlHandle {
     pub fn push(&mut self, event: ScheduledEvent) -> Result<(), ScheduledEventRejected> {
         let index = event.lane().index();
         let epoch = self.epoch[index];
-        let reason = if epoch == EXHAUSTED_EPOCH {
+        let reason = if event.voice_group().is_some() && event.lane() != ScheduledLane::Playback {
+            Some(ScheduledEventRejectionReason::Unsupported)
+        } else if event
+            .voice_group()
+            .is_some_and(|group| !self.groups.contains(group))
+        {
+            Some(ScheduledEventRejectionReason::StaleVoiceGroup)
+        } else if epoch == EXHAUSTED_EPOCH {
             Some(ScheduledEventRejectionReason::EpochExhausted)
         } else if event.epoch() != epoch {
             Some(ScheduledEventRejectionReason::StaleEpoch {
@@ -142,6 +170,9 @@ impl ScheduledEventControlHandle {
         self.epoch[index] = self.epoch[index].saturating_add(1);
         self.last_frame[index] = None;
         self.published_epoch[index].store(self.epoch[index], Ordering::Release);
+        if lane == ScheduledLane::Playback {
+            self.groups.clear();
+        }
         if self.epoch[index] == EXHAUSTED_EPOCH {
             Err(ScheduledEventEpochExhausted)
         } else {
@@ -152,12 +183,31 @@ impl ScheduledEventControlHandle {
 
 /// Callback-only consumer; each poll examines two heads and consumes at most one event.
 pub struct ScheduledEventAudioHandle {
+    groups: GroupAudio,
     events: [Consumer<ScheduledEvent>; 2],
     epoch: Arc<[AtomicU64; 2]>,
     high_water: Arc<AtomicU64>,
 }
 
 impl ScheduledEventAudioHandle {
+    pub fn voice_group_capacity(&self) -> usize {
+        self.groups.capacity()
+    }
+    pub fn take_voice_groups_changed(&self) -> bool {
+        self.groups.take_changed()
+    }
+    pub fn voice_group_at(&self, index: usize) -> Option<VoiceGroupId> {
+        self.groups.at(index)
+    }
+    pub fn voice_group_is_current(&self, group: VoiceGroupId) -> bool {
+        self.groups.contains(group)
+    }
+    fn is_current(&self, event: ScheduledEvent) -> bool {
+        event.epoch() == self.epoch_for(event.lane())
+            && event
+                .voice_group()
+                .is_none_or(|group| self.groups.contains(group))
+    }
     /// Maximum combined occupied slots sampled after successful producer publication.
     /// Concurrent consumption may make this lower than the instantaneous peak.
     pub fn queue_high_water(&self) -> u64 {
@@ -189,7 +239,7 @@ impl ScheduledEventAudioHandle {
             let Ok(event) = self.events[lane.index()].peek().copied() else {
                 continue;
             };
-            if event.epoch() != self.epoch_for(lane) {
+            if !self.is_current(event) {
                 stale.get_or_insert(lane);
                 continue;
             }
@@ -217,7 +267,7 @@ impl ScheduledEventAudioHandle {
         let Ok(event) = self.events[lane.index()].pop() else {
             return ScheduledEventPoll::Empty;
         };
-        if event.epoch() != self.epoch_for(lane) {
+        if !self.is_current(event) {
             ScheduledEventPoll::Stale
         } else {
             ScheduledEventPoll::Ready(event)
@@ -258,6 +308,82 @@ mod tests {
             crate::synth::MidiExpressionScope::Member,
             event(frame, epoch, note).message().unwrap(),
         )
+    }
+
+    fn grouped(frame: u64, epoch: u64, group: VoiceGroupId, note: u8) -> ScheduledEvent {
+        event(frame, epoch, note).with_voice(Some(
+            crate::synth::MidiVoiceId::new(u64::from(note))
+                .unwrap()
+                .with_group(group),
+        ))
+    }
+
+    #[test]
+    fn group_cancel_works_with_a_full_queue_and_preserves_other_owners() {
+        let (mut control, mut audio) = ScheduledEventBoundary::with_voice_group_capacity(3, 2)
+            .unwrap()
+            .into_handles();
+        let first = control.create_voice_group().unwrap();
+        let second = control.create_voice_group().unwrap();
+        assert_eq!(control.create_voice_group(), Err(VoiceGroupError::Full));
+        let survivor = grouped(20, 0, second, 67);
+        control.push(grouped(10, 0, first, 60)).unwrap();
+        control.push(survivor).unwrap();
+        control.push(grouped(100, 0, first, 62)).unwrap();
+        control.cancel_voice_group(first).unwrap();
+        assert_eq!(audio.poll_before(30), ScheduledEventPoll::Stale);
+        assert_eq!(audio.poll_before(30), ScheduledEventPoll::Ready(survivor));
+        assert_eq!(audio.poll_before(30), ScheduledEventPoll::Stale);
+        assert_eq!(audio.poll_before(200), ScheduledEventPoll::Empty);
+        let replacement = control.create_voice_group().unwrap();
+        assert_ne!(replacement, first);
+        assert!(audio.voice_group_is_current(second));
+        assert!(!audio.voice_group_is_current(first));
+        assert_eq!(
+            control
+                .push(grouped(1000, 0, first, 60))
+                .unwrap_err()
+                .reason(),
+            ScheduledEventRejectionReason::StaleVoiceGroup
+        );
+        // Rejected publication did not advance the ordered queue watermark.
+        let accepted = grouped(101, 0, replacement, 60);
+        control.push(accepted).unwrap();
+        assert_eq!(audio.poll_before(102), ScheduledEventPoll::Ready(accepted));
+    }
+
+    #[test]
+    fn whole_playback_cancel_retires_groups_but_monitor_cancel_does_not() {
+        let (mut control, mut audio) = ScheduledEventBoundary::new(2).unwrap().into_handles();
+        let group = control.create_voice_group().unwrap();
+        let voice = crate::synth::MidiVoiceId::new(1).unwrap().with_group(group);
+        let unsupported = ScheduledEvent::monitor_voice(
+            0,
+            0,
+            GraphRevision::INITIAL,
+            PatchId::new(1).unwrap(),
+            voice,
+            crate::synth::MidiExpressionScope::Member,
+            event(0, 0, 60).message().unwrap(),
+        );
+        assert_eq!(
+            control.push(unsupported).unwrap_err().reason(),
+            ScheduledEventRejectionReason::Unsupported
+        );
+        control.cancel_lane(ScheduledLane::Monitor).unwrap();
+        assert!(audio.voice_group_is_current(group));
+        control.push(grouped(100, 0, group, 60)).unwrap();
+        control.cancel().unwrap();
+        assert!(!audio.voice_group_is_current(group));
+        assert_eq!(audio.poll_before(1), ScheduledEventPoll::Stale);
+        assert_eq!(
+            control.cancel_voice_group(group),
+            Err(VoiceGroupError::Unknown)
+        );
+        let next = control.create_voice_group().unwrap();
+        let accepted = grouped(0, 1, next, 60);
+        control.push(accepted).unwrap();
+        assert_eq!(audio.poll_before(1), ScheduledEventPoll::Ready(accepted));
     }
 
     #[test]

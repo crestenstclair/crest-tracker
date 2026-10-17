@@ -329,6 +329,13 @@ impl PreparedInstrument for UpstreamSampleInstrument {
     fn all_notes_off_from(&mut self, source: MidiSource) -> Result<(), PreparedInstrumentError> {
         self.inner.all_notes_off_from(source)
     }
+    fn all_notes_off_for_group(
+        &mut self,
+        source: MidiSource,
+        group: crate::real_time::VoiceGroupId,
+    ) -> Result<(), PreparedInstrumentError> {
+        self.inner.all_notes_off_for_group(source, group)
+    }
     fn prepared_asset_footprint(&self) -> Option<&PreparedAssetFootprint> {
         Some(&self.footprint)
     }
@@ -1261,6 +1268,114 @@ mod tests {
             assert_eq!(engine.active_note_count(), Some(1));
             engine.all_notes_off();
         }
+    }
+
+    #[test]
+    fn production_sample_group_cleanup_preserves_other_scheduled_expression_and_live_notes() {
+        use crate::synth::MidiVoiceId;
+        use MidiMessageKind::{ChannelPressure, NoteOn};
+        let fixture = Arc::new(fixture(1, vec![0.25; 4096]));
+        let preparer = SamplePreparer::new(fixture.clone(), fixture).unwrap();
+        let (patch, provider) = patch_with(1, &[]);
+        let parameters = rt(&patch, &provider, VoiceEnvelope::DEFAULT);
+        let mut reference = preparer.prepare(&patch, 48_000.0, 128).unwrap();
+        let mut mixed = preparer.prepare(&patch, 48_000.0, 128).unwrap();
+        let (mut groups, _) =
+            crate::adapter::scheduled_event_boundary::ScheduledEventBoundary::new(2)
+                .unwrap()
+                .into_handles();
+        let first_group = groups.create_voice_group().unwrap();
+        let second_group = groups.create_voice_group().unwrap();
+        let first = MidiVoiceId::new(1).unwrap().with_group(first_group);
+        let second = MidiVoiceId::new(2).unwrap().with_group(second_group);
+        for source in [MidiSource::Immediate, MidiSource::Monitor] {
+            mixed
+                .dispatch_from(source, message(NoteOn, 60, 100), &parameters)
+                .unwrap();
+            reference
+                .dispatch_from(source, message(NoteOn, 60, 100), &parameters)
+                .unwrap();
+        }
+        reference
+            .dispatch_from(MidiSource::Scheduled, message(NoteOn, 60, 100), &parameters)
+            .unwrap();
+        for id in [first, second] {
+            mixed
+                .dispatch_voice_from(
+                    MidiSource::Scheduled,
+                    Some(id),
+                    message(NoteOn, 60, 100),
+                    &parameters,
+                )
+                .unwrap();
+        }
+        sustain_sample_voice(mixed.as_mut(), first, &parameters);
+        assert_eq!(mixed.active_note_count(), Some(4));
+        let mut expected = [0.0; 256];
+        let mut actual = [0.0; 256];
+        reference.render(&mut expected, 128, &parameters).unwrap();
+        mixed.render(&mut actual, 128, &parameters).unwrap();
+        assert!(actual
+            .iter()
+            .zip(expected)
+            .any(|(a, e)| a.abs() > e.abs() + 0.0001));
+        mixed
+            .all_notes_off_for_group(MidiSource::Scheduled, first_group)
+            .unwrap();
+        assert_eq!(mixed.active_note_count(), Some(3));
+        mixed
+            .dispatch_voice_from(
+                MidiSource::Scheduled,
+                Some(second),
+                message(ChannelPressure, 32, 0),
+                &parameters,
+            )
+            .unwrap();
+        reference
+            .dispatch_from(
+                MidiSource::Scheduled,
+                message(ChannelPressure, 32, 0),
+                &parameters,
+            )
+            .unwrap();
+        assert_sample_matches(mixed.as_mut(), reference.as_mut(), &parameters);
+        mixed
+            .all_notes_off_for_group(MidiSource::Scheduled, second_group)
+            .unwrap();
+        reference.all_notes_off_from(MidiSource::Scheduled).unwrap();
+        assert_eq!(mixed.active_note_count(), Some(2));
+        assert_sample_matches(mixed.as_mut(), reference.as_mut(), &parameters);
+    }
+
+    fn sustain_sample_voice(
+        instrument: &mut dyn PreparedInstrument,
+        voice: crate::synth::MidiVoiceId,
+        parameters: &RtPatchParameters,
+    ) {
+        for midi in [
+            message(MidiMessageKind::ControlChange, 64, 127),
+            message(MidiMessageKind::NoteOff, 60, 0),
+        ] {
+            instrument
+                .dispatch_voice_from(MidiSource::Scheduled, Some(voice), midi, parameters)
+                .unwrap();
+        }
+    }
+
+    fn assert_sample_matches(
+        instrument: &mut dyn PreparedInstrument,
+        reference: &mut dyn PreparedInstrument,
+        parameters: &RtPatchParameters,
+    ) {
+        let mut expected = [0.0; 256];
+        let mut actual = [0.0; 256];
+        reference.render(&mut expected, 128, parameters).unwrap();
+        instrument.render(&mut actual, 128, parameters).unwrap();
+        assert!(expected.iter().any(|sample| sample.abs() > 0.0001));
+        assert!(actual
+            .iter()
+            .zip(expected)
+            .all(|(a, e)| (*a - e).abs() < 0.000001));
     }
 
     #[test]

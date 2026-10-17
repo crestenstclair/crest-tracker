@@ -279,6 +279,20 @@ impl PreparedEngineRack {
             .map_err(|source| RackDispatchError::Instrument { patch_id, source })
     }
 
+    pub fn all_notes_off_for_group(
+        &mut self,
+        midi_source: MidiSource,
+        patch_id: PatchId,
+        group: crate::real_time::VoiceGroupId,
+    ) -> Result<(), RackDispatchError> {
+        let slot = self
+            .find_slot_mut(patch_id)
+            .ok_or(RackDispatchError::UnknownPatch { patch_id })?;
+        slot.instrument
+            .all_notes_off_for_group(midi_source, group)
+            .map_err(|source| RackDispatchError::Instrument { patch_id, source })
+    }
+
     /// Silences every active instrument with work bounded by `MAX_ACTIVE_PATCHES`.
     pub fn all_notes_off(&mut self) {
         for slot in self.slots[..self.patch_count].iter_mut().flatten() {
