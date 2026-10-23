@@ -2191,7 +2191,7 @@ mod tests {
             .unwrap();
         app.dispatch(AppEvent::SetInteractionMode(InteractionMode::Adjust))
             .unwrap();
-        app.dispatch(AppEvent::Adjust(Direction::Up)).unwrap();
+        app.dispatch(AppEvent::OpenPopover).unwrap();
         app.dispatch(AppEvent::Activate).unwrap();
         assert_eq!(app.patches().len(), 1);
         assert_eq!(app.capture_saved_session(), baseline);
@@ -2397,7 +2397,7 @@ mod tests {
             .unwrap();
         app.dispatch(AppEvent::SetInteractionMode(InteractionMode::Adjust))
             .unwrap();
-        app.dispatch(AppEvent::Adjust(Direction::Up)).unwrap();
+        app.dispatch(AppEvent::OpenPopover).unwrap();
         app.dispatch(AppEvent::Activate).unwrap();
 
         let error = lifecycle.request_new(&mut app).unwrap_err();

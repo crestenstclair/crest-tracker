@@ -30,7 +30,7 @@ fn generated_song(form: PhraseForm, steps: u32) -> Song {
     );
     song.tracks[0].slots = vec![Some(ChainUse {
         id: UseId::new(104).unwrap(),
-        chain,
+        chain: chain.into(),
         repeats: 1,
     })];
     song.tracks[0].looped = true;

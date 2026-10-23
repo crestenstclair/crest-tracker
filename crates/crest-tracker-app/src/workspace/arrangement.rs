@@ -1,6 +1,7 @@
 //! Arrangement operations retain occurrence identities and use document undo.
 use super::*;
 use crate::app::TransportScope;
+use crest_tracker::composition::{Chain, ChainId, ChainRef, ChainUse, SpecialChain, UseId};
 
 pub(super) fn rows(app: &App) -> Vec<WorkspaceRow> {
     let track = &app.editor.song().tracks[app.track];
@@ -12,7 +13,11 @@ pub(super) fn rows(app: &App) -> Vec<WorkspaceRow> {
     if let Some(usage) = track.slots.get(app.slot).and_then(Option::as_ref) {
         rows.push(row(
             "arr_chain_repeat",
-            "Chain occurrence repeats",
+            if usage.chain.special().is_some() {
+                "Measures"
+            } else {
+                "Chain occurrence repeats"
+            },
             usage.repeats.to_string(),
         ));
     }
@@ -37,6 +42,86 @@ pub(super) fn rows(app: &App) -> Vec<WorkspaceRow> {
         ("back", "Back"),
     ]));
     rows
+}
+
+pub(super) fn slot_rows() -> Vec<WorkspaceRow> {
+    commands(&[
+        ("slot_kill", "Kill"),
+        ("slot_rest", "Rest"),
+        ("slot_chain", "Chain"),
+    ])
+}
+
+fn choose_slot(app: &mut App, id: &str) {
+    if id == "slot_chain" && app.selected_chain().is_some() {
+        open(app, None);
+        return;
+    }
+    let song = app.editor.song();
+    let next = match song.next_identity() {
+        Ok(next) => next,
+        Err(error) => {
+            app.status = error.to_string();
+            return;
+        }
+    };
+    let mut commands = Vec::new();
+    let chain = match id {
+        "slot_rest" => ChainRef::Special(SpecialChain::Rest),
+        "slot_kill" => ChainRef::Special(SpecialChain::Kill),
+        "slot_chain" => {
+            if let Some(chain) = song.chains.keys().next().copied() {
+                app.requests.push(Request::AssignChain {
+                    track: song.tracks[app.track].id,
+                    slot: app.slot,
+                    chain,
+                });
+                open(app, None);
+                return;
+            }
+            let id = ChainId::new(next).expect("fresh identity");
+            commands.push(Command::PutChain {
+                id,
+                chain: Chain {
+                    name: format!("{:02}", song.chains.len()),
+                    phrases: vec![],
+                },
+            });
+            ChainRef::Pattern(id)
+        }
+        _ => return,
+    };
+    let mut track = song.tracks[app.track].clone();
+    let previous = track.slots.get(app.slot).and_then(Option::as_ref);
+    if previous.is_some_and(|usage| usage.chain == chain) {
+        open(app, None);
+        return;
+    }
+    let repeats = previous
+        .filter(|usage| usage.chain.special().is_some() && chain.special().is_some())
+        .map_or(1, |usage| usage.repeats);
+    let Some(identity) = next
+        .checked_add(commands.len() as u64)
+        .and_then(|id| UseId::new(id).ok())
+    else {
+        app.status = "identity range exhausted".into();
+        return;
+    };
+    if let Err(error) = track.ensure_slot(app.slot) {
+        app.status = error.to_string();
+        return;
+    }
+    track.slots[app.slot] = Some(ChainUse {
+        id: identity,
+        chain,
+        repeats,
+    });
+    commands.push(Command::PutTrack { track });
+    app.requests.push(Request::Edit {
+        revision: app.editor.revision(),
+        command: Box::new(Command::Batch { commands }),
+    });
+    open(app, None);
 }
 
 pub(super) fn adjust(app: &mut App, field: &str, delta: i32) {
@@ -77,6 +162,10 @@ pub(super) fn adjust(app: &mut App, field: &str, delta: i32) {
 }
 
 pub(super) fn activate(app: &mut App, id: &str) -> bool {
+    if id.starts_with("slot_") {
+        choose_slot(app, id);
+        return true;
+    }
     if let Some(scope) = match id {
         "audition_song" => Some(TransportScope::Song),
         "audition_chain" => Some(TransportScope::Chain),

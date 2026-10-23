@@ -1263,7 +1263,21 @@ impl<P: VoiceProcessor> PreparedInstrument for PreparedVoiceBank<P> {
             MidiMessageKind::AllNotesOff if voice_id.is_none() => {
                 self.silence_channel(source, channel)
             }
-            MidiMessageKind::AllNotesOff => return Err(PreparedInstrumentError::DispatchRejected),
+            MidiMessageKind::AllNotesOff => {
+                for voice in self
+                    .voices
+                    .iter_mut()
+                    .filter(|voice| voice.belongs_to(source, voice_id, channel))
+                {
+                    voice.held = false;
+                    voice
+                        .envelope
+                        .note_off(params.envelope().release_milliseconds(), self.rate);
+                    if let Some(note) = voice.note {
+                        voice.processor.note(0x80, note, 0);
+                    }
+                }
+            }
             MidiMessageKind::ProgramChange => {
                 return Err(PreparedInstrumentError::DispatchRejected)
             }
@@ -1804,6 +1818,48 @@ mod tests {
         assert_eq!(bank.voices.len(), 4);
         bank.render(&mut output, 64, &parameters).unwrap();
         assert!(output.iter().all(|sample| *sample == 2.0));
+    }
+
+    #[test]
+    fn owned_kill_bypasses_pedal_and_keeps_other_articulations_and_release_tail() {
+        let (mut bank, parameters) = source_bank();
+        let channel = MidiChannel::new(0).unwrap();
+        let event = |kind, a, b| MidiMessage::try_new(channel, kind, a, b).unwrap();
+        bank.dispatch_from(
+            MidiSource::Scheduled,
+            event(MidiMessageKind::ControlChange, 64, 127),
+            &parameters,
+        )
+        .unwrap();
+        for id in [1, 2] {
+            bank.dispatch_voice_from(
+                MidiSource::Scheduled,
+                Some(MidiVoiceId::new(id).unwrap()),
+                event(MidiMessageKind::NoteOn, 60, 100),
+                &parameters,
+            )
+            .unwrap();
+            bank.dispatch_voice_from(
+                MidiSource::Scheduled,
+                Some(MidiVoiceId::new(id).unwrap()),
+                event(MidiMessageKind::NoteOff, 60, 0),
+                &parameters,
+            )
+            .unwrap();
+        }
+        let mut output = [0.0; 128];
+        bank.render(&mut output, 64, &parameters).unwrap();
+        bank.dispatch_voice_from(
+            MidiSource::Scheduled,
+            Some(MidiVoiceId::new(1).unwrap()),
+            event(MidiMessageKind::AllNotesOff, 60, 0),
+            &parameters,
+        )
+        .unwrap();
+        assert!(bank.voices[0].envelope.is_releasing());
+        assert!(!bank.voices[0].envelope.is_idle());
+        assert!(!bank.voices[1].envelope.is_releasing());
+        assert!(bank.controls[MidiSource::Scheduled.index()][0].sustain);
     }
 
     #[test]

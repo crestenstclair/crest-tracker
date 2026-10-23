@@ -565,6 +565,38 @@ fn send_playback_batch(runtime: &mut Runtime, at: Beat, actions: Vec<MpeOutputAc
 }
 
 #[test]
+fn empty_external_batch_does_not_require_external_audio_clock() {
+    let mut runtime = capture_fixture();
+    let mut clock = clock();
+    clock.audio_clock = None;
+    runtime
+        .flush_external_expression(Beat::ZERO, &mut BTreeMap::new(), clock)
+        .unwrap();
+
+    let event = playback_event(
+        &runtime,
+        201,
+        0,
+        Beat::ZERO,
+        Message::NoteOn {
+            pitch: 67,
+            velocity: 100,
+        },
+    );
+    let action = playback_action(&mut runtime, &event, true);
+    let mut batches = BTreeMap::from([(EXTERNAL_ENDPOINT.into(), vec![action])]);
+    assert_eq!(
+        runtime.flush_external_expression(Beat::ZERO, &mut batches, clock),
+        Err("Audio timing is not ready".into())
+    );
+    assert_eq!(
+        batches[EXTERNAL_ENDPOINT].len(),
+        1,
+        "failed timing must retain actual external work"
+    );
+}
+
+#[test]
 fn runtime_external_sources_and_occurrences_keep_distinct_leases_through_monitor_cancel() {
     let (mut runtime, mut driver) = external_capture();
     input(&mut runtime, 5, MidiMessageKind::NoteOn, 60, 99, 1_510_000);

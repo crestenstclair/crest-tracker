@@ -70,6 +70,9 @@ impl SdlGamepads {
     }
 
     fn new() -> Result<Self, ControllerFailure> {
+        // SDL owns gamepads only. Its default SIGINT/SIGTERM handlers turn
+        // terminal interrupts into SDL Quit events, which this adapter ignores.
+        sdl3::hint::set("SDL_NO_SIGNAL_HANDLERS", "1");
         sdl3::hint::set("SDL_JOYSTICK_THREAD", "1");
         sdl3::hint::set("SDL_JOYSTICK_ALLOW_BACKGROUND_EVENTS", "1");
         let sdl = sdl3::init().map_err(|_| ControllerFailure::BackendUnavailable)?;
@@ -241,18 +244,20 @@ impl DeviceInput {
             }
             ControllerRole::Preview => {
                 self.consume_edit();
-                if self.shift_held() {
+                if self.shift_held() && !self.host_navigation {
                     ControllerGesture::ShiftStart
                 } else {
                     ControllerGesture::Start
                 }
             }
-            ControllerRole::PreviousPatch
+            ControllerRole::Popover
+            | ControllerRole::PreviousPatch
             | ControllerRole::NextPatch
             | ControllerRole::Settings => {
                 self.consume_edit();
                 self.held.insert(button, Hold::Action);
                 return Some(InputOutcome::Action(match role {
+                    ControllerRole::Popover => SemanticAction::OpenPopover,
                     ControllerRole::PreviousPatch if self.shift_held() && self.host_navigation => {
                         SemanticAction::Return
                     }
@@ -1340,7 +1345,7 @@ mod tests {
                 .unwrap();
             if chord {
                 input
-                    .press(&mut app, 1, ControllerButton::DPadUp, false)
+                    .press(&mut app, 1, ControllerButton::West, false)
                     .unwrap();
             }
             input
@@ -1369,7 +1374,7 @@ mod tests {
             );
             assert_eq!(app.state().interaction().mode(), InteractionMode::Modal);
             input
-                .release(&mut app, 1, ControllerButton::DPadUp, false)
+                .release(&mut app, 1, ControllerButton::West, false)
                 .unwrap();
             input.quarantine(&mut app).unwrap();
             assert_eq!(app.state().interaction().mode(), InteractionMode::Modal);
@@ -1562,7 +1567,7 @@ mod tests {
             .press(&mut app, 1, ControllerButton::South, false)
             .unwrap();
         input
-            .press(&mut app, 1, ControllerButton::DPadUp, false)
+            .press(&mut app, 1, ControllerButton::West, false)
             .unwrap();
         assert_eq!(app.state().interaction().mode(), InteractionMode::Modal);
         input
@@ -1717,6 +1722,30 @@ mod tests {
     }
 
     #[test]
+    fn hosted_start_stays_transport_with_shift_held() {
+        for hosted in [false, true] {
+            let mut input = DeviceInput {
+                host_navigation: hosted,
+                ..DeviceInput::default()
+            };
+            press(&mut input, ControllerButton::East);
+            assert_eq!(
+                press(&mut input, ControllerButton::North),
+                Some(if hosted {
+                    SemanticAction::PreviewStart
+                } else {
+                    SemanticAction::OpenMidiSettings
+                })
+            );
+            assert_eq!(press(&mut input, ControllerButton::North), None);
+            assert_eq!(
+                input.release(ControllerButton::North),
+                hosted.then_some(SemanticAction::PreviewStop)
+            );
+        }
+    }
+
+    #[test]
     fn modifiers_are_device_local_and_disconnect_clears_preview_and_holds() {
         let mut first = DeviceInput::default();
         let mut second = DeviceInput::default();
@@ -1801,6 +1830,40 @@ mod tests {
             input.release(ControllerButton::South),
             Some(SemanticAction::Activate)
         );
+    }
+
+    #[cfg(any(target_os = "macos", target_os = "linux"))]
+    #[test]
+    fn sdl_gamepad_startup_preserves_terminal_signals() {
+        use std::os::unix::process::ExitStatusExt;
+        const CHILD_SIGNAL: &str = "CREST_GAMEPAD_SIGNAL_TEST";
+        if let Ok(signal) = std::env::var(CHILD_SIGNAL) {
+            let signal = signal.parse::<i32>().unwrap();
+            assert!(matches!(signal, libc::SIGINT | libc::SIGTERM));
+            // This subprocess owns its signal dispositions and SDL lifetime.
+            unsafe { libc::signal(signal, libc::SIG_DFL) };
+            let _backend = SdlGamepads::new().expect("SDL3 Gamepad API must initialize");
+            unsafe { libc::raise(signal) };
+            panic!("SDL swallowed terminal signal {signal}");
+        }
+        for signal in [libc::SIGINT, libc::SIGTERM] {
+            let child = std::process::Command::new(std::env::current_exe().unwrap())
+                .args([
+                    "--exact",
+                    "shell::gamepad::tests::sdl_gamepad_startup_preserves_terminal_signals",
+                    "--nocapture",
+                ])
+                .env(CHILD_SIGNAL, signal.to_string())
+                .env_remove("SDL_NO_SIGNAL_HANDLERS")
+                .output()
+                .unwrap();
+            assert_eq!(
+                child.status.signal(),
+                Some(signal),
+                "signal {signal}: {}",
+                String::from_utf8_lossy(&child.stderr)
+            );
+        }
     }
 
     // One native SDL witness owns the process-wide event pump. Keep all virtual

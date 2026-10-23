@@ -4,7 +4,7 @@ use crate::control::{
     EngineSelectionFailure, EngineSelectionRequestId, EngineSelectionStatusKind, PatchControlId,
     PatchDetailSubject, PatchPositionId, ProspectivePatch, StructuralEditIntent, SurfaceId,
 };
-use crate::kernel::{MidiChannel, PatchId, MAX_ACTIVE_PATCHES};
+use crate::kernel::{MidiChannel, PatchId};
 use crate::mixer::patch_output::{PatchOutputParameter, PatchOutputParameterKind};
 use crate::real_time::GraphRevision;
 use crate::synth::instrument_capability::{
@@ -1439,7 +1439,7 @@ impl PatchPageProjection {
                     source.output(),
                     source.channel(),
                     source.voice_limit(),
-                    !prospective || state.patches().len() < MAX_ACTIVE_PATCHES,
+                    !prospective || state.patches().len() < state.patch_capacity(),
                     state.global(),
                 )
             })
@@ -1477,7 +1477,7 @@ impl PatchPageProjection {
             ) || (prospective && correlation.intent().is_append_patch()))
                 && correlation.patch_id() == source.correlation_patch_id()
         });
-        let creation_available = !prospective || state.patches().len() < MAX_ACTIVE_PATCHES;
+        let creation_available = !prospective || state.patches().len() < state.patch_capacity();
         let editable = creation_available
             && if prospective {
                 !state.capabilities().descriptors().is_empty()
@@ -1715,10 +1715,10 @@ impl PatchPageProjection {
                 focused_control_id,
                 patch: if prospective {
                     PatchPageIdentity::Empty {
-                        label: "NEW PATCH".to_owned(),
+                        label: format!("{:02}", state.patches().len()),
                         active_count: state.patches().len(),
-                        capacity: MAX_ACTIVE_PATCHES,
-                        creation_available: state.patches().len() < MAX_ACTIVE_PATCHES,
+                        capacity: state.patch_capacity(),
+                        creation_available: state.patches().len() < state.patch_capacity(),
                     }
                 } else {
                     PatchPageIdentity::Created {
@@ -1736,7 +1736,7 @@ impl PatchPageProjection {
                             .ok_or(PatchPageProjectionError::UnknownPatchFocus)?
                             .channel(),
                         active_count: state.patches().len(),
-                        capacity: MAX_ACTIVE_PATCHES,
+                        capacity: state.patch_capacity(),
                     }
                 },
                 output,

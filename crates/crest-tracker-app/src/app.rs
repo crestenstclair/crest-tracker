@@ -1,10 +1,12 @@
 //! Tracker application state and immutable presentation. Sound stays in the host adapter.
+pub(crate) mod cursor_demo;
 #[cfg(test)]
 pub(crate) mod demo;
 mod drum_controls;
 mod edit_preview;
 mod grid;
 mod piano_controls;
+mod piano_viewport;
 mod reference_edit;
 pub(crate) use piano_controls::{PianoControl, PianoValue};
 mod shared_edit;
@@ -59,12 +61,19 @@ pub enum TransportScope {
 #[derive(Clone, Debug, Deserialize)]
 #[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
 pub enum Request {
+    #[serde(skip)]
+    WorkspaceInput {
+        input: crate::workspace::input::Input,
+    },
     View {
         view: View,
     },
     BrowserFolders {
         sample: Option<String>,
         soundfont: Option<String>,
+    },
+    PatchCapacity {
+        capacity: usize,
     },
     SynthSettings,
     #[serde(skip)]
@@ -547,6 +556,7 @@ pub struct App {
     pub play_occurrence: Option<Occurrence>,
     pub play_phrase_beat: Option<Beat>,
     pub play_heads: Vec<crest_tracker::playback::AudiblePlayhead>,
+    pub song_play_heads: Vec<ChainSelection>,
     pub playback_revision: Option<u64>,
     pub playback_pending: bool,
     pub playback_fault: Option<String>,
@@ -565,6 +575,8 @@ pub struct App {
     pub resource_repair: Value,
     pub preferences: Value,
     pub file_dialog: Value,
+    /// Transient host-owned document replacement progress; never saved.
+    pub load_progress: Option<&'static str>,
     pub chord_library: Value,
     preview_cache: RefCell<Option<PreviewCache>>,
     expanded_selection: Vec<ChainSelection>,
@@ -586,6 +598,10 @@ pub struct App {
     pub(crate) pitch_intervals: bool,
     pub(crate) chromatic_entry: bool,
     pub(crate) roll_grid: Beat,
+    pub(crate) roll_new_length: Beat,
+    pub(crate) roll_new_velocity: u8,
+    pub(crate) roll_new_target: Option<Target>,
+    pub(crate) roll_view: piano_viewport::PianoViewport,
     roll_cursor: Beat,
     roll_pitch: u8,
     pub(crate) roll_value: PianoValue,
@@ -614,6 +630,7 @@ impl App {
             play_occurrence: None,
             play_phrase_beat: None,
             play_heads: Vec::new(),
+            song_play_heads: Vec::new(),
             playback_revision: None,
             playback_pending: false,
             playback_fault: None,
@@ -632,6 +649,7 @@ impl App {
             resource_repair: Value::Null,
             preferences: Value::Null,
             file_dialog: Value::Null,
+            load_progress: None,
             chord_library: json!({"entries":[],"loading":false}),
             preview_cache: RefCell::new(None),
             expanded_selection: Vec::new(),
@@ -652,6 +670,10 @@ impl App {
             pitch_intervals: false,
             chromatic_entry: false,
             roll_grid: Beat::new(1, 4).expect("valid grid"),
+            roll_new_length: Beat::new(1, 4).expect("valid length"),
+            roll_new_velocity: 100,
+            roll_new_target: None,
+            roll_view: piano_viewport::PianoViewport::default(),
             roll_cursor: Beat::ZERO,
             roll_pitch: 60,
             roll_value: PianoValue::Velocity,
@@ -676,6 +698,8 @@ impl App {
         self.drum_drafts.clear();
         self.roll_cursor = Beat::ZERO;
         self.roll_pitch = 60;
+        self.roll_new_target = None;
+        self.roll_view = piano_viewport::PianoViewport::default();
         self.roll_range_anchor = None;
         self.timeline_focus = None;
         self.timeline_row = 0;
@@ -1044,6 +1068,8 @@ impl App {
             | Request::RollBindings { .. }
             | Request::Arm { .. }
             | Request::SynthAction { .. }
+            | Request::WorkspaceInput { .. }
+            | Request::PatchCapacity { .. }
             | Request::BrowserFolders { .. } => {}
         }
         if end_gesture {
@@ -1178,7 +1204,7 @@ impl App {
             .editor
             .song()
             .chains
-            .get(&chain_use.chain)?
+            .get(&chain_use.chain.pattern().ok()?)?
             .phrases
             .get(self.chain_row)?;
         Some(Occurrence {
@@ -1203,6 +1229,17 @@ impl App {
         self.row = self.row.saturating_add_signed(vertical as isize);
         self.clamp_focus();
     }
+    pub fn selected_special(&self) -> Option<SpecialChain> {
+        self.editor
+            .song()
+            .tracks
+            .get(self.track)?
+            .slots
+            .get(self.slot)?
+            .as_ref()?
+            .chain
+            .special()
+    }
     pub fn selected_chain(&self) -> Option<(ChainId, &Chain)> {
         let usage = self
             .editor
@@ -1212,7 +1249,13 @@ impl App {
             .slots
             .get(self.slot)?
             .as_ref()?;
-        Some((usage.chain, self.editor.song().chains.get(&usage.chain)?))
+        Some((
+            usage.chain.pattern().ok()?,
+            self.editor
+                .song()
+                .chains
+                .get(&usage.chain.pattern().ok()?)?,
+        ))
     }
     pub fn selected_phrase(&self) -> Option<(PhraseId, &Phrase)> {
         let (_, chain) = self.selected_chain()?;
@@ -1223,7 +1266,7 @@ impl App {
     /// editing music. The host uses this distinction while a take is retained.
     pub fn confirm_edits_song(&self) -> bool {
         match self.view {
-            View::Song => self.selected_chain().is_none(),
+            View::Song => self.selected_chain().is_none() && self.selected_special().is_none(),
             View::Chain => self
                 .selected_chain()
                 .is_none_or(|(_, chain)| chain.phrases.get(self.row).is_none()),
@@ -1238,6 +1281,9 @@ impl App {
                 self.open_timeline_source()?;
             }
             View::Song => {
+                if self.selected_special().is_some() {
+                    return Ok(());
+                }
                 if self.selected_chain().is_none() {
                     let track = &self.editor.song().tracks[self.track];
                     self.command(Command::AddPhrase {
@@ -1287,6 +1333,12 @@ impl App {
             return Ok(());
         }
         if self.view == View::Song {
+            if self.selected_special().is_some() {
+                let mut track = self.editor.song().tracks[self.track].clone();
+                let usage = track.slots[self.slot].as_mut().expect("selected special");
+                usage.repeats = usage.repeats.saturating_add_signed(delta).max(1);
+                return self.command(Command::PutTrack { track });
+            }
             return self.adjust_chain_reference(delta);
         }
         if self.view == View::Chain {
@@ -1392,7 +1444,7 @@ impl App {
                     None => 0,
                     _ => {
                         return Err(DocumentError::Invalid(
-                            "use Edit + Up to edit this FX value",
+                            "use Popover (West / [) to edit this FX value",
                         ))
                     }
                 };
@@ -1529,10 +1581,10 @@ impl App {
             })?;
         let mut track = self.editor.song().tracks[index].clone();
         let usage = match track.slots.get(slot).and_then(Option::as_ref) {
-            Some(usage) if usage.chain == chain => usage.clone(),
+            Some(usage) if usage.chain == chain.into() => usage.clone(),
             _ => ChainUse {
                 id: UseId::new(self.editor.song().next_identity()?)?,
-                chain,
+                chain: chain.into(),
                 repeats: 1,
             },
         };
@@ -1546,6 +1598,9 @@ impl App {
         Ok(())
     }
     fn clear(&mut self) -> Result<(), DocumentError> {
+        if self.is_piano_roll() {
+            return self.clear_piano_notes();
+        }
         if self.is_drum() {
             return self.drum_confirm(true);
         }
@@ -1569,18 +1624,6 @@ impl App {
         }
         if self.view != View::Phrase {
             return Ok(());
-        }
-        if self
-            .selected_phrase()
-            .is_some_and(|(_, phrase)| matches!(phrase.form, PhraseForm::PianoRoll))
-            && !self.selected_event_ids().is_empty()
-        {
-            return self.edit_selection(
-                self.editor.revision(),
-                self.occurrence()
-                    .ok_or(DocumentError::Invalid("select a phrase occurrence first"))?,
-                SelectionAction::Delete,
-            );
         }
         if let Some((id, phrase)) = self.selected_phrase() {
             let at = phrase
@@ -1796,7 +1839,8 @@ impl App {
         let chain = &song.chains[&song.tracks[track].slots[slot]
             .as_ref()
             .expect("located chain use")
-            .chain];
+            .chain
+            .pattern()?];
         let chain_row = chain
             .phrases
             .iter()
@@ -1991,11 +2035,14 @@ impl App {
                 let mut lane = empty_timeline_lane(track, index);
                 lane.slot = Some(slot);
                 lane.chain_use = Some(usage.id);
+                let Ok(chain_id) = usage.chain.pattern() else {
+                    continue;
+                };
                 lane.name = format!(
                     "{:02} · CHAIN {} / {}",
                     index + 1,
-                    grid::definition_label(&song.chains, &usage.chain),
-                    song.chains[&usage.chain].name
+                    grid::definition_label(&song.chains, &chain_id),
+                    song.chains[&chain_id].name
                 );
                 let mut at = Beat::ZERO;
                 let mut details = 2048;
@@ -2061,7 +2108,11 @@ impl App {
         details: &mut usize,
     ) -> Result<bool, DocumentError> {
         let song = self.editor.song();
-        let chain = &song.chains[&usage.chain];
+        if usage.chain.special().is_some() {
+            *at = song.after_measures(*at, usage.repeats)?;
+            return Ok(*at < end);
+        }
+        let chain = &song.chains[&usage.chain.pattern()?];
         if chain.phrases.is_empty() {
             return Ok(true);
         }
@@ -2280,12 +2331,13 @@ impl App {
             .as_ref()
             .expect("selected occurrence has a chain")
             .clone();
-        let mut chain = song.chains[&chain_use.chain].clone();
+        let mut chain =
+            song.chains[&chain_use.chain.pattern().expect("selected phrase chain")].clone();
         let mut phrase_use = chain.phrases[self.chain_row].clone();
         phrase_use.repeats = 1;
         chain.phrases = vec![phrase_use];
         chain_use.repeats = 1;
-        let chain_id = chain_use.chain;
+        let chain_id = chain_use.chain.pattern().expect("selected phrase chain");
         track.slots = vec![Some(chain_use)];
         track.looped = false;
         track.muted = false;
@@ -2555,7 +2607,7 @@ impl App {
             .as_ref()
             .expect("source occurrence exists")
             .chain;
-        let id = candidate.song().chains[&chain].phrases[self.chain_row].phrase;
+        let id = candidate.song().chains[&chain.pattern()?].phrases[self.chain_row].phrase;
         let mut next = candidate.song().next_identity()?;
         let mut phrase = source.clone();
         phrase.name.push_str(" baked");
@@ -2761,8 +2813,13 @@ impl App {
                 as usize;
             self.column = 0;
         }
-        self.status = format!("SELECTED · {} events", events.len());
+        self.status = format!(
+            "SELECTED · {} event{}",
+            events.len(),
+            if events.len() == 1 { "" } else { "s" }
+        );
         self.event_selection = Some(EventSelection { phrase, events });
+        self.reveal_piano_cursor();
         Ok(())
     }
     fn edit_selection(
@@ -2991,7 +3048,8 @@ fn materialize_performance(
                 });
             }
             Message::Expression { .. } => {}
-            Message::MasterExpression { .. }
+            Message::KillNote { .. }
+            | Message::MasterExpression { .. }
             | Message::ExpressionLifetime { .. }
             | Message::EndExpression
             | Message::Send { .. }
@@ -3139,7 +3197,7 @@ mod timeline_tests {
                 .as_ref()
                 .unwrap()
                 .clone();
-            let id = app.editor.song().chains[&usage.chain].phrases[0].phrase;
+            let id = app.editor.song().chains[&usage.chain.pattern().unwrap()].phrases[0].phrase;
             let mut phrase = app.editor.song().phrases[&id].clone();
             phrase.steps = if index == 0 { 3 } else { 6 };
             phrase.division = Division::new(
@@ -3428,7 +3486,7 @@ mod timeline_tests {
         let mut app = two_lanes();
         let mut song = app.editor.song().clone();
         let first = song.tracks[0].slots[0].as_ref().unwrap().clone();
-        let phrase_id = song.chains[&first.chain].phrases[0].phrase;
+        let phrase_id = song.chains[&first.chain.pattern().unwrap()].phrases[0].phrase;
         let phrase = song.phrases.get_mut(&phrase_id).unwrap();
         let mut event = Event::note(
             EventId::new(100).unwrap(),
@@ -3441,7 +3499,7 @@ mod timeline_tests {
         phrase.events.push(event);
         song.tracks[0].looped = true;
         let second = song.tracks[1].slots[0].as_ref().unwrap().clone();
-        let dense = song.chains[&second.chain].phrases[0].phrase;
+        let dense = song.chains[&second.chain.pattern().unwrap()].phrases[0].phrase;
         song.phrases.get_mut(&dense).unwrap().steps = 1;
         song.phrases.get_mut(&dense).unwrap().division = Division::new(64, 255, 1).unwrap();
         song.tracks[1].looped = true;

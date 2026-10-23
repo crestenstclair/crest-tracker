@@ -62,7 +62,7 @@ fn append_lane(song: &mut Song, lane: usize, phrase: Phrase) {
     }
     song.tracks[lane].slots = vec![Some(ChainUse {
         id: UseId::new(base + 3).unwrap(),
-        chain,
+        chain: chain.into(),
         repeats: 1,
     })];
     song.tracks[lane].looped = true;

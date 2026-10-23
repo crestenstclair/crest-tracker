@@ -600,7 +600,7 @@ fn build_steps(
     steps.push(DemoSceneStep::WindowInput(WindowInput::key_down(
         WindowKey::K,
     )));
-    push_key_press(&mut steps, WindowKey::W);
+    push_key_press(&mut steps, WindowKey::BracketLeft);
     push_checkpoint(
         &mut steps,
         DemoCheckpoint::new("context.patch.choiceOpened"),
@@ -2350,6 +2350,7 @@ fn build_expected_coverage(
     let mut expected = Vec::new();
     for descriptor in AppEvent::surface_descriptor() {
         match descriptor {
+            crate::control::app_event::AppEventSurfaceDescriptor::OpenPopover => { expected.push("event.openPopover".to_owned()); }
             crate::control::app_event::AppEventSurfaceDescriptor::Send { .. } => {
                 // The physical digit sweep opens Sends; chain edits have dedicated witnesses.
                 expected.push("event.send".to_owned());
@@ -2431,7 +2432,8 @@ fn build_expected_coverage(
             crate::control::app_event::AppEventSurfaceDescriptor::SampleAssetLifecycleAdvanced {
                 ..
             } => {}
-            crate::control::app_event::AppEventSurfaceDescriptor::SetBrowserStart {..}=>{},
+            crate::control::app_event::AppEventSurfaceDescriptor::SetBrowserStart {..}
+            | crate::control::app_event::AppEventSurfaceDescriptor::SetPatchCapacity { .. } => {},
             crate::control::app_event::AppEventSurfaceDescriptor::FileCatalogRefreshed {
                 ..
             } => {}
@@ -3135,7 +3137,7 @@ mod tests {
         assert_eq!(WindowInput::surface_descriptor().len(), 49);
         assert_eq!(
             crate::control::app_event::AppEvent::surface_descriptor().len(),
-            58
+            60
         );
         assert_eq!(
             crate::kernel::midi_message::MidiMessageKind::surface_descriptor().len(),

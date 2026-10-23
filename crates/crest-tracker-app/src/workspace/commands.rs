@@ -35,13 +35,15 @@ pub(super) fn activate(app: &mut App, id: &str) {
         chord_action(app, id);
         return;
     }
-    if arrangement::activate(app, id)
+    if piano::activate(app, id)
+        || arrangement::activate(app, id)
         || library::activate(app, id)
         || midi::activate(app, id)
         || generator::activate(app, id)
         || effects::activate(app, id)
         || notes::activate(app, id)
-        || notes::expression_activate(app, id)
+        || expression::activate(app, id)
+        || channel_expression::activate(app, id)
         || chord_editor::activate(app, id)
         || navigate_command(app, id)
         || edit_command(app, id)
@@ -54,6 +56,10 @@ pub(super) fn activate(app: &mut App, id: &str) {
 }
 
 fn navigate_command(app: &mut App, id: &str) -> bool {
+    if id == "expression" {
+        expression::begin(app);
+        return true;
+    }
     if id == "effects" {
         effects::begin(app);
         return true;
@@ -67,16 +73,15 @@ fn navigate_command(app: &mut App, id: &str) -> bool {
     }
     let panel = match id {
         "menu" => Some(Panel::Menu),
-        "jump" => Some(Panel::QuickJump),
         "settings" => Some(Panel::Settings),
         "song_settings" => Some(Panel::SongSettings),
         "phrase_settings" => Some(Panel::PhraseSettings),
+        "chain_settings" => Some(Panel::ChainSettings),
         "files" => Some(Panel::File),
         "tools" => Some(Panel::Tools),
         "arrangement" => Some(Panel::Arrangement),
         "generator" => Some(Panel::Generator),
         "notes" => Some(Panel::Notes),
-        "expression" => Some(Panel::Expression),
         "library" => Some(Panel::Library),
         "chord_library" => Some(Panel::ChordLibrary),
         "repair" => Some(Panel::Repair),
@@ -155,6 +160,7 @@ fn edit_command(app: &mut App, id: &str) -> bool {
     if matches!(
         id,
         "pitch_display"
+            | "patch_capacity"
             | "pitch_entry"
             | "clock_input"
             | "clock_output"
@@ -335,7 +341,21 @@ pub(super) fn submit(app: &mut App, id: &str, value: String) {
         return;
     }
     if matches!(id, "expr_offset" | "expr_value" | "expr_number") {
-        match notes::submit_expression(app, id, &value) {
+        match expression::submit(app, id, &value) {
+            Ok(()) => back(app),
+            Err(error) => app.status = error,
+        }
+        return;
+    }
+    if matches!(id, "channel_time" | "channel_value" | "channel_number") {
+        match channel_expression::submit(app, id, &value) {
+            Ok(()) => back(app),
+            Err(error) => app.status = error,
+        }
+        return;
+    }
+    if id.starts_with("piano_") {
+        match piano::submit(app, id, &value) {
             Ok(()) => back(app),
             Err(error) => app.status = error,
         }

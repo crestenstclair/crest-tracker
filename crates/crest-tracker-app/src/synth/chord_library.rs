@@ -52,7 +52,7 @@ impl Runtime {
         };
         self.chord_library_publishing = chord.is_some();
         let (send, receive) = std::sync::mpsc::sync_channel(1);
-        let root = library::data_directory().join("chords");
+        let root = self.data_directory.join("chords");
         std::thread::spawn(move || {
             let result = (|| {
                 if let Some(chord) = chord {

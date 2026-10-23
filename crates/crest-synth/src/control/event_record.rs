@@ -306,6 +306,7 @@ pub enum EventInput {
         mode: InteractionMode,
     },
     OpenRelated,
+    OpenPopover,
     OpenMidiSettings,
     Activate,
     AssetImported {
@@ -366,6 +367,9 @@ pub enum EventInput {
         #[serde(rename = "requestId")]
         request_id: EngineSelectionRequestId,
         lifecycle: crate::control::SampleAssetLifecycle,
+    },
+    SetPatchCapacity {
+        capacity: usize,
     },
     SetBrowserStart {
         #[serde(rename = "assetKind")]
@@ -501,6 +505,7 @@ impl From<&AppEvent> for EventInput {
             },
             AppEvent::SetInteractionMode(mode) => Self::SetInteractionMode { mode: *mode },
             AppEvent::OpenRelated => Self::OpenRelated,
+            AppEvent::OpenPopover => Self::OpenPopover,
             AppEvent::Controller(event) => Self::Controller {
                 event: event.clone(),
             },
@@ -576,6 +581,9 @@ impl From<&AppEvent> for EventInput {
             } => Self::SampleAssetLifecycleAdvanced {
                 request_id: *request_id,
                 lifecycle: *lifecycle,
+            },
+            AppEvent::SetPatchCapacity { capacity } => Self::SetPatchCapacity {
+                capacity: *capacity,
             },
             AppEvent::SetBrowserStart { asset_kind, folder } => Self::SetBrowserStart {
                 asset_kind: *asset_kind,
@@ -757,6 +765,7 @@ impl EventInput {
                 | Self::Navigate { .. }
                 | Self::SetInteractionMode { .. }
                 | Self::OpenRelated
+                | Self::OpenPopover
                 | Self::OpenMidiSettings
                 | Self::ToggleTestMidi
                 | Self::PreviewStart
@@ -764,6 +773,7 @@ impl EventInput {
                 | Self::SetPatchOverviewOriginEnabled { .. }
                 | Self::EngineSelectionLifecycleAdvanced { .. }
                 | Self::SampleAssetLifecycleAdvanced { .. }
+                | Self::SetPatchCapacity { .. }
                 | Self::SetBrowserStart { .. }
                 | Self::FileCatalogRefreshed { .. }
                 | Self::EnterSurface { .. }

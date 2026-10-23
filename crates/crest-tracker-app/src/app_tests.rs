@@ -193,7 +193,7 @@ fn arrangement_grid_pages_preserve_occurrence_and_append_rows() {
         .map(|index| {
             Some(ChainUse {
                 id: UseId::new(first + 130 + index).unwrap(),
-                chain,
+                chain: chain.into(),
                 repeats: 1,
             })
         })
@@ -281,7 +281,7 @@ fn native_reuse_keeps_distinct_uses_and_rejects_sparse_assignment_atomically() {
     })
     .unwrap();
     let second_use = app.editor.song().tracks[1].slots[0].as_ref().unwrap();
-    assert_eq!(second_use.chain, chain);
+    assert_eq!(second_use.chain, chain.into());
     assert_ne!(second_use.id, original_use);
     let before = app.editor.song().clone();
     let revision = app.editor.revision();

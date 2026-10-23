@@ -1610,7 +1610,10 @@ where
         );
         let (mut device_status_writer, device_status) =
             AudioDeviceStatusBoundary::new().into_handles();
-        let render: AudioRenderCallback = Box::new(move |buffer| renderer.render(buffer));
+        let render = crate::shell::performance::audio_callback(
+            Box::new(move |buffer| renderer.render(buffer)),
+            device_config.sample_rate(),
+        );
         let on_runtime_error: AudioDeviceStatusCallback =
             Box::new(move |error| device_status_writer.publish_from_callback(error));
         let audio_stream: AudioStream = negotiated_audio.start(render, on_runtime_error)?;
@@ -3989,7 +3992,7 @@ mod tests {
         let projection = projection.as_ref().unwrap();
         assert_eq!(projection.context(), crate::control::TopLevelContext::Patch);
         let json = serde_json::to_string(projection.semantic_model()).unwrap();
-        assert!(json.contains("INIT"));
+        assert!(json.contains(DefaultSessionBlueprint::PATCH_NAME));
         assert!(!json.contains("Piano"));
         assert!(!json.contains("Strings"));
     }
@@ -4041,7 +4044,7 @@ mod tests {
         let projection = projection.as_ref().unwrap();
         assert_eq!(projection.context(), crate::control::TopLevelContext::Patch);
         let json = serde_json::to_string(projection.semantic_model()).unwrap();
-        assert!(json.contains("INIT"));
+        assert!(json.contains("\"patchName\":\"00\""));
         let document = document.lock().unwrap();
         let document = document.as_ref().unwrap();
         assert_eq!(document.name(), "Untitled");

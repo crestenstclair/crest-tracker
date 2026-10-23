@@ -115,7 +115,12 @@ fn install_dense_bass(runtime: &Runtime) {
     use crest_tracker::composition::{Event, EventId, Note, PhraseForm};
     let mut app = runtime.app.borrow_mut();
     let song = app.editor.song();
-    let chain = song.tracks[1].slots[0].as_ref().unwrap().chain;
+    let chain = song.tracks[1].slots[0]
+        .as_ref()
+        .unwrap()
+        .chain
+        .pattern()
+        .unwrap();
     let id = song.chains[&chain].phrases[0].phrase;
     let mut phrase = song.phrases[&id].clone();
     let target = phrase.events[0].target.clone();
@@ -159,9 +164,15 @@ fn dense_piano_notes_and_sustained_overlap_render_through_the_production_host() 
 }
 
 #[test]
-#[ignore = "production producer stall cleanup; run explicitly with --test-threads=1"]
-fn dense_piano_producer_stall_stops_before_overdue_attacks() {
+#[ignore = "production producer stall recovery; run explicitly with --test-threads=1"]
+fn dense_piano_producer_stall_recovers_without_overdue_attacks() {
     dense_piano_playback(400);
+}
+
+#[test]
+#[ignore = "production producer stall recovery; run explicitly with --test-threads=1"]
+fn dense_piano_short_producer_stall_recovers_without_overdue_attacks() {
+    dense_piano_playback(40);
 }
 
 fn dense_piano_playback(stall_blocks: u64) {
@@ -186,23 +197,14 @@ fn dense_piano_playback(stall_blocks: u64) {
                 }
                 2 => {
                     let app = runtime.app.borrow();
-                    if stall_blocks > 0 && !app.playing {
-                        assert!(
-                            app.playback_fault.as_ref().is_some_and(
-                                |fault| fault.contains("Playback missed its audio deadline")
-                            ),
-                            "{}",
-                            app.status
-                        );
-                        stage = 3;
-                        return false;
-                    }
                     assert!(
                         app.playing,
-                        "{}; routing {}, refusals {}",
+                        "{}; routing {}, refusals {}, frame {}, recoveries {}",
                         app.status,
                         audio.routing_failures(),
-                        audio.voice_limit_refusals()
+                        audio.voice_limit_refusals(),
+                        audio.rendered_frames(),
+                        runtime.playback_recoveries,
                     );
                     drop(app);
                     if !stalled && audio.rendered_frames() > started + 48_000 {
@@ -210,12 +212,18 @@ fn dense_piano_playback(stall_blocks: u64) {
                         stalled = true;
                     }
                     if audio.rendered_frames() > started + 48_000 * 12 {
+                        assert!(runtime.app.borrow().playback_fault.is_none());
+                        assert_eq!(runtime.playback_recoveries, u64::from(stall_blocks > 0));
+                        assert!(runtime.app.borrow().play_beat.unwrap() > Beat::integer(12));
                         assert!(evidence.audible_tracks[..5].iter().all(|audible| *audible));
                         queue(runtime, Request::Stop);
                         stage = 3;
                     }
                 }
-                3 if audio.active_notes() == 0 && !runtime.app.borrow().playing => return true,
+                3 if audio.active_notes() == 0 && !runtime.app.borrow().playing => {
+                    assert_eq!(runtime.app.borrow().status, "STOPPED");
+                    return true;
+                }
                 _ => {}
             }
             false
@@ -230,7 +238,12 @@ fn exceed_bass_voice_budget(runtime: &Runtime) {
     use crest_tracker::composition::{Event, EventId, Note, PhraseForm};
     let mut app = runtime.app.borrow_mut();
     let song = app.editor.song();
-    let chain = song.tracks[1].slots[0].as_ref().unwrap().chain;
+    let chain = song.tracks[1].slots[0]
+        .as_ref()
+        .unwrap()
+        .chain
+        .pattern()
+        .unwrap();
     let id = song.chains[&chain].phrases[0].phrase;
     let mut phrase = song.phrases[&id].clone();
     let target = phrase.events[0].target.clone();
@@ -522,7 +535,7 @@ fn add_workload_track(song: &mut Song, index: usize, instrument: InstrumentId) {
     );
     song.tracks[index].slots = vec![Some(ChainUse {
         id: UseId::new(base + 3).unwrap(),
-        chain,
+        chain: chain.into(),
         repeats: 1,
     })];
     song.tracks[index].looped = true;

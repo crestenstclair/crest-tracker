@@ -1,16 +1,12 @@
 /// A platform-independent key understood at the application window boundary.
 ///
-/// `Digit3` through `Digit9`, `Digit0`, and the two bracket keys are normalized
-/// here because the window sees them, not because anything at this boundary
-/// binds them. What a normalized key means is decided downstream: the
-/// translator binds `Digit1` and `Digit2` to the two top-level contexts and
-/// nothing else, and a scene that pages a gallery binds its own digits and
+/// Keys are normalized here because the window sees them; application bindings
+/// belong to the semantic translator. What a normalized key means is decided downstream: the
+/// translator binds `Digit1` and `Digit2` to the two top-level contexts, and a scene that pages a gallery binds its own digits and
 /// brackets locally without those ever becoming a semantic action.
 ///
-/// The two bracket keys are here for the same reason the digits are. A gallery
-/// that declares more pages than there are digits needs a way to reach the
-/// remainder, and stepping is that way — but stepping is a *scene's* gesture,
-/// so the window normalizes the key and stops there.
+/// `[` opens edit popovers in the application translator. Gallery scenes may
+/// also interpret brackets locally while they own input.
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 pub enum WindowKey {
     Digit1,
@@ -23,7 +19,7 @@ pub enum WindowKey {
     Digit8,
     Digit9,
     Digit0,
-    /// `[` — bound to no application meaning.
+    /// `[` — opens the focused edit popover.
     BracketLeft,
     /// `]` — bound to no application meaning.
     BracketRight,
@@ -272,7 +268,6 @@ mod tests {
             WindowKey::Digit8,
             WindowKey::Digit9,
             WindowKey::Digit0,
-            WindowKey::BracketLeft,
             WindowKey::BracketRight,
         ] {
             assert!(
@@ -289,13 +284,12 @@ mod tests {
     /// is asserted here, beside the vocabulary that normalizes them, because
     /// this is where a later change would add one.
     #[test]
-    fn the_four_keys_added_for_the_gallery_reach_no_semantic_action() {
+    fn remaining_gallery_only_keys_reach_no_semantic_action() {
         let mut translator =
             crate::shell::keyboard_input_translator::KeyboardInputTranslator::new();
         for key in [
             WindowKey::Digit9,
             WindowKey::Digit0,
-            WindowKey::BracketLeft,
             WindowKey::BracketRight,
         ] {
             assert_eq!(

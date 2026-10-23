@@ -186,7 +186,7 @@ impl PatchCreationBlueprint {
         let patch_id = PatchId::new(next_raw).map_err(|_| PatchCreationError::IdentityExhausted)?;
         let mut patch = Patch::new(
             patch_id,
-            format!("Patch {patch_id}"),
+            format!("{:02}", existing.len()),
             prospective.instrument_config().clone(),
             prospective
                 .channel()
@@ -244,7 +244,7 @@ pub struct DefaultSessionBlueprint {
 }
 
 impl DefaultSessionBlueprint {
-    pub const PATCH_NAME: &'static str = "INIT";
+    pub const PATCH_NAME: &'static str = "00";
 
     pub const fn new(instrument_capability_id: CapabilityId) -> Self {
         Self {
@@ -377,7 +377,7 @@ mod tests {
         assert_eq!(state.patches().len(), 1);
         let patch = &state.patches()[0];
         assert_eq!(patch.id(), PatchId::new(1).unwrap());
-        assert_eq!(patch.name(), "INIT");
+        assert_eq!(patch.name(), "00");
         assert_eq!(
             patch.instrument_config().capability_id().as_str(),
             HIDEF_CAPABILITY_ID
@@ -448,7 +448,7 @@ mod tests {
         let candidate = blueprint.candidate(&[existing]).unwrap();
 
         assert_eq!(candidate.id(), PatchId::new(8).unwrap());
-        assert_eq!(candidate.name(), "Patch 8");
+        assert_eq!(candidate.name(), "01");
         assert_eq!(candidate.channel(), MidiChannel::new(1).unwrap());
         assert_eq!(candidate.output().track_id(), MixerTrackId::new(1).unwrap());
         assert_eq!(candidate.output().trim_gain_db(), 0.0);
@@ -632,6 +632,9 @@ mod tests {
             .apply(AppEvent::SetInteractionMode(InteractionMode::Adjust))
             .unwrap();
         edited.apply(AppEvent::Adjust(Direction::Down)).unwrap();
+        edited
+            .apply(AppEvent::SetPatchCapacity { capacity: 2 })
+            .unwrap();
         let expected = SavedSession::capture(&edited);
         assert_ne!(expected, before);
         let target_revision = GraphRevision::new(2).unwrap();

@@ -25,6 +25,8 @@ use std::borrow::Cow;
 #[serde(rename_all = "camelCase")]
 pub(crate) struct SerializedState<'a> {
     pub(crate) generation: u64,
+    #[serde(default = "default_patch_capacity")]
+    pub(crate) patch_capacity: usize,
     #[serde(borrow)]
     pub(crate) capabilities: Cow<'a, CapabilityRegistry>,
     #[serde(borrow, default)]
@@ -44,10 +46,15 @@ pub(crate) struct SerializedState<'a> {
     pub(crate) controller: crate::control::ControllerState,
 }
 
+fn default_patch_capacity() -> usize {
+    crate::kernel::MAX_ACTIVE_PATCHES
+}
+
 impl<'a> From<&'a AppState> for SerializedState<'a> {
     fn from(state: &'a AppState) -> Self {
         Self {
             generation: state.generation(),
+            patch_capacity: state.patch_capacity(),
             capabilities: Cow::Borrowed(state.capabilities()),
             effects: Cow::Borrowed(state.effects()),
             patches: state.patches().iter().map(SerializedPatch::from).collect(),

@@ -375,7 +375,7 @@ fn add_phrase(song: &mut Song, track_id: TrackId, slot: usize) -> Result<(), Doc
     track.ensure_slot(slot)?;
     let usage = Some(ChainUse {
         id: chain_use,
-        chain,
+        chain: chain.into(),
         repeats: 1,
     });
     if track.slots[slot].is_none() {
@@ -423,7 +423,11 @@ fn make_unique(song: &mut Song, path: Occurrence) -> Result<(), DocumentError> {
             kind: "chain use",
             id: path.chain_use.get(),
         })?;
-    let old_chain = track.slots[slot_index].as_ref().expect("found slot").chain;
+    let old_chain = track.slots[slot_index]
+        .as_ref()
+        .expect("found slot")
+        .chain
+        .pattern()?;
     let mut chain = song
         .chains
         .get(&old_chain)
@@ -458,7 +462,7 @@ fn make_unique(song: &mut Song, path: Occurrence) -> Result<(), DocumentError> {
         .tracks
         .iter()
         .flat_map(|v| v.slots.iter().flatten())
-        .filter(|v| v.chain == old_chain)
+        .filter(|v| v.chain == old_chain.into())
         .count();
     let selected_chain = if parent_uses > 1 {
         for usage in &mut chain.phrases {
@@ -478,7 +482,7 @@ fn make_unique(song: &mut Song, path: Occurrence) -> Result<(), DocumentError> {
         .slots[slot_index]
         .as_mut()
         .expect("validated slot")
-        .chain = selected_chain;
+        .chain = selected_chain.into();
     Ok(())
 }
 fn quantize(
@@ -489,21 +493,43 @@ fn quantize(
 ) -> Result<(), DocumentError> {
     let length = phrase.length()?;
     for event in phrase.events.iter_mut().filter(|v| ids.contains(&v.id)) {
-        let at = event.at.quantized(grid)?;
-        if at >= length {
-            return Err(DocumentError::Invalid(
-                "quantized note would leave phrase; extend phrase first",
-            ));
-        }
-        event.at = at;
-        if durations {
-            if let Some(note) = &mut event.note {
-                note.quantize_duration(grid)?;
-            }
-        }
+        *event = quantized_event(event, length, grid, true, durations)?;
     }
+    phrase.events.sort_by_key(|event| (event.at, event.id));
     Ok(())
 }
+
+/// Build the same validated timing result for a preview or committed edit.
+/// Starts stay on the nearest grid point inside the phrase; tails may cross it.
+/// Relative expression and untouched MIDI values retain their exact values.
+pub fn quantized_event(
+    event: &Event,
+    phrase_length: Beat,
+    grid: Beat,
+    starts: bool,
+    durations: bool,
+) -> Result<Event, DocumentError> {
+    if grid.is_zero() || phrase_length.is_zero() {
+        return Err(DocumentError::Invalid(
+            "quantize grid and phrase length must be positive",
+        ));
+    }
+    let mut result = event.clone();
+    if starts {
+        let mut last = grid.checked_scale(phrase_length.units(grid)?, 1)?;
+        if last == phrase_length {
+            last = last.checked_sub(grid)?;
+        }
+        result.at = event.at.quantized(grid)?.min(last);
+    }
+    if durations {
+        if let Some(note) = &mut result.note {
+            note.quantize_duration(grid)?;
+        }
+    }
+    Ok(result)
+}
+
 fn resize_notes(phrase: &mut Phrase, ids: &[EventId], duration: Beat) -> Result<(), DocumentError> {
     for event in phrase
         .events

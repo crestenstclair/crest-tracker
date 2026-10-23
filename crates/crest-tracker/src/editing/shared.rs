@@ -64,9 +64,12 @@ fn slot_references(
         slot,
         phrase_row,
     };
+    let Ok(chain_id) = usage.chain.pattern() else {
+        return Vec::new();
+    };
     match definition {
-        Definition::Chain(id) if id == usage.chain => vec![reference(None, None)],
-        Definition::Phrase(id) => song.chains[&usage.chain]
+        Definition::Chain(id) if id == chain_id => vec![reference(None, None)],
+        Definition::Phrase(id) => song.chains[&chain_id]
             .phrases
             .iter()
             .enumerate()
@@ -134,8 +137,8 @@ pub fn definition_at(song: &Song, location: Location) -> Result<Definition, Docu
             "shared source occurrence no longer exists",
         ))?;
     match location.phrase_use {
-        None => Ok(Definition::Chain(usage.chain)),
-        Some(id) => song.chains[&usage.chain]
+        None => Ok(Definition::Chain(usage.chain.pattern()?)),
+        Some(id) => song.chains[&usage.chain.pattern()?]
             .phrases
             .iter()
             .find(|usage| usage.id == id)
@@ -194,7 +197,7 @@ pub(super) fn edit_unique(
                         .find(|usage| usage.id == location.chain_use)
                 })
                 .ok_or(DocumentError::Invalid("local chain occurrence disappeared"))?;
-            usage.chain = private;
+            usage.chain = private.into();
         }
     }
     Ok(())

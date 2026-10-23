@@ -235,7 +235,14 @@ fn bundled_example_matches_canonical_authoring_and_pins_all_sounds() {
         std::fs::write(path, serde_json::to_vec_pretty(&authored).unwrap()).unwrap();
         return;
     }
-    let bundled = demo::document().unwrap();
+    let mut bundled = demo::document().unwrap();
+    // Normalize the retained legacy fixture through Synth's schema migration.
+    let registry =
+        CapabilityRegistry::new(vec![BraidsCapability::new().unwrap().descriptor()]).unwrap();
+    bundled.synth = serde_json::to_value(
+        SavedSession::from_json(&bundled.synth.to_string(), &registry).unwrap(),
+    )
+    .unwrap();
     assert_eq!(
         serde_json::to_value(&bundled).unwrap(),
         serde_json::to_value(&authored).unwrap()

@@ -765,6 +765,47 @@ mod tests {
     }
 
     #[test]
+    fn summed_tracks_can_clip_below_their_individual_limits_and_remain_visible() {
+        let mut mixer = MixEngine::new();
+        mixer.prepare(48_000.0, 256).unwrap();
+        let parameters = snapshot(
+            &[
+                (1, track(0.0, 0.0, 0.0, 0.0)),
+                (2, track(0.0, 0.0, 0.0, 0.0)),
+                (3, track(0.0, 0.0, 0.0, 0.0)),
+                (4, track(0.0, 0.0, 0.0, 0.0)),
+            ],
+            globals(0.0),
+        );
+        let signal = [0.3; 512];
+        let block = audio_block(&parameters, &[&signal[..]; 4]);
+        let mut output = [0.0; 512];
+        let observation = mixer.mix(&block, &parameters, &mut output);
+        assert!(observation
+            .tracks()
+            .iter()
+            .all(|track| { track.left_peak() < 1.0 && track.right_peak() < 1.0 }));
+        assert!((observation.left_peak() - 1.2).abs() < 0.000_001);
+        assert_eq!(observation.clipped_samples(), 512);
+
+        let mut meter = crate::real_time::meter_ballistics::MeterBallistics::default();
+        meter.advance(observation, 256, 48_000.0);
+        let silence = [0.0; 512];
+        let quiet = mixer.mix(
+            &audio_block(&parameters, &[&silence[..]; 4]),
+            &parameters,
+            &mut output,
+        );
+        // The UI may skip the overloaded callback. A later quiet observation
+        // must still expose the overload without modifying any audio samples.
+        let displayed = meter.advance(quiet, 256, 48_000.0);
+        assert!(displayed.output.peak > 1.0);
+        assert!(displayed.tracks.iter().all(|track| track.peak < 1.0));
+        assert_eq!(displayed.clipped_samples, 512);
+        assert_eq!(output, silence);
+    }
+
+    #[test]
     fn mix_observation_counts_non_finite_output_without_non_finite_metrics() {
         let mut mixer = MixEngine::new();
         mixer.prepare(48_000.0, 1).expect("mixer prepares");

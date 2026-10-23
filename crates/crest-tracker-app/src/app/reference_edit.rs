@@ -56,7 +56,7 @@ impl App {
         }
         let usage = Some(ChainUse {
             id: UseId::new(fresh_identity(next, count as u64)?)?,
-            chain: ChainId::new(fresh_identity(next, count as u64 - 1)?)?,
+            chain: ChainId::new(fresh_identity(next, count as u64 - 1)?)?.into(),
             repeats: 1,
         });
         track.ensure_slot(self.slot)?;

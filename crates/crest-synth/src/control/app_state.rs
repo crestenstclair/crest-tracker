@@ -344,10 +344,7 @@ impl fmt::Display for EventRejection {
         let message = match self {
             Self::InstallationClosed => "patch installation is permitted only at startup",
             Self::TooManyPatches => {
-                return write!(
-                    formatter,
-                    "prepared Patch budget of {MAX_ACTIVE_PATCHES} is reached"
-                )
+                return write!(formatter, "configured Patch capacity is reached")
             }
             Self::InvalidInstrumentConfig => {
                 "an installed Patch instrument config does not match the capability registry"
@@ -457,8 +454,9 @@ pub(crate) fn exercise_reducer_table_rejections(
         capabilities: std::sync::Arc::new(capabilities.clone()),
         effects: std::sync::Arc::new(EffectCapabilityRegistry::default()),
         patch_creation_blueprint: None,
+        patch_capacity: MAX_ACTIVE_PATCHES,
         patches: Arc::new(vec![probe_patch(1, 0, instrument_config)]),
-        mixer: MixerState::default(),
+        mixer: Arc::new(MixerState::default()),
         global,
         returns: Arc::new(BusReturnBank::default()),
         interaction: {
@@ -562,8 +560,9 @@ pub struct AppState {
     // Availability probes must share the immutable installed defaults and
     // preset catalog, just as they share capability descriptors.
     patch_creation_blueprint: Option<Arc<crate::control::PatchCreationBlueprint>>,
+    patch_capacity: usize,
     patches: Arc<Vec<Patch>>,
-    mixer: MixerState,
+    mixer: Arc<MixerState>,
     global: GlobalParameters,
     returns: Arc<BusReturnBank>,
     interaction: InteractionState,
@@ -705,8 +704,9 @@ impl AppState {
             capabilities: std::sync::Arc::new(capabilities),
             effects: std::sync::Arc::new(effects),
             patch_creation_blueprint: None,
+            patch_capacity: MAX_ACTIVE_PATCHES,
             patches: Arc::new(Vec::new()),
-            mixer: MixerState::default(),
+            mixer: Arc::new(MixerState::default()),
             global,
             returns: Arc::new(BusReturnBank::default()),
             interaction: InteractionState::new(),
@@ -729,7 +729,7 @@ impl AppState {
     /// Supplies the complete fixed mixer bank when constructing restored or
     /// deterministic state. The bank's type guarantees exactly sixteen tracks.
     pub fn with_initial_mixer(mut self, mixer: MixerState) -> Self {
-        self.mixer = mixer;
+        self.mixer = Arc::new(mixer);
         self
     }
 
@@ -750,10 +750,30 @@ impl AppState {
                 .clone()
                 .with_send_count(returns.len())
                 .expect("validated return bank fits send storage");
-            self.mixer.set_track(track, values);
+            Arc::make_mut(&mut self.mixer).set_track(track, values);
         }
         self.returns = Arc::new(returns);
         self
+    }
+
+    /// Seeds a restored candidate before its one installation event. Runtime
+    /// capacity changes still go through SetPatchCapacity and advance generation.
+    pub(crate) fn with_initial_patch_capacity(
+        mut self,
+        capacity: usize,
+    ) -> Result<Self, EventRejection> {
+        if self.generation != 0 || !self.patches.is_empty() {
+            return Err(EventRejection::InstallationClosed);
+        }
+        if capacity == 0 || capacity > MAX_ACTIVE_PATCHES {
+            return Err(EventRejection::InvalidParameterValue);
+        }
+        self.patch_capacity = capacity;
+        Ok(self)
+    }
+
+    pub const fn patch_capacity(&self) -> usize {
+        self.patch_capacity
     }
 
     pub fn patches(&self) -> &[Patch] {
@@ -786,7 +806,7 @@ impl AppState {
         &self.global
     }
 
-    pub const fn mixer(&self) -> &MixerState {
+    pub fn mixer(&self) -> &MixerState {
         &self.mixer
     }
 
@@ -1101,10 +1121,11 @@ impl AppState {
 
         let mut next = self.clone();
         let effects = next.reduce(event)?;
-        let saved_session_changed = self.patches != next.patches
-            || self.mixer != next.mixer
+        let saved_session_changed = self.patch_capacity != next.patch_capacity
+            || (!Arc::ptr_eq(&self.patches, &next.patches) && self.patches != next.patches)
+            || (!Arc::ptr_eq(&self.mixer, &next.mixer) && self.mixer != next.mixer)
             || self.global != next.global
-            || self.returns != next.returns;
+            || (!Arc::ptr_eq(&self.returns, &next.returns) && self.returns != next.returns);
         next.generation = generation;
 
         *self = next;
@@ -1209,6 +1230,7 @@ impl AppState {
                 | AppEvent::Adjust(_)
                 | AppEvent::SetInteractionMode(_)
                 | AppEvent::OpenRelated
+                | AppEvent::OpenPopover
                 | AppEvent::OpenMidiSettings
                 | AppEvent::Activate
                 | AppEvent::PreviewStart
@@ -1292,6 +1314,10 @@ impl AppState {
                 self.interaction
                     .set_mode(mode)
                     .map_err(|_| EventRejection::ActionUnavailableInContext)?;
+                Ok(ReducerEffects::default())
+            }
+            AppEvent::OpenPopover => {
+                self.open_patch_choice()?;
                 Ok(ReducerEffects::default())
             }
             AppEvent::OpenRelated => {
@@ -1397,6 +1423,16 @@ impl AppState {
                 {
                     return Err(EventRejection::MismatchedEngineSelection);
                 }
+                Ok(ReducerEffects::default())
+            }
+            AppEvent::SetPatchCapacity { capacity } => {
+                if capacity == 0 || capacity > MAX_ACTIVE_PATCHES || capacity < self.patches.len() {
+                    return Err(EventRejection::InvalidParameterValue);
+                }
+                if self.engine_selection.is_in_flight() {
+                    return Err(EventRejection::StructuralEditBusy);
+                }
+                self.patch_capacity = capacity;
                 Ok(ReducerEffects::default())
             }
             AppEvent::SetBrowserStart { asset_kind, folder } => {
@@ -2258,7 +2294,7 @@ impl AppState {
         if self.generation != 0 || !self.patches.is_empty() {
             return Err(EventRejection::InstallationClosed);
         }
-        if patches.len() > MAX_ACTIVE_PATCHES {
+        if patches.len() > self.patch_capacity {
             return Err(EventRejection::TooManyPatches);
         }
         if patches.iter().any(|patch| {
@@ -2325,8 +2361,21 @@ impl AppState {
                 .with_asset_descriptor(descriptor.clone())
                 .map_err(|_| EventRejection::InvalidInstrumentConfig)?;
         }
-        let (patches, mixer, global, returns, target_graph_revision, sample_visualizations) =
-            replacement.into_parts();
+        let (
+            patches,
+            mixer,
+            global,
+            returns,
+            target_graph_revision,
+            sample_visualizations,
+            patch_capacity,
+        ) = replacement.into_parts();
+        if patch_capacity == 0
+            || patch_capacity > MAX_ACTIVE_PATCHES
+            || patches.len() > patch_capacity
+        {
+            return Err(EventRejection::InvalidParameterValue);
+        }
         if patches.is_empty() {
             return Err(EventRejection::NoPatchesInstalled);
         }
@@ -2361,8 +2410,9 @@ impl AppState {
         }
 
         self.capabilities = std::sync::Arc::new(capabilities);
+        self.patch_capacity = patch_capacity;
         self.patches = Arc::new(patches);
-        self.mixer = mixer;
+        self.mixer = Arc::new(mixer);
         self.global = global;
         self.returns = Arc::new(returns);
         self.interaction = InteractionState::new();
@@ -3726,7 +3776,7 @@ impl AppState {
                 .take()
                 .ok_or(EventRejection::MismatchedEngineSelection)?;
             if candidate.id() != *patch_id
-                || self.patches.len() >= MAX_ACTIVE_PATCHES
+                || self.patches.len() >= self.patch_capacity
                 || self.patches.iter().any(|patch| patch.id() == *patch_id)
             {
                 return Err(EventRejection::MismatchedEngineSelection);
@@ -3912,7 +3962,7 @@ impl AppState {
         if self.interaction.patch_position_focus() != Some(PatchPositionId::TrailingEmpty) {
             return Err(EventRejection::ActionUnavailableInContext);
         }
-        if self.patches.len() >= MAX_ACTIVE_PATCHES {
+        if self.patches.len() >= self.patch_capacity {
             return Err(EventRejection::TooManyPatches);
         }
         if self
@@ -4321,14 +4371,6 @@ impl AppState {
         &mut self,
         direction: Direction,
     ) -> Result<ReducerEffects, EventRejection> {
-        if direction == Direction::Up
-            && SemanticResolver::new(self)
-                .choice_subject(self.interaction.focus_path())
-                .is_some()
-        {
-            self.open_patch_choice()?;
-            return Ok(ReducerEffects::default());
-        }
         if self.interaction.patch_position_focus() == Some(PatchPositionId::TrailingEmpty) {
             let control = self
                 .interaction
@@ -5405,7 +5447,7 @@ impl AppState {
         let updated = current
             .with_send(bus, value)
             .map_err(|_| EventRejection::InvalidParameterValue)?;
-        self.mixer.set_track(track_id, updated);
+        Arc::make_mut(&mut self.mixer).set_track(track_id, updated);
         Ok(())
     }
 
@@ -5597,7 +5639,7 @@ impl AppState {
                 .with_scalar_value(parameter, value)
                 .map_err(|_| EventRejection::InvalidParameterValue)?
         };
-        self.mixer.set_track(track_id, updated);
+        Arc::make_mut(&mut self.mixer).set_track(track_id, updated);
         Ok(())
     }
 
@@ -6969,7 +7011,7 @@ mod tests {
         state
             .apply(AppEvent::SetInteractionMode(InteractionMode::Adjust))
             .unwrap();
-        state.apply(AppEvent::Adjust(Direction::Up)).unwrap();
+        state.apply(AppEvent::OpenPopover).unwrap();
 
         let request = state.apply(AppEvent::Activate).unwrap();
         assert!(!request.accepted().saved_session_changed());
@@ -7019,7 +7061,7 @@ mod tests {
         assert!(committed.accepted().saved_session_changed());
         assert_eq!(state.patches().len(), 3);
         assert_eq!(state.patches()[2].id(), PatchId::new(3).unwrap());
-        assert_eq!(state.patches()[2].name(), "Patch 3");
+        assert_eq!(state.patches()[2].name(), "02");
         assert_eq!(state.patches()[2].channel(), MidiChannel::new(2).unwrap());
         assert_eq!(
             state.patches()[2].output().track_id(),
@@ -7069,7 +7111,7 @@ mod tests {
         state
             .apply(AppEvent::SetInteractionMode(InteractionMode::Adjust))
             .unwrap();
-        state.apply(AppEvent::Adjust(Direction::Up)).unwrap();
+        state.apply(AppEvent::OpenPopover).unwrap();
         let request = state.apply(AppEvent::Activate).unwrap();
         let effect = request.engine_selection_effect().unwrap().clone();
         for lifecycle in [
@@ -7116,6 +7158,66 @@ mod tests {
             .unwrap();
         state.apply_semantic_action(left).unwrap();
         assert_eq!(state.interaction().patch_focus(), Some(prior_id));
+    }
+
+    #[test]
+    fn saved_patch_capacity_enforces_admission_and_rejects_invalid_changes_atomically() {
+        let mut state = AppState::new(registry(), global_parameters())
+            .with_patch_creation_blueprint(creation_blueprint());
+        state
+            .apply(AppEvent::InstallPatches(vec![
+                patch_on_channel(1, 0.0, 0),
+                patch_on_channel(2, 0.0, 1),
+            ]))
+            .unwrap();
+        let changed = state
+            .apply(AppEvent::SetPatchCapacity { capacity: 2 })
+            .unwrap();
+        assert!(changed.accepted().saved_session_changed());
+        assert!(changed.audio_command().is_none());
+        for capacity in [0, 1, MAX_ACTIVE_PATCHES + 1] {
+            let before = state.clone();
+            assert_eq!(
+                state.apply(AppEvent::SetPatchCapacity { capacity }),
+                Err(EventRejection::InvalidParameterValue)
+            );
+            assert_eq!(state, before);
+        }
+        state
+            .apply(AppEvent::SelectContext(TopLevelContext::Patch))
+            .unwrap();
+        state
+            .apply(AppEvent::SelectPatch(Direction::Right))
+            .unwrap();
+        state
+            .apply(AppEvent::SelectPatch(Direction::Right))
+            .unwrap();
+        let (_, page, _, _, _, _) = StateProjector::new()
+            .project_with_shell_tree(&state)
+            .unwrap();
+        assert_eq!(page.as_ref().unwrap().patch().capacity(), 2);
+        assert!(!page.unwrap().patch().creation_available());
+        state
+            .apply(AppEvent::SetInteractionMode(InteractionMode::Adjust))
+            .unwrap();
+        state.apply(AppEvent::OpenPopover).unwrap();
+        let before = state.clone();
+        assert_eq!(
+            state.apply(AppEvent::Activate),
+            Err(EventRejection::TooManyPatches)
+        );
+        assert_eq!(state, before);
+        state
+            .apply(AppEvent::SetPatchCapacity { capacity: 3 })
+            .unwrap();
+        let effects = state.apply(AppEvent::Activate).unwrap();
+        assert!(effects.engine_selection_effect().is_some());
+        let before = state.clone();
+        assert_eq!(
+            state.apply(AppEvent::SetPatchCapacity { capacity: 2 }),
+            Err(EventRejection::StructuralEditBusy)
+        );
+        assert_eq!(state, before);
     }
 
     #[test]
@@ -7172,7 +7274,7 @@ mod tests {
         state
             .apply(AppEvent::SetInteractionMode(InteractionMode::Adjust))
             .unwrap();
-        state.apply(AppEvent::Adjust(Direction::Up)).unwrap();
+        state.apply(AppEvent::OpenPopover).unwrap();
         let before = state.clone();
         assert_eq!(
             state.apply(AppEvent::Activate),
@@ -7225,7 +7327,7 @@ mod tests {
         state
             .apply(AppEvent::SetInteractionMode(InteractionMode::Adjust))
             .unwrap();
-        state.apply(AppEvent::Adjust(Direction::Up)).unwrap();
+        state.apply(AppEvent::OpenPopover).unwrap();
         state.apply(AppEvent::Activate).unwrap();
         assert_eq!(state.interaction().active_surface(), SurfaceId::PatchMain);
         assert!(state.pending_patch_creation().is_none());
@@ -7255,9 +7357,7 @@ mod tests {
         explicit_default
             .apply(AppEvent::SetInteractionMode(InteractionMode::Adjust))
             .unwrap();
-        explicit_default
-            .apply(AppEvent::Adjust(Direction::Up))
-            .unwrap();
+        explicit_default.apply(AppEvent::OpenPopover).unwrap();
         let outcome = explicit_default.apply(AppEvent::Activate).unwrap();
         assert_append_requested(&explicit_default, &outcome);
 
@@ -7287,7 +7387,7 @@ mod tests {
         effect
             .apply(AppEvent::SetInteractionMode(InteractionMode::Adjust))
             .unwrap();
-        effect.apply(AppEvent::Adjust(Direction::Up)).unwrap();
+        effect.apply(AppEvent::OpenPopover).unwrap();
         effect.apply(AppEvent::Navigate(Direction::Down)).unwrap();
         let outcome = effect.apply(AppEvent::Activate).unwrap();
         assert_append_requested(&effect, &outcome);
@@ -7330,7 +7430,7 @@ mod tests {
         descriptor
             .apply(AppEvent::SetInteractionMode(InteractionMode::Adjust))
             .unwrap();
-        descriptor.apply(AppEvent::Adjust(Direction::Up)).unwrap();
+        descriptor.apply(AppEvent::OpenPopover).unwrap();
         descriptor
             .apply(AppEvent::Navigate(Direction::Down))
             .unwrap();
@@ -7809,6 +7909,43 @@ mod tests {
     }
 
     #[test]
+    fn mixer_probes_share_unchanged_sound_and_edits_detach_transactionally() {
+        let mut state = installed_state();
+        for parameter in MixerTrackParameter::MAIN {
+            assert_eq!(
+                state.interaction().mixer_control_focus(),
+                &MixerControlId::Track {
+                    track_id: MixerTrackId::default(),
+                    parameter,
+                }
+            );
+            let before = state.clone();
+            let actions = SemanticResolver::new(&state).valid_actions();
+            assert!(!actions.is_empty());
+            assert!(Arc::ptr_eq(&state.mixer, &before.mixer));
+            assert_eq!(state, before, "availability probes must not edit sound");
+
+            let changed = state.apply(AppEvent::Adjust(Direction::Right)).unwrap();
+            assert!(changed.accepted().saved_session_changed());
+            assert!(!Arc::ptr_eq(&state.mixer, &before.mixer));
+            assert_ne!(state.mixer(), before.mixer());
+            assert!(Arc::ptr_eq(&state.patches, &before.patches));
+            assert!(Arc::ptr_eq(&state.returns, &before.returns));
+            assert_eq!(
+                state.engine_selection().active_graph_revision(),
+                before.engine_selection().active_graph_revision()
+            );
+
+            if parameter != MixerTrackParameter::Solo {
+                let mixer = state.mixer.clone();
+                let navigation = state.apply(AppEvent::Navigate(Direction::Down)).unwrap();
+                assert!(!navigation.accepted().saved_session_changed());
+                assert!(Arc::ptr_eq(&state.mixer, &mixer));
+            }
+        }
+    }
+
+    #[test]
     fn app_state_adjusts_exactly_one_value_and_rejects_at_the_bound() {
         let mut state = installed_state();
         let patches = state.patches().to_vec();
@@ -7971,7 +8108,7 @@ mod tests {
         );
 
         let mut open_choice = mixed_state();
-        open_choice.apply(AppEvent::Adjust(Direction::Up)).unwrap();
+        open_choice.apply(AppEvent::OpenPopover).unwrap();
         assert_eq!(
             open_choice.interaction().active_surface(),
             SurfaceId::PatchChoice
@@ -9506,7 +9643,7 @@ mod tests {
         assert_rejected_unchanged(&mut adjusting);
 
         let mut modal = mixed_state();
-        modal.apply(AppEvent::Adjust(Direction::Up)).unwrap();
+        modal.apply(AppEvent::OpenPopover).unwrap();
         assert_eq!(modal.interaction().mode(), InteractionMode::Modal);
         assert_rejected_unchanged(&mut modal);
 

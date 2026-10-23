@@ -1,6 +1,12 @@
 //! One event script for the visible demo and the production-DSP witness.
 //! Actions enter the same workspace boundary as the UI. Observations only verify
 //! results; this module has no controller/device API and never edits Song state.
+mod features;
+mod mixer;
+mod piano;
+mod song;
+mod stress;
+mod transport;
 use super::*;
 use crest_synth::control::{Direction, InteractionMode};
 use crest_synth::real_time::AudioObservationSnapshot;
@@ -27,17 +33,46 @@ pub(super) struct Report {
     voice_refusals: u64,
     nonfinite_samples: u64,
     late_events: u64,
+    playback_recoveries: u64,
     complete: bool,
     error: Option<String>,
+    cursor_positions_checked: usize,
+    shared_phrase_offsets: bool,
+    independent_song_cells: bool,
+    mixer: Vec<mixer::Observation>,
+    transport: Vec<transport::Observation>,
+}
+
+impl Report {
+    pub(super) fn record_failure(&mut self, error: String) {
+        self.complete = false;
+        self.error = Some(error);
+    }
 }
 
 enum Event {
+    CreateCursorDemo,
+    FileName,
+    AcceptSharedEdit,
+    FilePath(std::path::PathBuf),
     Action(SemanticAction),
+    Repeat(SemanticAction, usize),
     Activate(&'static str),
+    Focus(&'static str),
+    Submit(&'static str, &'static str),
     Decision(&'static str),
     Wait,
 }
 enum Check {
+    Transport(transport::Checkpoint),
+    Stress(stress::Checkpoint),
+    Piano(piano::Checkpoint),
+    Feature(features::Checkpoint),
+    Song(song::Checkpoint),
+    Mixer(mixer::Checkpoint),
+    CursorsReady,
+    PaddingPlayback { slot: usize, sounding: bool },
+    CursorProgress(u64),
     Ready,
     Held(bool),
     Chain,
@@ -51,6 +86,8 @@ enum Check {
     Retained,
     Imported,
     Playing,
+    PeakVoices(u32),
+    ReleasedBefore(Beat),
     FullPlayback,
     Stopped,
     Progress(u64),
@@ -69,10 +106,97 @@ pub(super) struct Scene {
     elapsed: Duration,
     started: Instant,
     full_playback: bool,
+    playback_timeout: u64,
     pub report: Report,
 }
 
 impl Scene {
+    pub fn named(name: &str) -> Result<Self, String> {
+        match name {
+            "corridors" => Ok(Self::new()),
+            "piano" => Ok(Self::piano()),
+            "cursors" => Ok(Self::cursors()),
+            "transport" => Ok(transport::scene()),
+            _ => features::scene(name)
+                .ok_or_else(|| format!("Unknown demo {name}. Use --list-demos")),
+        }
+    }
+
+    fn script(name: &'static str, steps: Vec<(&'static str, Event, Check)>) -> Self {
+        Self {
+            steps: steps
+                .into_iter()
+                .map(|(label, event, check)| Step {
+                    label,
+                    event,
+                    check,
+                })
+                .collect(),
+            index: 0,
+            issued: false,
+            elapsed: Duration::ZERO,
+            started: Instant::now(),
+            full_playback: false,
+            playback_timeout: 45,
+            report: Report {
+                scene: name,
+                ..Report::default()
+            },
+        }
+    }
+
+    pub fn piano() -> Self {
+        piano::scene()
+    }
+
+    pub fn cursors() -> Self {
+        use Check::*;
+        use Event::*;
+        let mut scene = Self::new();
+        scene.report.scene = "independent-track-cursors";
+        scene.steps = vec![
+            ("Application ready", Wait, Ready),
+            (
+                "Create ten short chains and one long chain",
+                CreateCursorDemo,
+                CursorsReady,
+            ),
+            (
+                "Start independent tracks",
+                Action(SemanticAction::PreviewStart),
+                FullPlayback,
+            ),
+            (
+                "Shared phrase plays at different local positions",
+                Wait,
+                CursorProgress(15),
+            ),
+            (
+                "Track 0 slot 05 while Track 1 stays in slot 00",
+                Wait,
+                CursorProgress(55),
+            ),
+            (
+                "Both tracks loop independently at 100 rows",
+                Wait,
+                CursorProgress(105),
+            ),
+            (
+                "Stop and release every voice",
+                Action(SemanticAction::PreviewStart),
+                Stopped,
+            ),
+        ]
+        .into_iter()
+        .map(|(label, event, check)| Step {
+            label,
+            event,
+            check,
+        })
+        .collect();
+        scene
+    }
+
     pub fn new() -> Self {
         use Check::*;
         use Direction::*;
@@ -162,7 +286,7 @@ impl Scene {
             ),
             (
                 "Global Settings from Song",
-                Action(NavigatePage(Up)),
+                Action(SemanticAction::OpenMidiSettings),
                 Panel("key_scale"),
             ),
             (
@@ -181,8 +305,13 @@ impl Scene {
                 Synth,
             ),
             (
-                "Shift + Left returns to Song from Synth Overview",
-                Action(NavigatePage(Left)),
+                "Shift + Down opens menu from Synth Overview",
+                Action(NavigatePage(Down)),
+                Panel("files"),
+            ),
+            (
+                "Return to Song from main menu",
+                Activate("home"),
                 View(crate::app::View::Song),
             ),
             ("Complete arrangement and release voices", Wait, Finished),
@@ -201,6 +330,7 @@ impl Scene {
             elapsed: Duration::ZERO,
             started: Instant::now(),
             full_playback: false,
+            playback_timeout: 45,
             report: Report {
                 scene: "corridors-of-time",
                 ..Report::default()
@@ -208,8 +338,15 @@ impl Scene {
         }
     }
 
-    pub fn advance(&mut self, runtime: &Runtime, clock: HostClock) -> Result<bool, String> {
+    pub fn advance(
+        &mut self,
+        runtime: &Runtime,
+        clock: HostClock,
+        projection: Option<&crest_synth::control::GraphicalShellProjection>,
+    ) -> Result<bool, String> {
+        let _timing = performance::span(Stage::SceneCheck);
         self.observe(clock.audio);
+        self.report.playback_recoveries = runtime.playback_recoveries;
         if self.report.complete {
             return Ok(true);
         }
@@ -225,11 +362,17 @@ impl Scene {
         {
             return Err("Audio reported routing, voice, nonfinite, or scheduling failures".into());
         }
+        if self.full_playback && self.report.scene == "independent-track-cursors" {
+            self.check_cursors(&runtime.app.borrow())?;
+        }
         let step = &self.steps[self.index];
-        let limit = if matches!(step.check, Check::Finished) {
-            330
-        } else {
-            45
+        let limit = match &step.check {
+            Check::Finished => 330,
+            Check::FullPlayback => self.playback_timeout,
+            Check::Song(song::Checkpoint::Finished {
+                timeout_seconds, ..
+            }) => *timeout_seconds,
+            _ => 45,
         };
         if self.started.elapsed() > Duration::from_secs(limit) {
             return Err(format!(
@@ -254,6 +397,9 @@ impl Scene {
             return Ok(false);
         }
         self.elapsed += clock.elapsed;
+        if self.report.scene.starts_with("stress-") && !runtime.app.borrow().requests.is_empty() {
+            return Ok(false);
+        }
         if self.full_playback {
             if let Some(beat) = runtime.app.borrow().play_beat {
                 self.report.last_beat = Some(self.report.last_beat.unwrap_or(Beat::ZERO).max(beat));
@@ -261,22 +407,53 @@ impl Scene {
         }
         // A short control-clock dwell makes the same script legible in the real
         // window. Worker/graph/audio completion is always a state checkpoint.
-        if self.elapsed < Duration::from_millis(160)
-            || !self.check(runtime, &step.check, clock.audio)?
-        {
+        let dwell = match &step.check {
+            _ if self.report.scene.starts_with("stress-") => Duration::from_millis(45),
+            Check::Mixer(check) => check.dwell(),
+            _ => Duration::from_millis(
+                if matches!(
+                    self.report.scene,
+                    "corridors-of-time" | "independent-track-cursors"
+                ) {
+                    160
+                } else {
+                    400
+                },
+            ),
+        };
+        if self.elapsed < dwell || !self.check(runtime, &step.check, clock.audio, projection)? {
             return Ok(false);
         }
-        eprintln!("DEMO PASS · {}", step.label);
-        if matches!(step.check, Check::Imported) {
+        // Keep checkpoint evidence in memory. Printing here can block the UI
+        // on stderr/filesystem backpressure and invalidate the audio stress test.
+        if let Check::Transport(_) = step.check {
+            self.report.transport.push(transport::observe(runtime));
+        }
+        if let Check::Mixer(_) = step.check {
+            self.report.mixer.push(mixer::observe(
+                runtime,
+                projection.ok_or("Missing Mixer projection")?,
+                clock.audio,
+            )?);
+        }
+        if matches!(
+            step.check,
+            Check::Imported | Check::CursorsReady | Check::FullPlayback
+        ) {
             let app = runtime.app.borrow();
-            self.report.notes = app
-                .editor
-                .song()
-                .phrases
-                .values()
-                .flat_map(|phrase| &phrase.events)
-                .filter(|event| event.note.is_some())
-                .count();
+            // The finite imported-song scene already counted all placements,
+            // including shared phrases and repeats. Live authoring scenes count
+            // their stored notes instead; some of those scenes loop forever.
+            if !matches!(self.report.scene, "imported-song" | "song-mixer") {
+                self.report.notes = app
+                    .editor
+                    .song()
+                    .phrases
+                    .values()
+                    .flat_map(|phrase| &phrase.events)
+                    .filter(|event| event.note.is_some())
+                    .count();
+            }
             self.report.instruments = app.mappings.len();
         }
         self.report.checkpoints.push(step.label);
@@ -310,11 +487,94 @@ impl Scene {
         }
     }
 
+    fn check_cursors(&mut self, app: &App) -> Result<(), String> {
+        if !app.playing || app.play_heads.is_empty() {
+            return Ok(());
+        }
+        let song = app.editor.song();
+        let step = app
+            .play_beat
+            .ok_or("missing audible time")?
+            .units(Beat::new(1, 4).unwrap())
+            .map_err(|e| e.to_string())?;
+        let row = step % 100;
+        if app.play_heads.len() != 2 {
+            return Err("expected two independent playheads".into());
+        }
+        for (track_index, slot_index, phrase_index, local_row) in [
+            (0, row as usize / 10, 0, row % 10),
+            (
+                1,
+                0,
+                if row < 5 {
+                    0
+                } else if row < 95 {
+                    1
+                } else {
+                    2
+                },
+                if row < 5 {
+                    row
+                } else if row < 95 {
+                    (row - 5) % 10
+                } else {
+                    row - 95
+                },
+            ),
+        ] {
+            let track = &song.tracks[track_index];
+            let usage = track.slots[slot_index]
+                .as_ref()
+                .ok_or("missing demo slot")?;
+            let phrase_use = &song.chains[&usage.chain.pattern().unwrap()].phrases[phrase_index];
+            let head = app
+                .play_heads
+                .iter()
+                .find(|head| head.occurrence.track == track.id)
+                .ok_or("missing track cursor")?;
+            if head.occurrence.chain_use != usage.id
+                || head.occurrence.phrase_use != phrase_use.id
+                || u64::from(head.row) != local_row
+            {
+                return Err(format!(
+                    "Track {track_index} cursor mismatch at step {step}: {head:?}"
+                ));
+            }
+        }
+        self.report.cursor_positions_checked += 1;
+        self.report.shared_phrase_offsets |= app.play_heads[0].phrase == app.play_heads[1].phrase
+            && app.play_heads[0].row != app.play_heads[1].row;
+        if app.view == View::Song {
+            let projection = crate::workspace::project(app)
+                .workspace
+                .ok_or("missing Song workspace")?;
+            let cells: Vec<_> = projection
+                .grid
+                .iter()
+                .flat_map(|row| &row.cells)
+                .filter(|cell| cell.playing)
+                .map(|cell| cell.id.clone())
+                .collect();
+            let mut expected = vec![format!("cell:{}:0", row / 10), "cell:0:1".into()];
+            expected.sort();
+            let mut actual = cells;
+            actual.sort();
+            if actual != expected || projection.grid.iter().any(|row| row.playing) {
+                return Err(format!(
+                    "Song playhead cells disagree at step {step}: {actual:?}"
+                ));
+            }
+            self.report.independent_song_cells |= row >= 10;
+        }
+        Ok(())
+    }
+
     fn check(
         &self,
         runtime: &Runtime,
         check: &Check,
         audio: AudioObservationSnapshot,
+        projection: Option<&crest_synth::control::GraphicalShellProjection>,
     ) -> Result<bool, String> {
         let app = runtime.app.borrow();
         let song = app.editor.song();
@@ -326,9 +586,47 @@ impl Scene {
                 .count()
         };
         Ok(match check {
-            Check::Panel(id) => crate::workspace::project(&app)
-                .workspace
-                .is_some_and(|v| v.rows.iter().any(|r| r.id == *id)),
+            Check::Transport(check) => transport::check(runtime, &self.report, check, audio)?,
+            Check::Stress(check) => stress::check(&app, check)?,
+            Check::Piano(check) => piano::check(&app, check),
+            Check::Feature(check) => features::check(&app, check),
+            Check::Song(check) => song::check(runtime, &self.report, check, audio)?,
+            Check::Mixer(check) => mixer::check(runtime, &self.report, check, audio, projection)?,
+            Check::PaddingPlayback { slot, sounding } => {
+                let track = &song.tracks[0];
+                track
+                    .slots
+                    .get(*slot)
+                    .and_then(Option::as_ref)
+                    .is_some_and(|usage| {
+                        app.playing
+                            && app
+                                .song_play_heads
+                                .iter()
+                                .any(|head| head.track == track.id && head.chain_use == usage.id)
+                            && (audio.active_notes() > 0) == *sounding
+                    })
+            }
+            Check::CursorsReady => {
+                song.name == "Independent track cursors"
+                    && song.tracks[0].slots.len() == 10
+                    && song.tracks[1].slots.len() == 1
+            }
+            Check::CursorProgress(step) => {
+                app.playing
+                    && app
+                        .play_beat
+                        .is_some_and(|at| at >= Beat::new(*step, 4).unwrap())
+                    && self.report.shared_phrase_offsets
+                    && self.report.independent_song_cells
+            }
+            Check::Panel(id) => crate::workspace::project(&app).workspace.is_some_and(|v| {
+                v.rows
+                    .iter()
+                    .chain(&v.tabs)
+                    .chain(&v.inspector)
+                    .any(|r| r.id == *id)
+            }),
             Check::Synth => {
                 app.view == View::Instruments && crate::workspace::project(&app).synth_visible()
             }
@@ -337,7 +635,10 @@ impl Scene {
             Check::Chain => app.view == View::Song && app.selected_chain().is_some(),
             Check::Phrase => app.view == View::Chain && app.selected_phrase().is_some(),
             Check::View(view) => {
-                app.view == *view && crate::workspace::project(&app).workspace.is_some()
+                app.view == *view
+                    && crate::workspace::project(&app)
+                        .workspace
+                        .is_some_and(|view| !view.grid.is_empty())
             }
             Check::Note(changed) => app.selected_phrase().is_some_and(|(_, phrase)| {
                 phrase.events.len() == 1
@@ -378,7 +679,16 @@ impl Scene {
                 }
                 true
             }
-            Check::Playing | Check::FullPlayback => app.playing && audio.active_notes() > 0,
+            Check::Playing => app.playing && audio.active_notes() > 0,
+            Check::PeakVoices(count) => self.report.peak_voices >= *count,
+            Check::ReleasedBefore(end) => {
+                app.playing
+                    && audio.active_notes() == 0
+                    && app.play_beat.is_some_and(|at| at >= Beat::ONE && at < *end)
+            }
+            Check::FullPlayback => {
+                app.playing && self.report.audible_tracks.iter().any(|audible| *audible)
+            }
             Check::Stopped => !app.playing && audio.active_notes() == 0,
             Check::Progress(beat) => {
                 app.playing && app.play_beat.is_some_and(|at| at >= Beat::integer(*beat))
@@ -412,16 +722,96 @@ impl Scene {
 fn dispatch(runtime: &Runtime, event: &Event, log: &mut Vec<String>) -> Result<(), String> {
     let mut app = runtime.app.borrow_mut();
     match event {
+        Event::CreateCursorDemo => {
+            let instrument = *app
+                .mappings
+                .keys()
+                .next()
+                .ok_or("demo instrument is not ready")?;
+            let command = crate::app::cursor_demo::arrangement(
+                app.editor.song(),
+                Target::instrument(instrument),
+            )
+            .map_err(|e| e.to_string())?;
+            let revision = app.editor.revision();
+            log.push("Edit(independent-track arrangement)".into());
+            app.requests.push(Request::Edit {
+                revision,
+                command: Box::new(command),
+            });
+        }
+        Event::AcceptSharedEdit => {
+            if let Some(token) = app.shared_edit_projection()["token"].as_u64() {
+                let id = format!("shared:{token}:shared");
+                require_visible_action(&app, &id)?;
+                log.push(format!("Activate({id})"));
+                crate::workspace::input::enqueue(
+                    &mut app,
+                    crate::workspace::input::Input::Event(WorkspaceEvent::Activate { id }),
+                );
+            }
+        }
+        Event::FileName => {
+            let dialog = &app.file_dialog;
+            if !matches!(dialog["mode"].as_str(), Some("open" | "save")) {
+                return Err("Scene expected a file browser".into());
+            }
+            let id = format!("dialog:{}:{}:filename", dialog["token"], dialog["version"]);
+            require_visible_action(&app, &id)?;
+            log.push(format!("Activate({id})"));
+            crate::workspace::input::enqueue(
+                &mut app,
+                crate::workspace::input::Input::Event(WorkspaceEvent::Activate { id }),
+            );
+        }
+        Event::FilePath(path) => {
+            let token = app.file_dialog["token"]
+                .as_u64()
+                .ok_or("Scene expected a file dialog token")?;
+            let id = format!("filename:{token}");
+            let value = path.to_str().ok_or("Demo path must be UTF-8")?.to_owned();
+            log.push(format!("Submit({id}, {value})"));
+            crate::workspace::input::enqueue(
+                &mut app,
+                crate::workspace::input::Input::Event(WorkspaceEvent::Submit { id, value }),
+            );
+        }
         Event::Wait => {}
         Event::Action(action) => {
-            log.push(format!("{action:?}"));
-            if !crate::workspace::action(&mut app, action.clone()) {
-                return Err("Scene action was not handled by Tracker".into());
+            dispatch_action(&mut app, action, log);
+        }
+        Event::Repeat(action, count) => {
+            for _ in 0..*count {
+                dispatch_action(&mut app, action, log);
             }
         }
         Event::Activate(id) => {
+            require_visible_action(&app, id)?;
             log.push(format!("Activate({id})"));
-            crate::workspace::event(&mut app, WorkspaceEvent::Activate { id: (*id).into() });
+            crate::workspace::input::enqueue(
+                &mut app,
+                crate::workspace::input::Input::Event(WorkspaceEvent::Activate {
+                    id: (*id).into(),
+                }),
+            );
+        }
+        Event::Focus(id) => {
+            require_visible_action(&app, id)?;
+            log.push(format!("Focus({id})"));
+            crate::workspace::input::enqueue(
+                &mut app,
+                crate::workspace::input::Input::Event(WorkspaceEvent::Focus { id: (*id).into() }),
+            );
+        }
+        Event::Submit(id, value) => {
+            log.push(format!("Submit({id}, {value})"));
+            crate::workspace::input::enqueue(
+                &mut app,
+                crate::workspace::input::Input::Event(WorkspaceEvent::Submit {
+                    id: (*id).into(),
+                    value: (*value).into(),
+                }),
+            );
         }
         Event::Decision(choice) => {
             let dialog = &app.file_dialog;
@@ -430,10 +820,45 @@ fn dispatch(runtime: &Runtime, event: &Event, log: &mut Vec<String>) -> Result<(
             }
             let id = format!("dialog:{}:{}:{choice}", dialog["token"], dialog["version"]);
             log.push(format!("Activate({id})"));
-            crate::workspace::event(&mut app, WorkspaceEvent::Activate { id });
+            crate::workspace::input::enqueue(
+                &mut app,
+                crate::workspace::input::Input::Event(WorkspaceEvent::Activate { id }),
+            );
         }
     }
     Ok(())
+}
+
+fn dispatch_action(app: &mut App, action: &SemanticAction, log: &mut Vec<String>) {
+    log.push(format!("{action:?}"));
+    if !crate::workspace::input::action(app, action.clone()) {
+        app.requests.push(Request::SynthAction {
+            action: action.clone(),
+        });
+    }
+}
+
+fn require_visible_action(app: &App, id: &str) -> Result<(), String> {
+    if matches!(id, "menu" | "home" | "instruments" | "transport") {
+        return Ok(());
+    }
+    let view = crate::workspace::project(app)
+        .workspace
+        .ok_or("Scene expected a Tracker workspace")?;
+    if view
+        .rows
+        .iter()
+        .chain(&view.inspector)
+        .chain(&view.tabs)
+        .any(|row| row.id == id && row.enabled)
+    {
+        Ok(())
+    } else {
+        Err(format!(
+            "Scene action {id} is unavailable in {}",
+            view.context
+        ))
+    }
 }
 
 struct Host {
@@ -449,10 +874,13 @@ impl ApplicationHost<LockFreeControlHandle> for Host {
         if self.done {
             return;
         }
-        match self.scene.advance(&self.runtime, clock) {
+        match self
+            .scene
+            .advance(&self.runtime, clock, Some(&sound.projection()))
+        {
             Ok(done) => self.done = done,
             Err(error) => {
-                self.scene.report.error = Some(error);
+                self.scene.report.record_failure(error);
                 let _ = self.runtime.stop(sound);
                 self.done = true;
             }
@@ -494,15 +922,27 @@ impl ApplicationHost<LockFreeControlHandle> for Host {
 }
 
 pub(super) fn run() -> Result<(), Box<dyn std::error::Error>> {
-    let root = std::env::temp_dir().join(format!("crest-corridors-demo-{}", uuid::Uuid::new_v4()));
+    run_scene(Scene::new())
+}
+
+pub(super) fn run_piano() -> Result<(), Box<dyn std::error::Error>> {
+    run_scene(Scene::piano())
+}
+
+pub(super) fn run_cursors() -> Result<(), Box<dyn std::error::Error>> {
+    run_scene(Scene::cursors())
+}
+
+pub(super) fn run_scene(scene: Scene) -> Result<(), Box<dyn std::error::Error>> {
+    let root = std::env::temp_dir().join(format!("crest-event-demo-{}", uuid::Uuid::new_v4()));
     std::fs::create_dir_all(&root)?;
-    let result = run_in(&root);
+    let result = run_in(&root, scene);
     // Scene scratch preferences/recovery never share the user's document storage.
     let _ = std::fs::remove_dir_all(root);
     result
 }
 
-fn run_in(root: &std::path::Path) -> Result<(), Box<dyn std::error::Error>> {
+fn run_in(root: &std::path::Path, scene: Scene) -> Result<(), Box<dyn std::error::Error>> {
     let app = Rc::new(RefCell::new(App::new()));
     let runtime = Runtime::with_data_directory(app.clone(), root.to_owned())?;
     let projection = app.clone();
@@ -522,17 +962,20 @@ fn run_in(root: &std::path::Path) -> Result<(), Box<dyn std::error::Error>> {
         }),
         event: Rc::new(|_| {}),
     };
-    let window =
-        TauriWebviewWindow::new("Crest Tracker · Corridors of Time demo").with_host(presentation);
+    let window = TauriWebviewWindow::new(format!("Crest Tracker · {} demo", scene.report.scene))
+        .with_host(presentation);
     let result = Rc::new(RefCell::new(None));
     let host = Host {
         runtime,
-        scene: Scene::new(),
+        scene,
         result: result.clone(),
         done: false,
         caption,
     };
     production_application(window, ApplicationConfig::default())?
+        .with_default_session_blueprint(crest_synth::control::DefaultSessionBlueprint::new(
+            crest_synth::synth::CapabilityId::new(DEFAULT_INSTRUMENT)?,
+        ))
         .without_system_input_devices()
         .run_with_host(host)?;
     let report = result

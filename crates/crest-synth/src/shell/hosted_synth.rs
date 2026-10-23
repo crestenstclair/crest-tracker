@@ -229,6 +229,14 @@ pub struct HostedSynthControl<'a, Boundary: ControlAudioBoundary> {
     lifecycle: Option<&'a mut SessionLifecycleCoordinator>,
 }
 
+/// Saved admission limit and the prepared storage budget for this runtime.
+#[derive(Clone, Copy, Debug)]
+pub struct HostedPatchCapacity {
+    pub limit: usize,
+    pub installed: usize,
+    pub maximum: usize,
+}
+
 impl<'a, Boundary: ControlAudioBoundary> HostedSynthControl<'a, Boundary> {
     #[cfg(test)]
     pub(crate) fn new(app: &'a mut AppLoop<Boundary>, persisted_edits_blocked: bool) -> Self {
@@ -261,6 +269,27 @@ impl<'a, Boundary: ControlAudioBoundary> HostedSynthControl<'a, Boundary> {
                 channel: patch.channel(),
             })
             .collect()
+    }
+
+    pub fn patch_capacity(&self) -> HostedPatchCapacity {
+        HostedPatchCapacity {
+            limit: self.app.state().patch_capacity(),
+            installed: self.app.patches().len(),
+            maximum: crate::kernel::MAX_ACTIVE_PATCHES,
+        }
+    }
+
+    pub fn set_patch_capacity(&mut self, capacity: usize) -> Result<(), HostedSynthError> {
+        if self.saved_edits_blocked() {
+            return Err(HostedSynthError::EditsBlocked);
+        }
+        self.app
+            .dispatch_from(AppEvent::SetPatchCapacity { capacity }, EventSource::System)?;
+        Ok(())
+    }
+
+    pub fn active_surface(&self) -> SurfaceId {
+        self.app.state().interaction().active_surface()
     }
 
     /// Reports only proven semantics of the actual installed engine. A pending
@@ -320,6 +349,8 @@ impl<'a, Boundary: ControlAudioBoundary> HostedSynthControl<'a, Boundary> {
     }
 
     pub fn projection(&self) -> GraphicalShellProjection {
+        let _timing =
+            crate::shell::performance::span(crate::shell::performance::Stage::SynthProjection);
         self.app.current_graphical_shell()
     }
 
@@ -1640,6 +1671,23 @@ mod tests {
             Err(HostedSynthError::LifecycleUnavailable)
         ));
         assert_eq!(host.capture_saved_session().unwrap(), before);
+        assert_eq!(audio.pop_command(), None);
+    }
+
+    #[test]
+    fn patch_capacity_uses_saved_edit_gate_and_emits_no_audio_command() {
+        let (mut app, mut audio) = app();
+        let mut host = HostedSynthControl::new(&mut app, true);
+        let before = host.capture_saved_session().unwrap();
+        assert!(matches!(
+            host.set_patch_capacity(3),
+            Err(HostedSynthError::EditsBlocked)
+        ));
+        assert_eq!(host.capture_saved_session().unwrap(), before);
+        host.persisted_edits_blocked = false;
+        host.set_patch_capacity(3).unwrap();
+        assert_eq!(host.patch_capacity().limit, 3);
+        assert_ne!(host.capture_saved_session().unwrap(), before);
         assert_eq!(audio.pop_command(), None);
     }
 

@@ -2465,8 +2465,7 @@ fn project_patch_surfaces(
         status.kind(),
         EngineSelectionStatusKind::Ready | EngineSelectionStatusKind::Failed
     );
-    let creation_available =
-        !prospective || state.patches().len() < crate::kernel::MAX_ACTIVE_PATCHES;
+    let creation_available = !prospective || state.patches().len() < state.patch_capacity();
     let mut controls = Vec::new();
 
     let engine_path = FocusPath::patch_main_at(patch_position, None, PatchControlId::Engine);
@@ -2601,8 +2600,8 @@ fn project_patch_surfaces(
             capability_id: descriptor.id().clone(),
             effect_count: configured_effect_count,
             active_count: state.patches().len(),
-            capacity: crate::kernel::MAX_ACTIVE_PATCHES,
-            creation_available: state.patches().len() < crate::kernel::MAX_ACTIVE_PATCHES,
+            capacity: state.patch_capacity(),
+            creation_available: state.patches().len() < state.patch_capacity(),
         }
     } else {
         SemanticSurfaceSummary::Patch {
@@ -2624,8 +2623,8 @@ fn project_patch_surfaces(
             capability_id: descriptor.id().clone(),
             effect_count: configured_effect_count,
             active_count: state.patches().len(),
-            capacity: crate::kernel::MAX_ACTIVE_PATCHES,
-            creation_available: state.patches().len() < crate::kernel::MAX_ACTIVE_PATCHES,
+            capacity: state.patch_capacity(),
+            creation_available: state.patches().len() < state.patch_capacity(),
         }
     } else {
         SemanticSurfaceSummary::PatchUtility {
@@ -5337,7 +5336,7 @@ mod projection_enrichment_tests {
         });
         let mut choice = patch_state();
         choice
-            .apply(AppEvent::Adjust(Direction::Up))
+            .apply(AppEvent::OpenPopover)
             .expect("the focused engine row opens its generic choice surface");
         let mut midi_settings = patch_state();
         midi_settings

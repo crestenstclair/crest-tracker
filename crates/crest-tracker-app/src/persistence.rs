@@ -211,6 +211,31 @@ pub fn atomic_write(path: &Path, bytes: &[u8]) -> Result<(), String> {
     result.map_err(|v| v.to_string())
 }
 
+/// Publish an import only when its output does not already exist. The temporary
+/// file is complete and synced before linking, so interruption cannot expose a
+/// partial Song and a concurrent writer cannot be overwritten.
+pub(crate) fn write_new(path: &Path, bytes: &[u8]) -> Result<(), String> {
+    let parent = path
+        .parent()
+        .filter(|v| !v.as_os_str().is_empty())
+        .unwrap_or(Path::new("."));
+    let temporary = parent.join(format!(".crest-import-{}.tmp", uuid::Uuid::new_v4()));
+    let result = (|| {
+        atomic_write(&temporary, bytes)?;
+        fs::hard_link(&temporary, path).map_err(|e| {
+            format!(
+                "Cannot create {} (existing files are never replaced): {e}",
+                path.display()
+            )
+        })?;
+        File::open(parent)
+            .and_then(|dir| dir.sync_all())
+            .map_err(|e| e.to_string())
+    })();
+    let _ = fs::remove_file(temporary);
+    result
+}
+
 /// Candidate I/O stays off the window/control thread. A worker result never publishes itself.
 pub enum Loaded {
     Song(Document),
@@ -226,7 +251,8 @@ impl LoadWorker {
     pub fn midi(path: PathBuf) -> Self {
         let (send, result) = mpsc::sync_channel(1);
         std::thread::spawn(move || {
-            let _ = send.send(crate::synth::corridors::midi_document(&path).map(Loaded::Imported));
+            let _ =
+                send.send(crate::synth::midi_import::midi_document(&path).map(Loaded::Imported));
         });
         Self {
             result,
@@ -236,7 +262,7 @@ impl LoadWorker {
     pub fn corridors() -> Self {
         let (send, result) = mpsc::sync_channel(1);
         std::thread::spawn(move || {
-            let _ = send.send(crate::synth::corridors::document().map(Loaded::Imported));
+            let _ = send.send(crate::synth::midi_import::document().map(Loaded::Imported));
         });
         Self {
             result,

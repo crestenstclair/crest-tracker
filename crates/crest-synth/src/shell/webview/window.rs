@@ -789,6 +789,13 @@ impl AppWindow for TauriWebviewWindow {
         app.listen_any(PAINTED_EVENT, move |event| {
             let _ = painted_sender.send(PageSignal::PaintedAck(event.payload().to_owned()));
         });
+        if crate::shell::performance::enabled() {
+            app.listen_any("crest://performance", |event| {
+                if let Ok(milliseconds) = serde_json::from_str::<f64>(event.payload()) {
+                    crate::shell::performance::observe_page_render(milliseconds);
+                }
+            });
+        }
         let render_error_sender = page_signal_sender;
         app.listen_any(RENDER_ERROR_EVENT, move |event| {
             let _ = render_error_sender.send(PageSignal::RenderError(event.payload().to_owned()));
@@ -800,6 +807,11 @@ impl AppWindow for TauriWebviewWindow {
         let authored = RepresentativeViewport::WideReference.fixture();
         let smallest = RepresentativeViewport::Compact.fixture();
         let window = WebviewWindowBuilder::new(&app, WINDOW_LABEL, WebviewUrl::CustomProtocol(url))
+            .initialization_script(if crate::shell::performance::enabled() {
+                "window.__CREST_PERF__ = true;"
+            } else {
+                "window.__CREST_PERF__ = false;"
+            })
             .title(&self.title)
             .inner_size(f64::from(authored.width_px), f64::from(authored.height_px))
             .min_inner_size(f64::from(smallest.width_px), f64::from(smallest.height_px))
@@ -982,7 +994,17 @@ impl AppWindow for TauriWebviewWindow {
                 }
                 let now = Instant::now();
                 let elapsed = now.duration_since(last_tick);
+                // IPC acknowledgments and meter events also wake this loop.
+                // Drain them promptly, but do not turn each one into another
+                // complete control tick and projection. The waker maintains
+                // the declared cadence even when there is no user input.
+                if elapsed < TICK_INTERVAL {
+                    return;
+                }
                 last_tick = now;
+                crate::shell::performance::tick_gap(elapsed);
+                let _frame_timing =
+                    crate::shell::performance::span(crate::shell::performance::Stage::WindowFrame);
                 if on_tick(elapsed) {
                     let document = document_projection();
                     let title = native_document_title(&document)

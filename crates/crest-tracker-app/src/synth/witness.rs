@@ -3,6 +3,7 @@
 mod audio;
 mod controller;
 mod corridors;
+mod demos;
 mod live;
 mod recording_edits;
 mod replacement;
@@ -32,6 +33,8 @@ type Step = Box<dyn FnMut(&mut Runtime, AudioObservationSnapshot, &mut Evidence)
 
 #[derive(Default, Serialize)]
 struct Evidence {
+    #[serde(skip)]
+    projection: Option<crest_synth::control::GraphicalShellProjection>,
     #[serde(skip)]
     control_stall_blocks: u64,
     callback_ns: Vec<u64>,
@@ -161,7 +164,7 @@ impl AppWindow for Window {
             let control_start = Instant::now();
             assert!(tick(elapsed), "production control loop failed");
             if audio.rendered_blocks().is_multiple_of(4) {
-                let _ = projection();
+                self.evidence.borrow_mut().projection = Some(projection());
             }
             if self.evidence.borrow().measured {
                 self.evidence

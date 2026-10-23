@@ -775,7 +775,7 @@ mod tests {
             )
             .unwrap();
         let usage = editor.song().tracks[0].slots[0].as_ref().unwrap();
-        let phrase = &editor.song().chains[&usage.chain].phrases[0];
+        let phrase = &editor.song().chains[&usage.chain.pattern().unwrap()].phrases[0];
         let occurrence = Occurrence {
             track: editor.song().tracks[0].id,
             chain_use: usage.id,

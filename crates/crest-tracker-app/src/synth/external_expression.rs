@@ -75,6 +75,7 @@ impl Ledger {
             .ok_or("MPE delivery lacks original attack ownership")?;
         Ok(match event.message {
             Message::NoteOff { velocity, .. } => Some(MpeOutputAction::Release { owner, velocity }),
+            Message::KillNote { .. } => Some(MpeOutputAction::Release { owner, velocity: 0 }),
             Message::Expression { control } => Some(MpeOutputAction::Expression {
                 owner,
                 master: false,
@@ -157,6 +158,9 @@ impl Runtime {
         batches: &mut BTreeMap<String, Vec<MpeOutputAction>>,
         clock: HostClock,
     ) -> Result<(), String> {
+        if batches.is_empty() {
+            return Ok(());
+        }
         let deadline = deadline_for_frame(clock, self.frame_at_beat(at, clock)?)?;
         for (endpoint, actions) in std::mem::take(batches) {
             let profile = self

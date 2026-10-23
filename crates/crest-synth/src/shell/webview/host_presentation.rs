@@ -9,6 +9,8 @@ pub struct WorkspaceRow {
     pub id: String,
     pub label: String,
     pub value: String,
+    pub enabled: bool,
+    pub span: usize,
     pub selected: bool,
     pub playing: bool,
 }
@@ -36,6 +38,7 @@ pub struct WorkspaceTextEntry {
 #[serde(rename_all = "camelCase")]
 pub struct WorkspaceSpan {
     pub id: String,
+    pub level_id: String,
     pub label: String,
     pub lane: usize,
     pub start: u32,
@@ -43,12 +46,43 @@ pub struct WorkspaceSpan {
     pub level: u8,
     pub selected: bool,
 }
+/// A host-owned value trace aligned to the timeline. Both axes use 0–10000.
+/// The host supplies every segment; the renderer never interpolates data.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize)]
+pub struct WorkspaceCurve {
+    pub label: String,
+    pub caption: String,
+    pub maximum: u32,
+    pub path: Vec<[u32; 2]>,
+    pub points: Vec<WorkspaceCurvePoint>,
+}
+#[derive(Clone, Debug, PartialEq, Eq, Serialize)]
+pub struct WorkspaceCurvePoint {
+    pub label: String,
+    pub position: u32,
+    pub value: u32,
+    pub selected: bool,
+}
 #[derive(Clone, Debug, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct WorkspaceTimeline {
+    pub label: String,
+    pub caption: String,
+    pub view_label: String,
+    /// Exact editing position, independent of the audible playhead.
+    pub cursor: Option<u32>,
     /// Host-authored lane emphasis (for example, the raised keys of a keyboard).
     pub secondary_lanes: Vec<usize>,
+    pub muted_lanes: Vec<usize>,
     pub spans: Vec<WorkspaceSpan>,
+    /// Original timing outlines while the host projects an uncommitted edit.
+    pub originals: Vec<WorkspaceSpan>,
+    pub beat_columns: Vec<usize>,
+    pub cursor_lane: Option<usize>,
+    pub level_action: WorkspaceRow,
+    pub level_focused: bool,
+    pub curve: Option<WorkspaceCurve>,
+    pub cursor_width: u32,
     pub playhead: Option<u32>,
 }
 #[derive(Clone, Debug, PartialEq, Eq, Serialize)]
@@ -57,6 +91,7 @@ pub struct WorkspacePreview {
     pub caption: String,
     pub values: Vec<String>,
     pub keys: Vec<WorkspaceRow>,
+    pub controls: Vec<WorkspaceRow>,
     pub footer: String,
 }
 
@@ -64,6 +99,12 @@ pub struct WorkspacePreview {
 #[serde(rename_all = "camelCase")]
 pub struct WorkspaceProjection {
     pub overlay: bool,
+    /// A non-interactive progress modal; the host also gates input admission.
+    pub busy: bool,
+    /// Compact contextual fields alongside an underlying timeline.
+    pub panel_columns: usize,
+    pub panel_caption: String,
+    pub summary: String,
     pub playing: bool,
     pub timeline: Option<WorkspaceTimeline>,
     pub preview: Option<WorkspacePreview>,
@@ -80,6 +121,7 @@ pub struct WorkspaceProjection {
     pub tabs: Vec<WorkspaceRow>,
     pub inspector_title: String,
     pub inspector: Vec<WorkspaceRow>,
+    /// Focus-local controls, grouped by newline. The footer wraps each group.
     pub hints: String,
     pub text_entry: Option<WorkspaceTextEntry>,
 }
@@ -107,10 +149,25 @@ impl HostView {
 #[derive(Clone, Debug, Deserialize)]
 #[serde(tag = "kind", rename_all = "camelCase", deny_unknown_fields)]
 pub enum WorkspaceEvent {
-    Focus { id: String },
-    Activate { id: String },
-    Submit { id: String, value: String },
-    TextChanged { id: String, value: String },
+    /// Measured list capacity; `id` identifies the first projected row.
+    ListPageSize {
+        id: String,
+        rows: usize,
+    },
+    Focus {
+        id: String,
+    },
+    Activate {
+        id: String,
+    },
+    Submit {
+        id: String,
+        value: String,
+    },
+    TextChanged {
+        id: String,
+        value: String,
+    },
 }
 
 #[derive(Clone)]

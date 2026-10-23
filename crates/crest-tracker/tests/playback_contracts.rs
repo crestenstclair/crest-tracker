@@ -77,7 +77,7 @@ fn single_lane(phrase: Phrase, looped: bool) -> Song {
     );
     song.tracks[0].slots = vec![Some(ChainUse {
         id: UseId::new(104).unwrap(),
-        chain,
+        chain: chain.into(),
         repeats: 1,
     })];
     song.tracks[0].looped = looped;
@@ -324,7 +324,7 @@ fn unequal_straight_and_triplet_lanes_keep_independent_exact_cycles() {
     second.id = TrackId::new(2).unwrap();
     second.slots = vec![Some(ChainUse {
         id: UseId::new(204).unwrap(),
-        chain,
+        chain: chain.into(),
         repeats: 1,
     })];
     song.tracks.push(second);
@@ -474,6 +474,26 @@ fn tempo_segments_accumulate_exactly_before_final_frame_rounding() {
     );
     map.insert(Beat::new(1, 3).unwrap(), Tempo::new(180_000).unwrap());
     assert_eq!(map.frame_at(Beat::ONE, 48_000).unwrap(), 29_333);
+}
+
+#[test]
+fn many_unrelated_tempos_keep_sample_accuracy_and_representable_cursors() {
+    let values = [
+        120001, 119999, 113003, 127007, 109013, 131009, 107021, 137029, 103007, 139021,
+    ];
+    let mut map = TempoMap::new(Tempo::new(values[0]).unwrap());
+    for index in 0..200 {
+        map.insert(
+            Beat::integer(index),
+            Tempo::new(values[index as usize % values.len()]).unwrap(),
+        );
+    }
+    // Independently summed as exact fractions, then rounded once at 48 kHz.
+    assert_eq!(map.frame_at(Beat::integer(200), 48_000).unwrap(), 4_823_353);
+    for frame in (0..4_823_353).step_by(7919) {
+        let at = map.beat_at_frame(frame, 48_000).unwrap();
+        assert_eq!(map.frame_at(at, 48_000).unwrap(), frame);
+    }
 }
 
 #[test]
@@ -1264,7 +1284,7 @@ fn off_cuts_owned_chord_across_windows_without_cutting_other_track_or_future_att
         name: "Other".into(),
         slots: vec![Some(ChainUse {
             id: UseId::new(204).unwrap(),
-            chain: other_chain,
+            chain: (other_chain).into(),
             repeats: 1,
         })],
         looped: false,

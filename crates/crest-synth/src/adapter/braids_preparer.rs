@@ -785,7 +785,20 @@ impl PreparedInstrument for PreparedBraidsInstrument {
             MidiMessageKind::AllNotesOff if voice_id.is_none() => {
                 self.silence_channel(source, channel)
             }
-            MidiMessageKind::AllNotesOff => Err(PreparedInstrumentError::DispatchRejected),
+            MidiMessageKind::AllNotesOff => {
+                for voice in self
+                    .voices
+                    .iter_mut()
+                    .filter(|voice| voice.belongs_to(source, voice_id, channel))
+                {
+                    voice.held = false;
+                    voice.envelope.note_off(
+                        parameters.envelope().release_milliseconds(),
+                        BRAIDS_HOST_SAMPLE_RATE,
+                    );
+                }
+                Ok(())
+            }
             MidiMessageKind::ProgramChange => Err(PreparedInstrumentError::UnsupportedMidiKind {
                 kind: MidiMessageKind::ProgramChange,
             }),

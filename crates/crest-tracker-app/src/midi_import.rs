@@ -1,9 +1,49 @@
 //! Standard MIDI type 0/1 imports into the same exact-time Song used by the demo.
-use crate::corridors::{Import, Part};
+mod arrangement;
+pub(crate) mod organization;
+pub(crate) mod timeline;
+pub(crate) use arrangement::arrange;
 use crest_tracker::composition::*;
 use crest_tracker::time::{Beat, Meter, Tempo};
 use midly::{MetaMessage, MidiMessage, Smf, Timing, TrackEventKind};
 use std::collections::{BTreeMap, VecDeque};
+use std::io::Read;
+use std::path::Path;
+
+pub(crate) fn read_bounded(path: &Path) -> Result<Vec<u8>, String> {
+    let mut bytes = Vec::new();
+    std::fs::File::open(path)
+        .map_err(|e| e.to_string())?
+        .take(crate::persistence::MAX_DOCUMENT_BYTES + 1)
+        .read_to_end(&mut bytes)
+        .map_err(|e| e.to_string())?;
+    if bytes.len() as u64 > crate::persistence::MAX_DOCUMENT_BYTES {
+        return Err("Import input exceeds the 64 MiB admission budget".into());
+    }
+    Ok(bytes)
+}
+
+pub struct Part {
+    pub instrument: InstrumentId,
+    pub name: String,
+    pub channel: u8,
+    pub bank: u16,
+    pub program: u8,
+}
+
+pub struct Import {
+    pub song: Song,
+    pub parts: Vec<Part>,
+    pub diagnostics: Diagnostics,
+    pub end: Beat,
+}
+
+#[derive(Default, Debug, serde::Serialize)]
+pub struct Diagnostics {
+    pub one_tick_gates: usize,
+    pub notes_closed_at_end: usize,
+    pub unmatched_releases: usize,
+}
 
 struct Attack {
     at: u64,
@@ -22,6 +62,7 @@ struct Importer {
     active: BTreeMap<(u8, u8), VecDeque<Attack>>,
     tempos: BTreeMap<u64, Tempo>,
     end: u64,
+    diagnostics: Diagnostics,
 }
 impl Importer {
     fn beat(&self, tick: u64) -> Result<Beat, String> {
@@ -119,8 +160,10 @@ impl Importer {
             .get_mut(&(channel, pitch))
             .and_then(VecDeque::pop_front)
         else {
+            self.diagnostics.unmatched_releases += 1;
             return Ok(());
         };
+        self.diagnostics.one_tick_gates += usize::from(tick == attack.at);
         let finish = tick.max(attack.at + 1);
         let mut note = Note::new(pitch, attack.velocity, self.beat(finish - attack.at)?)
             .map_err(|e| e.to_string())?;
@@ -212,11 +255,10 @@ impl Importer {
                 if micros == 0 {
                     return Err("MIDI tempo must be positive".into());
                 }
-                self.tempos.insert(
-                    tick,
-                    Tempo::new(((60_000_000_000 + micros / 2) / micros) as u32)
-                        .map_err(|e| e.to_string())?,
-                );
+                let milli_bpm = u32::try_from((60_000_000_000 + micros / 2) / micros)
+                    .map_err(|_| "MIDI tempo exceeds Tracker's representable range")?;
+                self.tempos
+                    .insert(tick, Tempo::new(milli_bpm).map_err(|e| e.to_string())?);
             }
             MetaMessage::TimeSignature(n, d, _, _) => {
                 let denominator = 1_u16
@@ -234,6 +276,7 @@ impl Importer {
     fn finish(mut self) -> Result<Import, String> {
         let held: Vec<_> = self.active.iter().map(|(key, v)| (*key, v.len())).collect();
         for ((channel, pitch), count) in held {
+            self.diagnostics.notes_closed_at_end += count;
             self.release_remaining(channel, pitch, count)?;
         }
         if !self
@@ -250,7 +293,9 @@ impl Importer {
         }
         self.song.meters.sort_by_key(|m| m.at);
         let end = self.beat(self.end.max(1))?;
-        crate::corridors::arrange(self.song, self.parts, self.lanes, self.next, end)
+        let mut imported = arrange(self.song, self.parts, self.lanes, self.next, end)?;
+        imported.diagnostics = self.diagnostics;
+        Ok(imported)
     }
     fn release_remaining(&mut self, channel: u8, pitch: u8, count: usize) -> Result<(), String> {
         for _ in 0..count {
@@ -287,6 +332,9 @@ fn same_control(a: Control, b: Control) -> bool {
 }
 
 pub(crate) fn parse(bytes: &[u8], name: &str) -> Result<Import, String> {
+    if bytes.len() as u64 > crate::persistence::MAX_DOCUMENT_BYTES {
+        return Err("MIDI file exceeds the 64 MiB import budget".into());
+    }
     let smf = Smf::parse(bytes).map_err(|e| e.to_string())?;
     let Timing::Metrical(ppq) = smf.header.timing else {
         return Err("SMPTE MIDI timing is not supported; export metrical type 0 or 1".into());
@@ -309,6 +357,7 @@ pub(crate) fn parse(bytes: &[u8], name: &str) -> Result<Import, String> {
         active: BTreeMap::new(),
         tempos: BTreeMap::new(),
         end: 0,
+        diagnostics: Diagnostics::default(),
     };
     let names: Vec<_> = smf
         .tracks
@@ -332,7 +381,11 @@ pub(crate) fn parse(bytes: &[u8], name: &str) -> Result<Import, String> {
     events.sort_by_key(|(tick, track, index, _)| (*tick, *track, *index));
     for (tick, track, _, event) in events {
         importer.end = importer.end.max(tick);
-        match event{TrackEventKind::Midi{channel,message}=>importer.midi(tick,channel.as_int(),message,&names[track])?,TrackEventKind::Meta(m)=>importer.meta(tick,m)?,TrackEventKind::SysEx(_)|TrackEventKind::Escape(_)=>return Err("System-exclusive MIDI requires device-specific interpretation; remove SysEx before import".into())}
+        match event {
+            TrackEventKind::Midi { channel, message } => importer.midi(tick, channel.as_int(), message, &names[track])?,
+            TrackEventKind::Meta(message) => importer.meta(tick, message)?,
+            TrackEventKind::SysEx(_) | TrackEventKind::Escape(_) => return Err("System-exclusive MIDI requires device-specific interpretation; remove SysEx before import".into()),
+        }
     }
     importer.finish()
 }
@@ -545,6 +598,86 @@ mod tests {
         );
     }
     #[test]
+    fn tiny_file_with_extreme_silence_fails_before_arrangement_expansion() {
+        let bytes = file(vec![
+            (
+                0,
+                midi(
+                    0,
+                    MidiMessage::NoteOn {
+                        key: 60.into(),
+                        vel: 90.into(),
+                    },
+                ),
+            ),
+            (
+                0x0fff_ffff,
+                midi(
+                    0,
+                    MidiMessage::NoteOff {
+                        key: 60.into(),
+                        vel: 0.into(),
+                    },
+                ),
+            ),
+        ]);
+        assert!(bytes.len() < 100);
+        assert!(parse(&bytes, "Huge delta")
+            .err()
+            .unwrap()
+            .contains("placement import budget"));
+    }
+    #[test]
+    fn diagnostics_account_for_each_explicit_gate_repair() {
+        let bytes = file(vec![
+            (
+                0,
+                midi(
+                    0,
+                    MidiMessage::NoteOn {
+                        key: 60.into(),
+                        vel: 90.into(),
+                    },
+                ),
+            ),
+            (
+                0,
+                midi(
+                    0,
+                    MidiMessage::NoteOff {
+                        key: 60.into(),
+                        vel: 0.into(),
+                    },
+                ),
+            ),
+            (
+                0,
+                midi(
+                    0,
+                    MidiMessage::NoteOff {
+                        key: 61.into(),
+                        vel: 0.into(),
+                    },
+                ),
+            ),
+            (
+                12,
+                midi(
+                    0,
+                    MidiMessage::NoteOn {
+                        key: 64.into(),
+                        vel: 90.into(),
+                    },
+                ),
+            ),
+            (36, TrackEventKind::Meta(MetaMessage::EndOfTrack)),
+        ]);
+        let import = parse(&bytes, "Repairs").unwrap();
+        assert_eq!(import.diagnostics.one_tick_gates, 1);
+        assert_eq!(import.diagnostics.unmatched_releases, 1);
+        assert_eq!(import.diagnostics.notes_closed_at_end, 1);
+    }
+    #[test]
     fn unsupported_system_data_fails_without_partial_import() {
         assert!(
             parse(&file(vec![(0, TrackEventKind::SysEx(&[1, 2, 3]))]), "SysEx")
@@ -552,5 +685,17 @@ mod tests {
                 .unwrap()
                 .contains("System-exclusive")
         );
+    }
+
+    #[test]
+    fn unrepresentable_tempo_is_rejected_instead_of_wrapping() {
+        let bytes = file(vec![(
+            0,
+            TrackEventKind::Meta(MetaMessage::Tempo(1.into())),
+        )]);
+        assert!(parse(&bytes, "Extreme tempo")
+            .err()
+            .unwrap()
+            .contains("representable range"));
     }
 }

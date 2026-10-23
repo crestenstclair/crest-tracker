@@ -40,6 +40,10 @@ pub struct AudioRenderer<Boundary, Structural, Observation = DiscardAudioObserva
     active_notes: SourceNoteObservation,
     scheduled_patches: [Option<PatchId>; MAX_ACTIVE_PATCHES],
     scheduled_epoch: u64,
+    // Local topology edits preserve Patch identities and the queued schedule.
+    // A whole-session replacement starts a new revision fence.
+    scheduled_graph_floor: GraphRevision,
+    metering: crate::real_time::meter_ballistics::MeterBallistics,
     send_leases: SendLeases,
     pending_scheduled: Option<ScheduledEvent>,
     rendered_blocks: u64,
@@ -94,6 +98,8 @@ where
             boundary,
             structural,
             observation,
+            scheduled_graph_floor: initial_graph.revision(),
+            metering: Default::default(),
             active_graph: initial_graph,
             pending_retirement: None,
             candidate_parameters: parameters.clone(),
@@ -371,8 +377,20 @@ where
         });
         match result {
             Some(Ok(())) => {
+                let observation =
+                    if voice.is_some() && message.kind() == MidiMessageKind::AllNotesOff {
+                        MidiMessage::try_new(
+                            message.channel(),
+                            MidiMessageKind::NoteOff,
+                            message.data1(),
+                            0,
+                        )
+                        .unwrap_or(message)
+                    } else {
+                        message
+                    };
                 self.active_notes
-                    .observe_patch_message(source, patch_id, message);
+                    .observe_patch_message(source, patch_id, observation);
                 if source == MidiSource::Scheduled {
                     self.mark_scheduled_patch(patch_id);
                 }
@@ -448,7 +466,9 @@ where
             if event.epoch() != self.scheduled_epoch || event.epoch() != epoch {
                 continue;
             }
-            if event.graph_revision() != self.active_graph.revision() {
+            if event.graph_revision() < self.scheduled_graph_floor
+                || event.graph_revision() > self.active_graph.revision()
+            {
                 self.routing_failures = self.routing_failures.saturating_add(1);
                 continue;
             }
@@ -598,6 +618,11 @@ where
     }
 
     fn publish_rendered_block(&mut self, observation: RenderedSegment) {
+        let metering = self.metering.advance(
+            observation.mix,
+            observation.frames,
+            self.active_graph.sample_rate(),
+        );
         self.rendered_blocks = self.rendered_blocks.saturating_add(1);
         self.rendered_frames = self
             .rendered_frames
@@ -628,7 +653,8 @@ where
                 self.scheduled_max_lateness_frames,
                 self.boundary.scheduled_queue_high_water(),
             )
-            .with_preview_observation(observation.preview),
+            .with_preview_observation(observation.preview)
+            .with_metering(metering),
         );
     }
 
@@ -766,16 +792,21 @@ where
         };
 
         let replacement_revision = replacement.revision();
-        // Old-revision note-offs will not be delivered into the new graph.
-        // Release their owned notes before any live instances carry over.
-        self.release_scheduled_notes();
+        let carry_over = replacement.carry_over_scope();
+        if matches!(
+            carry_over,
+            None | Some(crate::real_time::GraphReplacementScope::WholeSession)
+        ) {
+            self.release_scheduled_notes();
+            self.scheduled_graph_floor = replacement_revision;
+            self.metering = Default::default();
+        }
         replacement.exchange_initial_parameters_on_audio(&mut self.parameters);
         // Voice carry-over: before the graphs exchange, move every
         // still-live prepared instance the declared delta leaves unchanged
         // from the active graph into the replacement — bounded pointer swaps,
         // no allocation, no destruction. The fresh never-sounded instances
         // ride into the superseded graph and retire off-callback as before.
-        let carry_over = replacement.carry_over_scope();
         replacement.carry_live_state_from(&mut self.active_graph);
         let retired = core::mem::replace(&mut self.active_graph, replacement);
         let retired_revision = retired.revision();
@@ -2090,6 +2121,23 @@ mod tests {
             Ok(())
         }
 
+        fn dispatch_from(
+            &mut self,
+            _source: MidiSource,
+            message: MidiMessage,
+            parameters: &crate::real_time::RtPatchParameters,
+        ) -> Result<(), PreparedInstrumentError> {
+            self.dispatch(message, parameters)
+        }
+
+        fn all_notes_off_from(
+            &mut self,
+            _source: MidiSource,
+        ) -> Result<(), PreparedInstrumentError> {
+            self.all_notes_off();
+            Ok(())
+        }
+
         fn render(
             &mut self,
             output: &mut [f32],
@@ -2240,6 +2288,102 @@ mod tests {
         // The superseded graph carries the fresh never-sounded instance and
         // retires off-callback intact.
         assert_eq!(renderer.structural.retired_count, 1);
+    }
+
+    #[test]
+    fn local_graph_edits_preserve_the_schedule_and_full_replacement_fences_it() {
+        use crate::adapter::lock_free_audio_boundary::LockFreeAudioBoundary;
+        use crate::real_time::scheduled_event::ScheduledEvent;
+        use crate::real_time::{AudioBoundary, ControlAudioBoundary, GraphReplacementScope};
+        for scope in [
+            Some(GraphReplacementScope::Audition),
+            Some(GraphReplacementScope::PatchSlot {
+                patch_id: PatchId::new(1).unwrap(),
+                slot: crate::synth::effect_slot_id::EffectSlotIndex::ALL[0],
+            }),
+            Some(GraphReplacementScope::SelectedEngine(
+                PatchId::new(1).unwrap(),
+            )),
+            Some(GraphReplacementScope::WholeSession),
+            None,
+        ] {
+            let fixture = CarryOverFixture::new();
+            let source = fixture.graph(1, 10);
+            let mut target = fixture.graph(2, 20);
+            if let Some(scope) = scope {
+                target.set_carry_over_scope(scope);
+            }
+            let (mut control, audio) =
+                LockFreeAudioBoundary::new(16, fixture.parameters(1, 10)).into_handles();
+            for (frame, kind) in [
+                (0, MidiMessageKind::NoteOn),
+                (9, MidiMessageKind::NoteOff),
+                (10, MidiMessageKind::NoteOn),
+                (14, MidiMessageKind::NoteOff),
+            ] {
+                control
+                    .push_scheduled(ScheduledEvent::new(
+                        frame,
+                        control.scheduled_epoch(),
+                        GraphRevision::INITIAL,
+                        fixture.patch.id(),
+                        midi(kind),
+                    ))
+                    .unwrap();
+            }
+            let mut renderer = AudioRenderer::with_observation(
+                audio,
+                TestStructural::new(),
+                source,
+                TestObservation::default(),
+            );
+            let mut output = [0.0; 8];
+            renderer.render(&mut output);
+            assert_eq!(renderer.active_notes.count(), 1);
+            renderer.structural.prepared[0] = Some(target);
+            begin_memory_count();
+            renderer.render(&mut output);
+            let memory = finish_memory_count();
+            assert_eq!(memory, (0, 0));
+            assert_eq!(fixture.drops.load(Ordering::Relaxed), 0);
+            let reset = matches!(scope, None | Some(GraphReplacementScope::WholeSession));
+            let engine = matches!(scope, Some(GraphReplacementScope::SelectedEngine(_)));
+            assert_eq!(renderer.active_notes.count(), u32::from(!reset && !engine));
+            renderer.render(&mut output);
+            assert_eq!(
+                renderer.active_notes.count(),
+                u32::from(!reset),
+                "queued attack survives a local edit"
+            );
+            renderer.render(&mut output);
+            assert_eq!(
+                renderer.active_notes.count(),
+                0,
+                "queued release must reach carried voice"
+            );
+            assert_eq!(renderer.routing_failures, if reset { 3 } else { 0 });
+            if !reset {
+                // Cancellation still releases carried voices after more than one swap.
+                control
+                    .push_scheduled(ScheduledEvent::new(
+                        16,
+                        control.scheduled_epoch(),
+                        GraphRevision::INITIAL,
+                        fixture.patch.id(),
+                        midi(MidiMessageKind::NoteOn),
+                    ))
+                    .unwrap();
+                let mut next = fixture.graph(3, 30);
+                next.set_carry_over_scope(GraphReplacementScope::Audition);
+                renderer.structural.prepared[0] = Some(next);
+                renderer.render(&mut output);
+                assert_eq!(renderer.active_notes.count(), 1);
+                control.cancel_scheduled().unwrap();
+                renderer.render(&mut output);
+                assert_eq!(renderer.active_notes.count(), 0);
+                assert_eq!(renderer.routing_failures, 0);
+            }
+        }
     }
 
     /// Negative space: a `SelectedEngine` scope restarts exactly the

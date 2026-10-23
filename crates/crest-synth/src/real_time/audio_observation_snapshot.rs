@@ -44,6 +44,7 @@ pub struct AudioObservationSnapshot {
     wet_output_rms: f32,
     non_finite_samples: u64,
     clipped_samples: u64,
+    metering: Option<crate::real_time::meter_ballistics::MeterLevels>,
 }
 
 impl AudioObservationSnapshot {
@@ -207,6 +208,7 @@ impl AudioObservationSnapshot {
             wet_output_rms: mix.wet_output_rms(),
             non_finite_samples: mix.non_finite_samples(),
             clipped_samples: mix.clipped_samples(),
+            metering: None,
         }
     }
 
@@ -487,7 +489,20 @@ impl AudioObservationSnapshot {
             wet_output_rms,
             non_finite_samples,
             clipped_samples,
+            metering: None,
         }
+    }
+
+    pub const fn with_metering(
+        mut self,
+        metering: crate::real_time::meter_ballistics::MeterLevels,
+    ) -> Self {
+        self.metering = Some(metering);
+        self
+    }
+
+    pub const fn metering(self) -> Option<crate::real_time::meter_ballistics::MeterLevels> {
+        self.metering
     }
 
     /// Cumulative schedule timing and producer-sampled queue occupancy.

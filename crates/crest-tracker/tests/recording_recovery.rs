@@ -13,7 +13,7 @@ fn setup() -> (Editor, Occurrence, PhraseId) {
         .apply(0, Command::AddPhrase { track, slot: 0 })
         .unwrap();
     let chain_use = editor.song().tracks[0].slots[0].as_ref().unwrap();
-    let phrase_use = &editor.song().chains[&chain_use.chain].phrases[0];
+    let phrase_use = &editor.song().chains[&chain_use.chain.pattern().unwrap()].phrases[0];
     let path = Occurrence {
         track,
         chain_use: chain_use.id,

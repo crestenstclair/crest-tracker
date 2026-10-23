@@ -1,10 +1,13 @@
 //! Deterministic musical execution; no devices, MIDI encoding or sound internals.
 mod resolve;
+mod tempo_map;
+mod voices;
 use crate::composition::*;
 use crate::time::{Beat, Tempo};
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 use std::sync::Arc;
+pub use tempo_map::TempoMap;
 use thiserror::Error;
 
 #[derive(Debug, Clone, Error)]
@@ -89,6 +92,10 @@ pub enum Message {
         pitch: u8,
         velocity: u8,
     },
+    /// Force release one owned articulation, bypassing held pedals.
+    KillNote {
+        pitch: u8,
+    },
     Control {
         control: Control,
     },
@@ -121,7 +128,7 @@ pub enum Message {
 impl Message {
     fn priority(&self) -> u8 {
         match self {
-            Self::NoteOff { .. } | Self::EndSend { .. } => 0,
+            Self::NoteOff { .. } | Self::KillNote { .. } | Self::EndSend { .. } => 0,
             Self::Tempo { .. } => 1,
             Self::Control { .. } | Self::Send { .. } => 2,
             Self::NoteOn { .. } => 3,
@@ -152,6 +159,7 @@ struct Cursor {
     phrase_repeat: u32,
     row: u32,
     next: Beat,
+    padding_until: Beat,
     cycle: u64,
     stopped: bool,
     phrase_boundary: bool,
@@ -190,16 +198,25 @@ struct PlayheadSpan {
 
 #[derive(Debug, Clone)]
 struct PlayheadHistory {
+    padding: Vec<PaddingSpan>,
     spans: Vec<PlayheadSpan>,
     latest: BTreeMap<TrackId, usize>,
     from: Beat,
     previous_budget: usize,
 }
 
+#[derive(Debug, Clone)]
+struct PaddingSpan {
+    selection: crate::composition::ChainSelection,
+    start: Beat,
+    end: Beat,
+}
+
 impl PlayheadHistory {
     fn new(budget: usize) -> Self {
         Self {
             spans: Vec::new(),
+            padding: Vec::new(),
             latest: BTreeMap::new(),
             from: Beat::ZERO,
             previous_budget: budget,
@@ -220,6 +237,9 @@ impl PlayheadHistory {
     fn retain_recent(&mut self, budget: usize) {
         let capacity = budget.saturating_add(self.previous_budget);
         self.previous_budget = budget;
+        if self.padding.len() > capacity {
+            self.discard_before(self.padding[self.padding.len() - capacity].start);
+        }
         if self.spans.len() <= capacity {
             return;
         }
@@ -232,6 +252,7 @@ impl PlayheadHistory {
         // Keep intervals crossing the cutoff, including slow lanes whose last
         // step began long before faster lanes consumed the history budget.
         self.spans.retain(|span| span.end > self.from);
+        self.padding.retain(|span| span.end > self.from);
         self.latest = self
             .spans
             .iter()
@@ -263,6 +284,7 @@ pub struct TempoConflict {
 
 #[derive(Debug, Clone)]
 pub struct Playback {
+    voices: voices::Voices,
     snapshot: Arc<Snapshot>,
     cursors: Vec<Cursor>,
     pending: Vec<TimedEvent>,
@@ -277,6 +299,7 @@ impl Playback {
             .map(|track| Cursor::new(Arc::clone(&snapshot), track, Beat::ZERO))
             .collect();
         Self {
+            voices: voices::Voices::default(),
             playhead_history: PlayheadHistory::new(snapshot.budget.steps_per_window),
             snapshot,
             cursors,
@@ -378,6 +401,33 @@ impl Playback {
         }
         self.playhead_history.at(at).map(Some)
     }
+    /// Song-level cursors include timed built-ins without inventing phrases.
+    pub fn song_playheads_at(
+        &self,
+        at: Beat,
+    ) -> Result<Option<Vec<ChainSelection>>, PlaybackError> {
+        let Some(heads) = self.playheads_at(at)? else {
+            return Ok(None);
+        };
+        let mut selections: BTreeMap<_, _> = heads
+            .into_iter()
+            .map(|head| {
+                (
+                    head.occurrence.track,
+                    ChainSelection {
+                        track: head.occurrence.track,
+                        chain_use: head.occurrence.chain_use,
+                    },
+                )
+            })
+            .collect();
+        for span in &self.playhead_history.padding {
+            if span.start <= at && at < span.end {
+                selections.insert(span.selection.track, span.selection);
+            }
+        }
+        Ok(Some(selections.into_values().collect()))
+    }
     /// Releases presentation history the host no longer needs. Musical cursors,
     /// pending events and already delivered output are unchanged. Slow-lane
     /// intervals crossing the cutoff remain queryable; earlier queries return
@@ -437,7 +487,8 @@ impl Playback {
             })
             .collect();
         candidate.pending.retain(|event| match event.message {
-            Message::NoteOff { .. }
+            Message::KillNote { .. }
+            | Message::NoteOff { .. }
             | Message::Expression { .. }
             | Message::MasterExpression { .. }
             | Message::ExpressionLifetime { .. }
@@ -445,6 +496,7 @@ impl Playback {
             Message::EndSend { slot } => sends.contains(&(event.owner.clone(), slot)),
             _ => true,
         });
+        candidate.voices = voices::Voices::default();
         *self = candidate;
         Ok(tempos)
     }
@@ -460,6 +512,31 @@ impl Playback {
             let cursor = &mut self.cursors[index];
             cursor.adopt_if_eligible(&self.snapshot);
             let current = Arc::clone(&cursor.active);
+            if let Some(usage) = cursor.padding(&current.song).cloned() {
+                let at = cursor.next;
+                let track = cursor.track_id;
+                let end = current.song.after_measures(at, usage.repeats)?;
+                self.playhead_history.padding.push(PaddingSpan {
+                    selection: ChainSelection {
+                        track,
+                        chain_use: usage.id,
+                    },
+                    start: at,
+                    end,
+                });
+                cursor.next = end;
+                cursor.padding_until = end;
+                cursor.advance_slot(&current.song)?;
+                if usage.chain == ChainRef::Special(SpecialChain::Kill) {
+                    cuts.sort_by_key(|(at, _, _): &(Beat, TrackId, Target)| *at);
+                    let count = cuts.partition_point(|(cut, _, _)| *cut < at);
+                    for (cut, lane, target) in cuts.drain(..count) {
+                        self.cut_voices(cut, lane, &target);
+                    }
+                    self.kill_track(at, track)?;
+                }
+                continue;
+            }
             let Some((chain_use, usage, phrase)) = cursor.current(&current.song) else {
                 cursor.stopped = true;
                 continue;
@@ -556,12 +633,68 @@ impl Playback {
             (a.at, a.message.priority(), &a.owner).cmp(&(b.at, b.message.priority(), &b.owner))
         });
         let count = self.pending.partition_point(|event| event.at < end);
-        let mut events = self.pending.drain(..count).collect();
+        let mut events: Vec<_> = self.pending.drain(..count).collect();
+        for event in &events {
+            self.voices.apply(event);
+            if self.voices.len() > self.snapshot.budget.events_per_window {
+                return Err(PlaybackError::Budget("active articulations"));
+            }
+        }
         self.tempo_conflicts = arbitrate_tempos(&mut events, &self.snapshot.song);
         self.playhead_history
             .retain_recent(self.snapshot.budget.steps_per_window);
         self.horizon = end;
         Ok(events)
+    }
+    fn kill_track(&mut self, at: Beat, track: TrackId) -> Result<(), PlaybackError> {
+        // Replay only undelivered events before this boundary into the existing
+        // ownership ledger. Later slots have not been expanded yet.
+        let mut voices = self.voices.clone();
+        let mut earlier: Vec<_> = self.pending.iter().filter(|e| e.at < at).collect();
+        earlier.sort_by(|a, b| {
+            (a.at, a.message.priority(), &a.owner).cmp(&(b.at, b.message.priority(), &b.owner))
+        });
+        for event in earlier {
+            voices.apply(event);
+        }
+        let kills = voices.kills(track, at);
+        let owners: std::collections::BTreeSet<_> = kills.iter().map(|e| e.owner.clone()).collect();
+        let future_sends: std::collections::BTreeSet<_> = self
+            .pending
+            .iter()
+            .filter_map(|e| {
+                if e.owner.track == track && e.at >= at {
+                    if let Message::Send { slot, .. } = e.message {
+                        return Some((e.owner.clone(), slot));
+                    }
+                }
+                None
+            })
+            .collect();
+        self.pending.retain_mut(|e| {
+            if e.owner.track != track {
+                return true;
+            }
+            if e.at < at {
+                if let Message::ExpressionLifetime { duration } = &mut e.message {
+                    *duration = (*duration).min(at.checked_sub(e.at).expect("earlier attack"));
+                }
+                return true;
+            }
+            match e.message {
+                Message::EndSend { slot } if !future_sends.contains(&(e.owner.clone(), slot)) => {
+                    e.at = at
+                }
+                Message::EndExpression if owners.contains(&e.owner) => e.at = at,
+                _ => return false,
+            }
+            true
+        });
+        if self.pending.len().saturating_add(kills.len()) > self.snapshot.budget.events_per_window {
+            return Err(PlaybackError::Budget("track releases"));
+        }
+        self.pending.extend(kills);
+        Ok(())
     }
     fn cut_voices(&mut self, at: Beat, track: TrackId, target: &Target) {
         // Future attacks are not sounding yet. All other pending releases carry
@@ -663,12 +796,13 @@ impl Cursor {
             phrase_repeat: 0,
             row: 0,
             next,
+            padding_until: Beat::ZERO,
             cycle: 0,
             stopped: muted,
             phrase_boundary: true,
             require_phrase_boundary: false,
         };
-        cursor.stopped = cursor.current(&cursor.active.song).is_none();
+        cursor.stopped = muted || !cursor.has_current(&cursor.active.song);
         cursor
     }
 
@@ -723,9 +857,9 @@ impl Cursor {
         self.chain_repeat = 0;
         self.phrase_repeat = 0;
         self.phrase_boundary = true;
-        self.next = horizon;
+        self.next = horizon.max(self.padding_until);
         self.stopped = false;
-        self.stopped = self.current(&self.active.song).is_none();
+        self.stopped = !self.has_current(&self.active.song);
         if !self.stopped {
             self.cycle = self
                 .cycle
@@ -739,6 +873,33 @@ impl Cursor {
         if self.active.revision == next.revision {
             if self.phrase_boundary {
                 self.require_phrase_boundary = false;
+            }
+            return;
+        }
+        if let Some(old) = self.padding(&self.active.song) {
+            let found = next
+                .song
+                .tracks
+                .iter()
+                .enumerate()
+                .find_map(|(track, lane)| {
+                    if lane.id != self.track_id || lane.muted {
+                        return None;
+                    }
+                    lane.slots
+                        .iter()
+                        .position(|slot| {
+                            slot.as_ref()
+                                .is_some_and(|usage| usage.id == old.id && usage.chain == old.chain)
+                        })
+                        .map(|slot| (track, slot))
+                });
+            if let Some((track, slot)) = found {
+                self.track = track;
+                self.slot = slot;
+                self.active = Arc::clone(next);
+            } else {
+                self.stop_at(next, None);
             }
             return;
         }
@@ -771,7 +932,7 @@ impl Cursor {
         let next_chain = next.song.tracks[track].slots[slot]
             .as_ref()
             .expect("found use");
-        let chain = &next.song.chains[&next_chain.chain];
+        let chain = &next.song.chains[&next_chain.chain.pattern().expect("found pattern")];
         let phrase = &next.song.phrases[&chain.phrases[phrase_index].phrase];
         let step_edit = old_phrase.steps == phrase.steps
             && old_phrase.division == phrase.division
@@ -801,6 +962,20 @@ impl Cursor {
             self.track = track;
         }
     }
+    fn padding<'a>(&self, song: &'a Song) -> Option<&'a ChainUse> {
+        if self.stopped {
+            return None;
+        }
+        song.tracks
+            .get(self.track)?
+            .slots
+            .get(self.slot)?
+            .as_ref()
+            .filter(|usage| usage.chain.special().is_some())
+    }
+    fn has_current(&self, song: &Song) -> bool {
+        self.current(song).is_some() || self.padding(song).is_some()
+    }
     fn current<'a>(&self, song: &'a Song) -> Option<(&'a ChainUse, &'a PhraseUse, &'a Phrase)> {
         if self.stopped {
             return None;
@@ -813,7 +988,7 @@ impl Cursor {
             .as_ref()?;
         let usage = song
             .chains
-            .get(&chain_use.chain)?
+            .get(&chain_use.chain.pattern().ok()?)?
             .phrases
             .get(self.phrase)?;
         Some((chain_use, usage, song.phrases.get(&usage.phrase)?))
@@ -835,7 +1010,7 @@ impl Cursor {
         }
         self.phrase_repeat = 0;
         self.phrase += 1;
-        if self.phrase < song.chains[&chain_use.chain].phrases.len() {
+        if self.phrase < song.chains[&chain_use.chain.pattern()?].phrases.len() {
             return Ok(());
         }
         self.phrase = 0;
@@ -843,13 +1018,20 @@ impl Cursor {
         if self.chain_repeat < chain_use.repeats {
             return Ok(());
         }
+        self.advance_slot(song)
+    }
+    fn advance_slot(&mut self, song: &Song) -> Result<(), PlaybackError> {
         self.chain_repeat = 0;
+        self.phrase_repeat = 0;
+        self.phrase = 0;
+        self.row = 0;
+        self.phrase_boundary = true;
         self.slot += 1;
         let track = &song.tracks[self.track];
         if self.slot >= track.slots.len() && track.looped {
             self.slot = 0;
         }
-        if self.current(song).is_none() {
+        if !self.has_current(song) {
             self.stopped = true;
         }
         Ok(())
@@ -866,7 +1048,9 @@ fn find_occurrence_in_track(
         .slots
         .iter()
         .position(|slot| slot.as_ref().is_some_and(|usage| usage.id == chain_use))?;
-    let chain = song.chains.get(&track.slots[slot].as_ref()?.chain)?;
+    let chain = song
+        .chains
+        .get(&track.slots[slot].as_ref()?.chain.pattern().ok()?)?;
     let phrase = chain
         .phrases
         .iter()
@@ -878,10 +1062,13 @@ fn stopped_chain_changed(old: &Song, next: &Song, usage: Option<&ChainUse>) -> b
     let Some(usage) = usage else {
         return false;
     };
-    let Some(next_chain) = next.chains.get(&usage.chain) else {
+    let Ok(id) = usage.chain.pattern() else {
         return false;
     };
-    let Some(old_chain) = old.chains.get(&usage.chain) else {
+    let Some(next_chain) = next.chains.get(&id) else {
+        return false;
+    };
+    let Some(old_chain) = old.chains.get(&id) else {
         return true;
     };
     next_chain.phrases != old_chain.phrases
@@ -933,63 +1120,4 @@ fn arbitrate_tempos(events: &mut Vec<TimedEvent>, song: &Song) -> Vec<TempoConfl
         retain
     });
     conflicts
-}
-
-/// Tempo conversion is exact at each change; offsets accumulate before rounding.
-#[derive(Debug, Clone)]
-pub struct TempoMap {
-    initial: Tempo,
-    changes: Vec<(Beat, Tempo)>,
-}
-impl TempoMap {
-    pub fn new(initial: Tempo) -> Self {
-        Self {
-            initial,
-            changes: Vec::new(),
-        }
-    }
-    pub fn insert(&mut self, at: Beat, tempo: Tempo) {
-        match self.changes.binary_search_by_key(&at, |v| v.0) {
-            Ok(index) => self.changes[index].1 = tempo,
-            Err(index) => self.changes.insert(index, (at, tempo)),
-        }
-    }
-    pub fn beat_at_frame(&self, frame: u64, rate: u32) -> Result<Beat, PlaybackError> {
-        let mut remaining = Beat::new(frame, u64::from(rate))?;
-        let mut previous = Beat::ZERO;
-        let mut tempo = self.initial;
-        for (beat, next) in &self.changes {
-            let seconds = beat
-                .checked_sub(previous)?
-                .checked_scale(60_000, u64::from(tempo.milli_bpm()))?;
-            if seconds > remaining {
-                break;
-            }
-            remaining = remaining.checked_sub(seconds)?;
-            previous = *beat;
-            tempo = *next;
-        }
-        Ok(previous.checked_add(remaining.checked_scale(u64::from(tempo.milli_bpm()), 60_000)?)?)
-    }
-
-    pub fn frame_at(&self, at: Beat, rate: u32) -> Result<u64, PlaybackError> {
-        let mut previous = Beat::ZERO;
-        let mut tempo = self.initial;
-        let mut seconds = Beat::ZERO;
-        for (beat, next) in self.changes.iter().take_while(|v| v.0 <= at) {
-            seconds = seconds.checked_add(
-                beat.checked_sub(previous)?
-                    .checked_scale(60_000, u64::from(tempo.milli_bpm()))?,
-            )?;
-            previous = *beat;
-            tempo = *next;
-        }
-        seconds = seconds.checked_add(
-            at.checked_sub(previous)?
-                .checked_scale(60_000, u64::from(tempo.milli_bpm()))?,
-        )?;
-        let frames = seconds.checked_scale(u64::from(rate), 1)?;
-        let rounded = frames.quantized(Beat::ONE)?;
-        Ok(rounded.numerator())
-    }
 }

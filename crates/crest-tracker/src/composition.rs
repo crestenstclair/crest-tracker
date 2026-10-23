@@ -659,11 +659,47 @@ pub struct Chain {
     pub name: String,
     pub phrases: Vec<PhraseUse>,
 }
+/// Song-slot source. Built-ins are intrinsic, never editable catalog definitions.
+/// Ordinary references retain their numeric save representation.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(untagged)]
+pub enum ChainRef {
+    Pattern(ChainId),
+    Special(SpecialChain),
+}
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum SpecialChain {
+    Rest,
+    Kill,
+}
+impl ChainRef {
+    pub fn pattern(self) -> Result<ChainId, DocumentError> {
+        match self {
+            Self::Pattern(id) => Ok(id),
+            Self::Special(_) => Err(DocumentError::Invalid(
+                "Rest and Kill have no editable chain definition",
+            )),
+        }
+    }
+    pub fn special(self) -> Option<SpecialChain> {
+        match self {
+            Self::Special(kind) => Some(kind),
+            _ => None,
+        }
+    }
+}
+impl From<ChainId> for ChainRef {
+    fn from(id: ChainId) -> Self {
+        Self::Pattern(id)
+    }
+}
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct ChainUse {
     pub id: UseId,
-    pub chain: ChainId,
+    pub chain: ChainRef,
+    /// Pattern repetitions, or measure count for a built-in Rest/Kill.
     pub repeats: u32,
 }
 
@@ -785,11 +821,9 @@ impl Song {
             }
             for slot in track.slots.iter().flatten() {
                 validate_use(slot.id, slot.repeats, &mut uses)?;
-                require(
-                    self.chains.contains_key(&slot.chain),
-                    "chain",
-                    slot.chain.get(),
-                )?;
+                if let ChainRef::Pattern(id) = slot.chain {
+                    require(self.chains.contains_key(&id), "chain", id.get())?;
+                }
             }
         }
         for chain in self.chains.values() {
@@ -827,6 +861,28 @@ impl Song {
             // them so structural edits do not silently rewrite a named group.
         }
         Ok(())
+    }
+    /// Advance whole measures using the meter active at each measure start.
+    /// Work is bounded by meter changes, including very large padding counts.
+    pub fn after_measures(&self, mut at: Beat, mut measures: u32) -> Result<Beat, TimeError> {
+        while measures > 0 {
+            let index = self
+                .meters
+                .partition_point(|change| change.at <= at)
+                .saturating_sub(1);
+            let bar = self.meters[index].meter.bar_length();
+            let count = if let Some(change) = self.meters.get(index + 1) {
+                let distance = change.at.checked_sub(at)?;
+                let whole = distance.units(bar)?;
+                let ceil = whole + u64::from(bar.checked_scale(whole, 1)? < distance);
+                u64::from(measures).min(ceil.max(1)) as u32
+            } else {
+                measures
+            };
+            at = at.checked_add(bar.checked_scale(u64::from(count), 1)?)?;
+            measures -= count;
+        }
+        Ok(at)
     }
     pub fn validate_target(&self, target: &Target) -> Result<(), DocumentError> {
         match target {

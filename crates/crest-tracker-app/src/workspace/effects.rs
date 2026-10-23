@@ -23,7 +23,14 @@ pub(super) fn selected_event(app: &App) -> Option<Event> {
         .events
         .iter()
         .find(|e| selected.contains(&e.id))
-        .or_else(|| phrase.events.iter().find(|e| e.at == at))
+        .or_else(|| {
+            if app.is_piano_roll() {
+                let occupied = app.piano_notes_at_cursor();
+                phrase.events.iter().find(|e| occupied.contains(&e.id))
+            } else {
+                phrase.events.iter().find(|e| e.at == at)
+            }
+        })
         .cloned()
 }
 pub(super) fn begin(app: &mut App) {
@@ -218,7 +225,15 @@ fn fields(f: &Fx) -> Vec<WorkspaceRow> {
 }
 pub(super) fn adjust(app: &mut App, id: &str, delta: i32) {
     if id == "fx_kind" {
-        open(app, Some(Panel::FxCommands));
+        let choices = catalog();
+        let index = choices
+            .iter()
+            .position(|choice| name(choice) == name(&app.workspace.fx))
+            .unwrap_or(0);
+        app.workspace.fx = choices[index
+            .saturating_add_signed(delta.signum() as isize)
+            .min(choices.len() - 1)]
+        .clone();
         return;
     }
     let steps = app.selected_phrase().map_or(1, |(_, p)| p.steps);

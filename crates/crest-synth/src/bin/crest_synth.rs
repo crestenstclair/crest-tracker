@@ -642,7 +642,7 @@ struct DemoSceneObservation {
 impl DemoSceneObservation {
     fn from_report(report: &DemoSceneReport, two_run_trace_equal: bool) -> Self {
         let records = report.event_log().records();
-        let mut event_variants = [false; 22];
+        let mut event_variants = [false; 23];
         let mut top_level_contexts = Vec::new();
         let mut navigate_directions = Vec::new();
         let mut adjust_directions = Vec::new();
@@ -672,6 +672,7 @@ impl DemoSceneObservation {
                 }
                 EventInput::SetInteractionMode { .. } => event_variants[4] = true,
                 EventInput::OpenRelated => event_variants[16] = true,
+                EventInput::OpenPopover => event_variants[22] = true,
                 EventInput::OpenMidiSettings => event_variants[20] = true,
                 EventInput::Activate => event_variants[17] = true,
                 EventInput::PreviewStart => event_variants[18] = true,
@@ -709,6 +710,7 @@ impl DemoSceneObservation {
                 | EventInput::MidiInputShutdownRequested
                 | EventInput::AssetImported { .. }
                 | EventInput::Send { .. }
+                | EventInput::SetPatchCapacity { .. }
                 | EventInput::ToggleTestMidi => {}
             }
         }

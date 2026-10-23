@@ -30,6 +30,31 @@ pub(super) struct ActiveDialog {
 }
 
 impl Runtime {
+    pub(super) fn load_progress(&self) -> Option<&'static str> {
+        if self.loading.is_some() {
+            Some("Reading song and checking assets…")
+        } else if self.pending_open.is_some() {
+            Some("Preparing instruments and effects…")
+        } else if self.recovery_preparing.is_some() || self.repairing_resource.is_some() {
+            Some("Checking song assets…")
+        } else {
+            None
+        }
+    }
+
+    pub(super) fn project_loading(&mut self) {
+        let progress = self.load_progress();
+        let mut app = self.app.borrow_mut();
+        if progress.is_some() && app.load_progress.is_none() {
+            app.edit_held = false;
+            app.shift_held = false;
+            app.fine_held = false;
+            app.range_held = false;
+            crate::workspace::cancel_edit(&mut app);
+        }
+        app.load_progress = progress;
+    }
+
     fn next_dialog_token(&mut self) -> Result<u64, String> {
         if self.dialog_token >= 9_007_199_254_740_991 {
             return Err("File dialog identity exhausted; restart the application".into());
@@ -235,11 +260,7 @@ impl Runtime {
             .as_ref()
             .and_then(|path| path.parent())
             .map(PathBuf::from)
-            .unwrap_or_else(|| {
-                std::env::var_os("HOME")
-                    .map(PathBuf::from)
-                    .unwrap_or_else(|| PathBuf::from("."))
-            })
+            .unwrap_or_else(|| PathBuf::from("."))
             .join(filename)
     }
 }
@@ -247,6 +268,39 @@ impl Runtime {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn loading_projection_spans_reader_and_sound_activation_then_unlocks() {
+        let mut runtime = super::super::tests::capture_fixture();
+        {
+            let mut app = runtime.app.borrow_mut();
+            app.edit_held = true;
+            app.shift_held = true;
+            app.fine_held = true;
+            app.range_held = true;
+        }
+        let missing = runtime.data_directory.join("missing.crest-song");
+        runtime.loading = Some((LoadWorker::start(missing.clone(), false), missing));
+        runtime.project_loading();
+        assert_eq!(
+            runtime.app.borrow().load_progress,
+            Some("Reading song and checking assets…")
+        );
+        {
+            let app = runtime.app.borrow();
+            assert!(!app.edit_held && !app.shift_held && !app.fine_held && !app.range_held);
+        }
+        runtime.loading = None;
+        runtime.pending_open = Some((demo::document().unwrap(), None));
+        runtime.project_loading();
+        assert_eq!(
+            runtime.app.borrow().load_progress,
+            Some("Preparing instruments and effects…")
+        );
+        runtime.pending_open = None;
+        runtime.project_loading();
+        assert!(runtime.app.borrow().load_progress.is_none());
+    }
+
     #[test]
     fn cancel_is_correlated_and_retains_song_take_and_path() {
         let mut runtime = super::super::tests::capture_fixture();

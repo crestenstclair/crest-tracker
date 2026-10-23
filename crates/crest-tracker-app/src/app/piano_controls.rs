@@ -11,15 +11,62 @@ pub enum PianoValue {
 #[derive(Clone, Debug, Deserialize)]
 #[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
 pub enum PianoControl {
-    Toggle,
-    Velocity { delta: i32 },
-    Grid { grid: Beat },
-    Value { value: PianoValue },
-    Cursor { at: Beat, pitch: u8 },
-    Navigate { horizontal: i32, vertical: i32 },
-    Nudge { delta: i32 },
-    Resize { delta: i32 },
-    Adjust { delta: i32 },
+    Select,
+    NextNote {
+        delta: i32,
+    },
+    Zoom {
+        delta: i32,
+    },
+    Scroll {
+        delta: i32,
+    },
+    PitchScroll {
+        octaves: i32,
+    },
+    ScaleGuide {
+        enabled: bool,
+    },
+    Follow {
+        enabled: bool,
+    },
+    Velocity {
+        delta: i32,
+    },
+    Grid {
+        grid: Beat,
+    },
+    Value {
+        value: PianoValue,
+    },
+    NewLength {
+        length: Beat,
+    },
+    NewVelocity {
+        velocity: u8,
+    },
+    Defaults {
+        length: Beat,
+        velocity: u8,
+        target: Option<Target>,
+    },
+    Cursor {
+        at: Beat,
+        pitch: u8,
+    },
+    Navigate {
+        horizontal: i32,
+        vertical: i32,
+    },
+    Nudge {
+        delta: i32,
+    },
+    Resize {
+        delta: i32,
+    },
+    Adjust {
+        delta: i32,
+    },
 }
 
 impl App {
@@ -43,6 +90,7 @@ impl App {
             self.roll_pitch = pitch;
         }
         self.roll_range_anchor = None;
+        self.reveal_piano_cursor();
     }
 
     /// A source can become shorter through edits, Undo, or changing phrases.
@@ -60,6 +108,7 @@ impl App {
         if self.roll_cursor >= length {
             self.roll_cursor = Beat::ZERO;
             self.roll_range_anchor = None;
+            self.reveal_piano_cursor();
         }
         if self.roll_range_anchor.is_some_and(|(at, _)| at >= length) {
             self.roll_range_anchor = None;
@@ -77,22 +126,30 @@ impl App {
         if !self.is_piano_roll()
             && !matches!(
                 control,
-                PianoControl::Grid { .. } | PianoControl::Value { .. }
+                PianoControl::Grid { .. }
+                    | PianoControl::Value { .. }
+                    | PianoControl::NewLength { .. }
+                    | PianoControl::NewVelocity { .. }
+                    | PianoControl::Defaults { .. }
             )
         {
             return Err(DocumentError::Invalid("open a Piano Roll phrase first"));
         }
         match control {
-            PianoControl::Toggle => {
-                if let Some(event) = self.piano_notes_at_cursor().first().copied() {
-                    let phrase = self.selected_phrase().unwrap().0;
-                    self.command(Command::DeleteEvents {
-                        phrase,
-                        events: vec![event],
-                    })?;
-                } else {
-                    self.piano_confirm()?;
-                }
+            PianoControl::Select => self.select_cursor_for_edit()?,
+            PianoControl::NextNote { delta } => self.piano_next_note(delta)?,
+            PianoControl::Zoom { delta } => self.piano_zoom(delta)?,
+            PianoControl::Scroll { delta } => self.piano_scroll(delta)?,
+            PianoControl::PitchScroll { octaves } => {
+                self.roll_view.low_pitch = i32::from(self.roll_view.low_pitch)
+                    .saturating_add(octaves.saturating_mul(12))
+                    .clamp(0, 115) as u8;
+                self.roll_view.follow = false;
+            }
+            PianoControl::ScaleGuide { enabled } => self.roll_view.scale_guide = enabled,
+            PianoControl::Follow { enabled } => {
+                self.roll_view.follow = enabled;
+                self.follow_piano_playback();
             }
             PianoControl::Velocity { delta } => {
                 let previous = self.roll_value;
@@ -108,6 +165,35 @@ impl App {
                 self.roll_grid = grid;
             }
             PianoControl::Value { value } => self.roll_value = value,
+            PianoControl::NewLength { length } => {
+                if length.is_zero() {
+                    return Err(DocumentError::Invalid("new note length must be positive"));
+                }
+                self.roll_new_length = length;
+            }
+            PianoControl::NewVelocity { velocity } => {
+                if !(1..=127).contains(&velocity) {
+                    return Err(DocumentError::Invalid("new note velocity must be 1–127"));
+                }
+                self.roll_new_velocity = velocity;
+            }
+            PianoControl::Defaults {
+                length,
+                velocity,
+                target,
+            } => {
+                if length.is_zero() || !(1..=127).contains(&velocity) {
+                    return Err(DocumentError::Invalid(
+                        "new note defaults require positive length and velocity 1–127",
+                    ));
+                }
+                if let Some(target) = &target {
+                    self.editor.song().validate_target(target)?;
+                }
+                self.roll_new_length = length;
+                self.roll_new_velocity = velocity;
+                self.roll_new_target = target;
+            }
             PianoControl::Cursor { at, pitch } => {
                 if pitch > 127 || at >= self.selected_phrase().expect("piano phrase").1.length()? {
                     return Err(DocumentError::Invalid(
@@ -118,6 +204,8 @@ impl App {
                 self.roll_pitch = pitch;
                 self.roll_range_anchor = None;
                 self.event_selection = None;
+                self.roll_view.follow = false;
+                self.reveal_piano_cursor();
             }
             PianoControl::Navigate {
                 horizontal,
@@ -125,9 +213,40 @@ impl App {
             } => self.move_piano_cursor(horizontal, vertical)?,
             PianoControl::Nudge { delta } => {
                 self.select_cursor_for_edit()?;
-                let amount = self
+                let mut amount = self
                     .piano_step()?
                     .checked_scale(u64::from(delta.unsigned_abs()), 1)?;
+                let ids = self.selected_event_ids();
+                let (_, phrase) = self.selected_phrase().expect("piano phrase");
+                let starts: Vec<_> = phrase
+                    .events
+                    .iter()
+                    .filter(|e| ids.contains(&e.id))
+                    .map(|e| e.at)
+                    .collect();
+                let first = starts
+                    .iter()
+                    .min()
+                    .copied()
+                    .ok_or(DocumentError::Invalid("select notes to edit"))?;
+                let last = starts.iter().max().copied().unwrap();
+                let step = self.piano_step()?;
+                let length = phrase.length()?;
+                let units = length.units(step)?;
+                let last_grid = step.checked_scale(units, 1)?;
+                let last_grid = if last_grid == length {
+                    last_grid.checked_sub(step)?
+                } else {
+                    last_grid
+                };
+                amount = amount.min(if delta < 0 {
+                    first
+                } else {
+                    last_grid.checked_sub(last).unwrap_or(Beat::ZERO)
+                });
+                if amount.is_zero() {
+                    return Ok(());
+                }
                 self.edit_selection(
                     self.editor.revision(),
                     self.occurrence().expect("piano occurrence"),
@@ -136,6 +255,18 @@ impl App {
                         backward: delta < 0,
                     },
                 )?;
+                if let Some(event) = self
+                    .selected_phrase()
+                    .unwrap()
+                    .1
+                    .events
+                    .iter()
+                    .find(|e| ids.contains(&e.id))
+                {
+                    self.roll_cursor = event.at;
+                }
+                self.roll_view.follow = false;
+                self.reveal_piano_cursor();
             }
             PianoControl::Resize { delta } => self.adjust_piano_notes(delta, true)?,
             PianoControl::Adjust { delta } => self.adjust_piano_notes(delta, false)?,
@@ -174,6 +305,8 @@ impl App {
         self.roll_pitch = i32::from(self.roll_pitch)
             .saturating_sub(vertical)
             .clamp(0, 127) as u8;
+        self.roll_view.follow = false;
+        self.reveal_piano_cursor();
         if self.range_held {
             self.roll_range_anchor = Some(anchor);
             let end = anchor
@@ -211,7 +344,7 @@ impl App {
     }
 
     /// Stored notes under the exact cursor, in source order for selection cycling.
-    pub(super) fn piano_notes_at_cursor(&self) -> Vec<EventId> {
+    pub(crate) fn piano_notes_at_cursor(&self) -> Vec<EventId> {
         let (_, source) = self.selected_phrase().expect("piano phrase");
         source
             .events
@@ -254,8 +387,14 @@ impl App {
         let event = Event::note(
             EventId::new(self.editor.song().next_identity()?)?,
             self.roll_cursor,
-            self.default_target()?,
-            Note::new(self.roll_pitch, 100, self.roll_grid.checked_scale(9, 10)?)?,
+            self.roll_new_target
+                .clone()
+                .map_or_else(|| self.default_target(), Ok)?,
+            Note::new(
+                self.roll_pitch,
+                self.roll_new_velocity,
+                self.roll_new_length,
+            )?,
         );
         let id = event.id;
         self.command(Command::PutEvent { phrase, event })?;
@@ -270,13 +409,30 @@ impl App {
         if self.selected_event_ids().is_empty() {
             let ids = self.piano_notes_at_cursor();
             if let Some(id) = ids.first() {
+                let cursor = self.piano_cursor();
+                let viewport = self.roll_view;
                 self.select_events(
                     self.editor.revision(),
                     self.occurrence().expect("piano occurrence"),
                     vec![*id],
                     false,
                 )?;
+                self.roll_cursor = cursor.0;
+                self.roll_pitch = cursor.1;
+                self.roll_view = viewport;
             }
+        }
+        Ok(())
+    }
+
+    pub(super) fn clear_piano_notes(&mut self) -> Result<(), DocumentError> {
+        self.select_cursor_for_edit()?;
+        if !self.selected_event_ids().is_empty() {
+            self.edit_selection(
+                self.editor.revision(),
+                self.occurrence().expect("piano occurrence"),
+                SelectionAction::Delete,
+            )?;
         }
         Ok(())
     }
@@ -288,15 +444,15 @@ impl App {
         if ids.is_empty() {
             return Err(DocumentError::Invalid("select notes to edit"));
         }
-        let amount = self
-            .piano_step()?
-            .checked_scale(u64::from(delta.unsigned_abs()), 1)?;
         let mut commands = Vec::new();
         for event in source.events.iter().filter(|event| ids.contains(&event.id)) {
             let Some(note) = &event.note else {
                 continue;
             };
             if resize {
+                let amount = self
+                    .piano_step()?
+                    .checked_scale(u64::from(delta.unsigned_abs()), 1)?;
                 let duration = if delta < 0 {
                     note.duration.checked_sub(amount)?
                 } else {
@@ -384,6 +540,128 @@ mod tests {
         .unwrap();
         app
     }
+    #[test]
+    fn zoom_scroll_follow_and_grid_preserve_music_and_edit_cursor() {
+        let mut app = fixture();
+        let phrase = app.selected_phrase().unwrap().0;
+        app.command(Command::ResizePhrase {
+            phrase,
+            steps: 400,
+            trim: false,
+        })
+        .unwrap();
+        app.piano_control(PianoControl::Cursor {
+            at: Beat::integer(40),
+            pitch: 73,
+        })
+        .unwrap();
+        let before = app.editor.song().clone();
+        let cursor = app.piano_cursor();
+        app.piano_control(PianoControl::Zoom { delta: 1 }).unwrap();
+        app.piano_control(PianoControl::Scroll { delta: 1 })
+            .unwrap();
+        app.piano_control(PianoControl::Grid {
+            grid: Beat::new(1, 3).unwrap(),
+        })
+        .unwrap();
+        assert_eq!(app.roll_view.width, Beat::integer(4));
+        assert_eq!(app.roll_view.start, Beat::integer(42));
+        app.playing = true;
+        app.play_phrase_beat = Some(Beat::integer(75));
+        app.piano_control(PianoControl::Follow { enabled: true })
+            .unwrap();
+        assert!(app.roll_view.start <= Beat::integer(75));
+        assert!(
+            app.roll_view
+                .start
+                .checked_add(app.roll_view.width)
+                .unwrap()
+                > Beat::integer(75)
+        );
+        assert_eq!(app.piano_cursor(), cursor);
+        assert_eq!(app.editor.song(), &before);
+        app.piano_control(PianoControl::Navigate {
+            horizontal: 1,
+            vertical: 0,
+        })
+        .unwrap();
+        assert!(!app.roll_view.follow);
+        assert!(app.roll_view.start <= app.piano_cursor().0);
+    }
+
+    #[test]
+    fn pitch_scroll_moves_one_lane_and_next_note_reaches_identical_overlaps() {
+        let mut app = fixture();
+        app.piano_control(PianoControl::Cursor {
+            at: Beat::ZERO,
+            pitch: 72,
+        })
+        .unwrap();
+        assert_eq!(app.roll_view.low_pitch, 60);
+        app.piano_control(PianoControl::Navigate {
+            horizontal: 0,
+            vertical: -1,
+        })
+        .unwrap();
+        assert_eq!(app.roll_view.low_pitch, 61);
+        let (phrase, source) = app.selected_phrase().unwrap();
+        let mut other = source.events[0].clone();
+        other.id = EventId::new(app.editor.song().next_identity().unwrap()).unwrap();
+        let second = other.id;
+        app.command(Command::PutEvent {
+            phrase,
+            event: other,
+        })
+        .unwrap();
+        let first = app.selected_phrase().unwrap().1.events[0].id;
+        app.piano_control(PianoControl::NextNote { delta: 1 })
+            .unwrap();
+        assert_eq!(app.selected_event_ids(), vec![first]);
+        app.piano_control(PianoControl::NextNote { delta: 1 })
+            .unwrap();
+        assert_eq!(app.selected_event_ids(), vec![second]);
+        app.piano_control(PianoControl::NextNote { delta: -1 })
+            .unwrap();
+        assert_eq!(app.selected_event_ids(), vec![first]);
+    }
+
+    #[test]
+    fn boundary_nudge_clamps_without_changing_duration_or_expression() {
+        let mut app = fixture();
+        let note = app.selected_phrase().unwrap().1.events[0].note.clone();
+        app.piano_control(PianoControl::Nudge { delta: -100 })
+            .unwrap();
+        assert_eq!(app.selected_phrase().unwrap().1.events[0].at, Beat::ZERO);
+        app.piano_control(PianoControl::Nudge { delta: -1 })
+            .unwrap();
+        app.piano_control(PianoControl::Nudge { delta: 100 })
+            .unwrap();
+        let phrase = app.selected_phrase().unwrap().1;
+        assert_eq!(
+            phrase.events[0].at,
+            phrase.length().unwrap().checked_sub(app.roll_grid).unwrap()
+        );
+        assert_eq!(phrase.events[0].note, note);
+        assert_eq!(app.piano_cursor().0, phrase.events[0].at);
+    }
+
+    #[test]
+    fn clear_at_empty_piano_cursor_never_deletes_another_pitch() {
+        let mut app = fixture();
+        let at = app.selected_phrase().unwrap().1.events[0].at;
+        let before = app.editor.song().clone();
+        app.piano_control(PianoControl::Cursor { at, pitch: 61 })
+            .unwrap();
+        app.apply(Request::Clear).unwrap();
+        assert_eq!(app.editor.song(), &before);
+        app.piano_control(PianoControl::Cursor { at, pitch: 60 })
+            .unwrap();
+        app.apply(Request::Clear).unwrap();
+        assert!(app.selected_phrase().unwrap().1.events.is_empty());
+        app.apply(Request::Undo).unwrap();
+        assert_eq!(app.editor.song(), &before);
+    }
+
     #[test]
     fn confirm_admission_distinguishes_existing_sources_and_notes_from_creation() {
         let mut app = fixture();

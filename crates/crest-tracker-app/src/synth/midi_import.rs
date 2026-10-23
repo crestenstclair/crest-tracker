@@ -22,22 +22,44 @@ fn build() -> Result<Document, Box<dyn std::error::Error>> {
 }
 
 pub(crate) fn midi_document(path: &std::path::Path) -> Result<Document, String> {
-    let metadata = std::fs::metadata(path).map_err(|e| e.to_string())?;
-    if metadata.len() > 64 * 1024 * 1024 {
-        return Err("MIDI file exceeds the 64 MiB import budget".into());
-    }
-    let bytes = std::fs::read(path).map_err(|e| e.to_string())?;
+    let bytes = crate::midi_import::read_bounded(path)?;
     let imported = crate::midi_import::parse(
         &bytes,
         path.file_stem()
             .and_then(|v| v.to_str())
             .unwrap_or("Imported MIDI"),
     )?;
+    let plan = crate::midi_import::organization::default_plan(&imported)?;
+    let imported = crate::midi_import::organization::organize(imported, &plan)?;
     build_import(imported).map_err(|e| format!("Cannot prepare MIDI sounds: {e}"))
 }
 
-fn build_import(
-    imported: crate::corridors::Import,
+/// Expose only playable presets from the same provider used to build patches.
+pub(crate) fn presets() -> Result<Vec<crate::midi_plan::Preset>, String> {
+    let capability = production_soundfont_capability().map_err(|e| e.to_string())?;
+    let descriptor = capability.descriptor();
+    let parameter = descriptor
+        .parameter(&ParameterId::new(SOUNDFONT_PRESET_PARAMETER_ID).unwrap())
+        .ok_or("SoundFont provider has no preset parameter")?;
+    parameter
+        .choices()
+        .iter()
+        .map(|choice| {
+            let preset: SoundFontPresetId = choice
+                .id()
+                .parse()
+                .map_err(|e: crest_synth::synth::SoundFontPresetIdError| e.to_string())?;
+            Ok(crate::midi_plan::Preset {
+                id: choice.id().to_owned(),
+                name: choice.label().to_owned(),
+                percussion: preset.is_percussion(),
+            })
+        })
+        .collect()
+}
+
+pub(crate) fn build_import(
+    imported: crate::midi_import::Import,
 ) -> Result<Document, Box<dyn std::error::Error>> {
     let capability = production_soundfont_capability()?;
     let mut mappings = BTreeMap::new();

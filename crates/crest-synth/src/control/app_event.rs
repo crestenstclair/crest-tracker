@@ -59,6 +59,7 @@ pub enum AppEventPayloadShape {
     EngineSelectionFailure,
     EngineSelectionStatusKind,
     Boolean,
+    PatchCapacity,
     StructuralEditIntent,
     InteractionMode,
     SurfaceId,
@@ -109,6 +110,7 @@ pub enum AppEventSurfaceDescriptor {
         mode: InteractionMode,
     },
     OpenRelated,
+    OpenPopover,
     OpenMidiSettings,
     Activate,
     AssetImported {
@@ -154,6 +156,9 @@ pub enum AppEventSurfaceDescriptor {
     SampleAssetLifecycleAdvanced {
         request_id: AppEventPayloadShape,
         lifecycle: AppEventPayloadShape,
+    },
+    SetPatchCapacity {
+        capacity: AppEventPayloadShape,
     },
     SetBrowserStart {
         asset_kind: AppEventPayloadShape,
@@ -248,7 +253,7 @@ pub enum AppEventSurfaceDescriptor {
     MidiInputShutdownRequested,
 }
 
-const APP_EVENT_SURFACE_DESCRIPTOR: [AppEventSurfaceDescriptor; 58] = [
+const APP_EVENT_SURFACE_DESCRIPTOR: [AppEventSurfaceDescriptor; 60] = [
     AppEventSurfaceDescriptor::Send {
         action: AppEventPayloadShape::SendAction,
     },
@@ -313,6 +318,7 @@ const APP_EVENT_SURFACE_DESCRIPTOR: [AppEventSurfaceDescriptor; 58] = [
         mode: InteractionMode::Adjust,
     },
     AppEventSurfaceDescriptor::OpenRelated,
+    AppEventSurfaceDescriptor::OpenPopover,
     AppEventSurfaceDescriptor::OpenMidiSettings,
     AppEventSurfaceDescriptor::Activate,
     AppEventSurfaceDescriptor::PreviewStart,
@@ -361,6 +367,9 @@ const APP_EVENT_SURFACE_DESCRIPTOR: [AppEventSurfaceDescriptor; 58] = [
     AppEventSurfaceDescriptor::SampleAssetLifecycleAdvanced {
         request_id: AppEventPayloadShape::EngineSelectionRequestId,
         lifecycle: AppEventPayloadShape::SampleAssetLifecycle,
+    },
+    AppEventSurfaceDescriptor::SetPatchCapacity {
+        capacity: AppEventPayloadShape::PatchCapacity,
     },
     AppEventSurfaceDescriptor::SetBrowserStart {
         asset_kind: AppEventPayloadShape::AssetKind,
@@ -480,6 +489,7 @@ pub enum AppEvent {
     /// Select the reducer-owned interpretation of subsequent directions.
     SetInteractionMode(InteractionMode),
     OpenRelated,
+    OpenPopover,
     OpenMidiSettings,
     Activate,
     PreviewStart,
@@ -537,9 +547,10 @@ pub enum AppEvent {
         request_id: EngineSelectionRequestId,
         lifecycle: SampleAssetLifecycle,
     },
-    /// Replaces one folder's correlated catalog result through the reducer.
-    /// Stable row focus is retained when the identity remains present and is
-    /// repaired deterministically when it does not.
+    /// Changes the saved Patch admission limit within the prepared runtime budget.
+    SetPatchCapacity {
+        capacity: usize,
+    },
     SetBrowserStart {
         asset_kind: crate::synth::AssetKind,
         folder: FileBrowserFolderId,
@@ -670,6 +681,7 @@ impl AppEvent {
             SemanticAction::Adjust(direction) => Self::Adjust(direction),
             SemanticAction::SetInteractionMode(mode) => Self::SetInteractionMode(mode),
             SemanticAction::OpenRelated => Self::OpenRelated,
+            SemanticAction::OpenPopover => Self::OpenPopover,
             SemanticAction::OpenMidiSettings => Self::OpenMidiSettings,
             SemanticAction::Activate => Self::Activate,
             SemanticAction::PreviewStart => Self::PreviewStart,
@@ -708,6 +720,7 @@ impl AppEvent {
                 | Self::Navigate(_)
                 | Self::SetInteractionMode(_)
                 | Self::OpenRelated
+                | Self::OpenPopover
                 | Self::OpenMidiSettings
                 | Self::ToggleTestMidi
                 | Self::PreviewStart
@@ -715,6 +728,7 @@ impl AppEvent {
                 | Self::SetPatchOverviewOriginEnabled { .. }
                 | Self::EngineSelectionLifecycleAdvanced { .. }
                 | Self::SampleAssetLifecycleAdvanced { .. }
+                | Self::SetPatchCapacity { .. }
                 | Self::SetBrowserStart { .. }
                 | Self::FileCatalogRefreshed { .. }
                 | Self::EnterSurface(_)
@@ -767,6 +781,7 @@ impl AppEvent {
                 AppEventSurfaceDescriptor::SetInteractionMode { mode: *mode }
             }
             Self::OpenRelated => AppEventSurfaceDescriptor::OpenRelated,
+            Self::OpenPopover => AppEventSurfaceDescriptor::OpenPopover,
             Self::OpenMidiSettings => AppEventSurfaceDescriptor::OpenMidiSettings,
             Self::Activate => AppEventSurfaceDescriptor::Activate,
             Self::AssetImported(_) => AppEventSurfaceDescriptor::AssetImported {
@@ -821,6 +836,9 @@ impl AppEvent {
                     lifecycle: AppEventPayloadShape::SampleAssetLifecycle,
                 }
             }
+            Self::SetPatchCapacity { .. } => AppEventSurfaceDescriptor::SetPatchCapacity {
+                capacity: AppEventPayloadShape::PatchCapacity,
+            },
             Self::SetBrowserStart { .. } => AppEventSurfaceDescriptor::SetBrowserStart {
                 asset_kind: AppEventPayloadShape::AssetKind,
                 folder: AppEventPayloadShape::FileBrowserFolderId,
@@ -990,7 +1008,7 @@ mod tests {
     fn surface_descriptor_is_unique_and_exhaustive() {
         let descriptor = AppEvent::surface_descriptor();
 
-        assert_eq!(descriptor.len(), 58);
+        assert_eq!(descriptor.len(), 60);
         assert!(descriptor.contains(&AppEventSurfaceDescriptor::Controller {
             event: AppEventPayloadShape::ControllerEvent,
         }));

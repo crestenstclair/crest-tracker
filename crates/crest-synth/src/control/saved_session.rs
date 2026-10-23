@@ -245,6 +245,8 @@ impl AssetRelinks {
 #[serde(rename_all = "camelCase")]
 pub struct SavedSession {
     version: u32,
+    #[serde(default = "default_patch_capacity")]
+    patch_capacity: usize,
     patches: Vec<SavedPatch>,
     mixer: MixerState,
     master_gain_db: f32,
@@ -298,6 +300,8 @@ struct SavedReturnV2 {
 #[serde(rename_all = "camelCase")]
 struct SavedSessionV4 {
     version: u32,
+    #[serde(default = "default_patch_capacity")]
+    patch_capacity: usize,
     patches: Vec<SavedPatch>,
     mixer: MixerState,
     master_gain_db: f32,
@@ -349,10 +353,15 @@ struct SavedPatchV1 {
     effects: [Option<PostEffectConfig>; MAX_EFFECT_SLOTS],
 }
 
+fn default_patch_capacity() -> usize {
+    crate::kernel::MAX_ACTIVE_PATCHES
+}
+
 impl SavedSession {
     pub fn capture(state: &AppState) -> Self {
         Self {
             version: SAVED_SESSION_VERSION,
+            patch_capacity: state.patch_capacity(),
             patches: state
                 .patches()
                 .iter()
@@ -496,6 +505,7 @@ impl SavedSession {
                 }
                 let saved = Self {
                     version: decoded.version,
+                    patch_capacity: decoded.patch_capacity,
                     patches: decoded.patches,
                     mixer: decoded.mixer,
                     master_gain_db: decoded.master_gain_db,
@@ -660,6 +670,7 @@ impl SavedSession {
         }
         let saved = Self {
             version: SAVED_SESSION_VERSION,
+            patch_capacity: default_patch_capacity(),
             patches,
             mixer,
             master_gain_db,
@@ -820,7 +831,9 @@ impl SavedSession {
             graph_revision,
         )
         .with_initial_mixer(self.mixer.clone())
-        .with_initial_returns(returns);
+        .with_initial_returns(returns)
+        .with_initial_patch_capacity(self.patch_capacity)
+        .map_err(|_| SavedSessionError::InvalidShape)?;
         state
             .apply(AppEvent::InstallPatches(patches))
             .map_err(|_| SavedSessionError::InvalidPatch)?;
@@ -843,7 +856,10 @@ impl SavedSession {
         {
             return Err(SavedSessionError::InvalidShape);
         }
-        if self.patches.len() > crate::kernel::MAX_ACTIVE_PATCHES {
+        if self.patch_capacity == 0
+            || self.patch_capacity > crate::kernel::MAX_ACTIVE_PATCHES
+            || self.patches.len() > self.patch_capacity
+        {
             return Err(SavedSessionError::InvalidPatch);
         }
         if self.patches.iter().any(|patch| {
@@ -1553,7 +1569,10 @@ mod tests {
 
     #[test]
     fn current_version_round_trip_keeps_relative_asset_and_normalized_values_only() {
-        let state = state();
+        let mut state = state();
+        state
+            .apply(AppEvent::SetPatchCapacity { capacity: 3 })
+            .unwrap();
         let saved = SavedSession::capture(&state);
         let json = saved.to_json().unwrap();
         let value: serde_json::Value = serde_json::from_str(&json).unwrap();
@@ -1596,6 +1615,7 @@ mod tests {
             )
             .unwrap();
         let restored = prepared.state();
+        assert_eq!(restored.patch_capacity(), 3);
         assert_eq!(prepared.graph().revision(), GraphRevision::INITIAL);
         assert_eq!(
             restored.patches()[0]
@@ -1622,6 +1642,19 @@ mod tests {
             [PatchId::new(1).unwrap()]
         );
         assert_eq!(replacement.target_graph_revision(), graph.revision());
+    }
+
+    #[test]
+    fn old_sessions_default_capacity_and_invalid_limits_fail_without_truncation() {
+        let state = state();
+        let mut json = serde_json::to_value(SavedSession::capture(&state)).unwrap();
+        json.as_object_mut().unwrap().remove("patchCapacity");
+        let decoded = SavedSession::from_json(&json.to_string(), state.capabilities()).unwrap();
+        assert_eq!(decoded.patch_capacity, crate::kernel::MAX_ACTIVE_PATCHES);
+        for capacity in [0, crate::kernel::MAX_ACTIVE_PATCHES + 1] {
+            json["patchCapacity"] = capacity.into();
+            assert!(SavedSession::from_json(&json.to_string(), state.capabilities()).is_err());
+        }
     }
 
     #[test]
@@ -1705,7 +1738,14 @@ mod tests {
         fields.sort_unstable();
         assert_eq!(
             fields,
-            ["masterGainDb", "mixer", "patches", "returns", "version"]
+            [
+                "masterGainDb",
+                "mixer",
+                "patchCapacity",
+                "patches",
+                "returns",
+                "version"
+            ]
         );
         assert_eq!(object["version"], SAVED_SESSION_VERSION);
 

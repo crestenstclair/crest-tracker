@@ -23,7 +23,8 @@ pub enum ScheduledPayload {
 ///
 /// Frames count from renderer creation, not from a musical transport position.
 /// The epoch identifies one cancellable schedule; graph revision prevents an
-/// event prepared for an old graph from reaching a replacement Patch identity.
+/// event from crossing a whole-session replacement. Correlated local edits keep
+/// Patch identities stable and retain already queued events across revisions.
 /// Publication validates the epoch and ordering against the owning producer.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct ScheduledEvent {

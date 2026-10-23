@@ -127,7 +127,7 @@ impl App {
                 references,
                 if references == 1 { "TIME" } else { "TIMES" }
             ),
-            ["PHRASE", "REPEATS", "LENGTH", "DURATION"]
+            ["PHRASE", "REPEATS", "STEPS × DIVISION", "TOTAL BEATS (¼)"]
                 .map(str::to_owned)
                 .to_vec(),
             rows,
@@ -273,7 +273,18 @@ fn song_row(song: &Song, row: usize) -> Vec<String> {
                 .slots
                 .get(row)
                 .and_then(Option::as_ref)
-                .map(|slot| definition_label(&song.chains, &slot.chain))
+                .map(|slot| match slot.chain {
+                    ChainRef::Pattern(id) => definition_label(&song.chains, &id),
+                    ChainRef::Special(kind) => format!(
+                        "{} {}",
+                        if kind == SpecialChain::Rest {
+                            "Rest"
+                        } else {
+                            "Kill"
+                        },
+                        slot.repeats
+                    ),
+                })
                 .unwrap_or("—".into())
         })
         .collect()
@@ -291,15 +302,24 @@ fn chain_row(song: &Song, usage: &PhraseUse) -> Vec<String> {
         "CONDITIONAL · JUMP FX".into()
     } else {
         duration
-            .map(|beats| format!("{beats} BEATS"))
+            .map(|beats| {
+                if beats.denominator() == 1 {
+                    beats.numerator().to_string()
+                } else {
+                    beats.to_string()
+                }
+            })
             .unwrap_or("EXCEEDS TIME RANGE".into())
     };
     vec![
-        format!(
-            "{} / {}",
-            definition_label(&song.phrases, &usage.phrase),
-            phrase.name
-        ),
+        {
+            let number = definition_label(&song.phrases, &usage.phrase);
+            if phrase.name == number {
+                number
+            } else {
+                format!("{number} · {}", phrase.name)
+            }
+        },
         usage.repeats.to_string(),
         format!("{} × {}", phrase.steps, division_label(phrase.division)),
         duration,
@@ -352,7 +372,7 @@ mod tests {
         app.apply(Request::Confirm).unwrap();
         let (_, subtitle, _, rows) = app.grid();
         assert!(subtitle.contains("CHAIN 00"));
-        assert!(rows.values[0][0].starts_with("00 / "));
+        assert!(rows.values[0][0].starts_with("00 · "));
         app.apply(Request::Confirm).unwrap();
         assert!(app.grid().1.contains("PHRASE 00"));
 
@@ -430,11 +450,11 @@ mod tests {
         let projection = app.projection();
         assert_eq!(
             projection["columns"],
-            json!(["PHRASE", "REPEATS", "LENGTH", "DURATION"])
+            json!(["PHRASE", "REPEATS", "STEPS × DIVISION", "TOTAL BEATS (¼)"])
         );
         assert_eq!(
             projection["rows"][0],
-            json!(["00 / Triplet", "3", "5 × 1/16T", "5/2 BEATS"])
+            json!(["00 · Triplet", "3", "5 × 1/16T", "5/2"])
         );
         assert!(projection["subtitle"]
             .as_str()

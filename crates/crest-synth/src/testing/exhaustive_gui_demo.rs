@@ -1649,6 +1649,9 @@ fn observe_records<'a>(
                     mode.label().to_ascii_lowercase()
                 ));
             }
+            EventInput::OpenPopover => {
+                observed.insert("event.openPopover".to_owned());
+            }
             EventInput::OpenRelated => {
                 observed.insert("event.openRelated".to_owned());
             }
@@ -1720,6 +1723,7 @@ fn observe_records<'a>(
             | EventInput::MidiInputShutdownRequested
             | EventInput::ReplacePersistedSession { .. }
             | EventInput::AssetImported { .. }
+            | EventInput::SetPatchCapacity { .. }
             | EventInput::ToggleTestMidi => {}
         }
 

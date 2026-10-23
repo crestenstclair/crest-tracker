@@ -45,7 +45,7 @@ fn usage(id: u64, phrase: u64, repeats: u32) -> PhraseUse {
 fn slot(id: u64, chain: u64, repeats: u32) -> ChainUse {
     ChainUse {
         id: UseId::new(id).unwrap(),
-        chain: ChainId::new(chain).unwrap(),
+        chain: (ChainId::new(chain).unwrap()).into(),
         repeats,
     }
 }

@@ -2,6 +2,27 @@
 
 Captured 21 September 2026; Piano Roll screens and updated architecture added 15 October 2026. Live Figma remains authoritative. JSON snapshots retain all captured text and prototype links; they are not a native Figma backup. The current user decisions in product-spec.md supersede older visual details.
 
+
+## 16 · Piano Roll / Gadget study
+
+Added 16 October 2026. User-approved KORG Gadget-inspired editing flow, implemented through the shared native renderer. Recording setup remains deferred. Screens are editable and linked for navigation; musical operations are illustrative.
+
+| Frame / board | Dimensions | Link |
+|---|---|---|
+| T59 · Piano Roll / Compose | 1280 × 800 | [Open](https://www.figma.com/design/mvRQEFZc5Oi2ZbRkoHhXjH/Crest-Tracker?node-id=2174-6049) |
+| T60 · Piano Roll / Step grid | 1280 × 800 | [Open](https://www.figma.com/design/mvRQEFZc5Oi2ZbRkoHhXjH/Crest-Tracker?node-id=2174-6237) |
+| T61 · Piano Roll / Note inspector | 1280 × 800 | [Open](https://www.figma.com/design/mvRQEFZc5Oi2ZbRkoHhXjH/Crest-Tracker?node-id=2174-6452) |
+| T62 · Piano Roll / Note length | 1280 × 800 | [Open](https://www.figma.com/design/mvRQEFZc5Oi2ZbRkoHhXjH/Crest-Tracker?node-id=2174-6675) |
+| T63 · Piano Roll / Velocity lane | 1280 × 800 | [Open](https://www.figma.com/design/mvRQEFZc5Oi2ZbRkoHhXjH/Crest-Tracker?node-id=2174-6897) |
+| T64 · Piano Roll / Quantize preview | 1280 × 800 | [Open](https://www.figma.com/design/mvRQEFZc5Oi2ZbRkoHhXjH/Crest-Tracker?node-id=2174-7087) |
+| T65 · Piano Roll / Selection tools | 1280 × 800 | [Open](https://www.figma.com/design/mvRQEFZc5Oi2ZbRkoHhXjH/Crest-Tracker?node-id=2174-7305) |
+| T66 · Piano Roll / View controls | 1280 × 800 | [Open](https://www.figma.com/design/mvRQEFZc5Oi2ZbRkoHhXjH/Crest-Tracker?node-id=2174-7515) |
+| T67 · Piano Roll / New-note defaults | 1280 × 800 | [Open](https://www.figma.com/design/mvRQEFZc5Oi2ZbRkoHhXjH/Crest-Tracker?node-id=2174-7733) |
+| T68 · Piano Roll / Quantize grid | 1280 × 800 | [Open](https://www.figma.com/design/mvRQEFZc5Oi2ZbRkoHhXjH/Crest-Tracker?node-id=2174-7961) |
+| R01 · Research and rationale | 4080 × 680 | [Open](https://www.figma.com/design/mvRQEFZc5Oi2ZbRkoHhXjH/Crest-Tracker?node-id=2174-8324) |
+| R02 · Sources and review path | 4080 × 300 | [Open](https://www.figma.com/design/mvRQEFZc5Oi2ZbRkoHhXjH/Crest-Tracker?node-id=2174-8340) |
+| R03 · Official screenshot and controller mapping | 2680 × 800 | [Open](https://www.figma.com/design/mvRQEFZc5Oi2ZbRkoHhXjH/Crest-Tracker?node-id=2174-8401) |
+
 ## 11 · Tracker Screens
 
 | Frame / board | Dimensions | Link |

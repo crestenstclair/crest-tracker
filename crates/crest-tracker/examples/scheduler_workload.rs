@@ -95,7 +95,7 @@ fn fixture(cycles: u32) -> Result<Song> {
         );
         song.tracks[index].slots = vec![Some(ChainUse {
             id: UseId::new(identity + 4)?,
-            chain: chain_id,
+            chain: (chain_id).into(),
             repeats: cycles,
         })];
         song.tracks[index].looped = false;

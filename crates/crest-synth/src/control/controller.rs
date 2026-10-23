@@ -64,10 +64,11 @@ pub enum ControllerRole {
     PreviousPatch,
     NextPatch,
     Settings,
+    Popover,
 }
 
 impl ControllerRole {
-    pub const ALL: [Self; 10] = [
+    pub const ALL: [Self; 11] = [
         Self::Up,
         Self::Down,
         Self::Left,
@@ -78,6 +79,7 @@ impl ControllerRole {
         Self::PreviousPatch,
         Self::NextPatch,
         Self::Settings,
+        Self::Popover,
     ];
     pub const fn label(self) -> &'static str {
         match self {
@@ -91,6 +93,7 @@ impl ControllerRole {
             Self::PreviousPatch => "Previous Patch",
             Self::NextPatch => "Next Patch",
             Self::Settings => "Open Settings",
+            Self::Popover => "Open edit popover",
         }
     }
     pub const fn description(self) -> &'static str {
@@ -101,6 +104,7 @@ impl ControllerRole {
             }
             Self::Preview => "Hold on a Sample Browser file to hear it. Release to stop.",
             Self::Settings => "Open Settings from a performance page.",
+            Self::Popover => "Open the focused control’s options or detailed picker.",
             Self::PreviousPatch | Self::NextPatch => "Select the adjacent Patch without wrapping.",
             _ => "Move focus. Combine with Edit to adjust or Shift to change pages.",
         }
@@ -111,14 +115,14 @@ impl ControllerRole {
 #[serde(rename_all = "camelCase")]
 pub struct ControllerBindings {
     version: u32,
-    buttons: [ControllerButton; 10],
+    buttons: [ControllerButton; 11],
 }
 
 impl Default for ControllerBindings {
     fn default() -> Self {
         use ControllerButton::*;
         Self {
-            version: 1,
+            version: 2,
             buttons: [
                 DPadUp,
                 DPadDown,
@@ -130,6 +134,7 @@ impl Default for ControllerBindings {
                 LeftTrigger,
                 RightTrigger,
                 Start,
+                West,
             ],
         }
     }
@@ -140,10 +145,10 @@ impl<'de> Deserialize<'de> for ControllerBindings {
         #[serde(deny_unknown_fields)]
         struct Wire {
             version: u32,
-            buttons: [ControllerButton; 10],
+            buttons: Vec<ControllerButton>,
         }
-        let wire = Wire::deserialize(deserializer)?;
-        if wire.version != 1 {
+        let mut wire = Wire::deserialize(deserializer)?;
+        if !matches!((wire.version, wire.buttons.len()), (1, 10) | (2, 11)) {
             return Err(serde::de::Error::custom(
                 "unsupported controller bindings version",
             ));
@@ -158,16 +163,39 @@ impl<'de> Deserialize<'de> for ControllerBindings {
                 "duplicate controller button assignment",
             ));
         }
+        if wire.version == 1 {
+            let button = std::iter::once(ControllerButton::West)
+                .chain([
+                    ControllerButton::North,
+                    ControllerButton::LeftShoulder,
+                    ControllerButton::RightShoulder,
+                    ControllerButton::Select,
+                    ControllerButton::Mode,
+                    ControllerButton::LeftThumb,
+                    ControllerButton::RightThumb,
+                    ControllerButton::South,
+                    ControllerButton::East,
+                    ControllerButton::Start,
+                    ControllerButton::LeftTrigger,
+                    ControllerButton::RightTrigger,
+                ])
+                .find(|button| !wire.buttons.contains(button))
+                .ok_or_else(|| serde::de::Error::custom("no free popover button"))?;
+            wire.buttons.push(button);
+        }
         Ok(Self {
-            version: wire.version,
-            buttons: wire.buttons,
+            version: 2,
+            buttons: wire
+                .buttons
+                .try_into()
+                .map_err(|_| serde::de::Error::custom("invalid controller role count"))?,
         })
     }
 }
 impl ControllerBindings {
     pub(crate) fn is_legacy_default(&self) -> bool {
         use ControllerButton::*;
-        self.buttons
+        self.buttons[..10]
             == [
                 DPadUp,
                 DPadDown,
@@ -330,4 +358,35 @@ pub enum ControllerEvent {
         device_id: usize,
         button: ControllerButton,
     },
+}
+
+#[cfg(test)]
+mod popover_tests {
+    use super::*;
+    #[test]
+    fn legacy_bindings_gain_popover_without_overwriting_custom_roles() {
+        let mut encoded = serde_json::to_value(ControllerBindings::default()).unwrap();
+        encoded["version"] = 1.into();
+        encoded["buttons"].as_array_mut().unwrap().pop();
+        let standard: ControllerBindings = serde_json::from_value(encoded.clone()).unwrap();
+        assert_eq!(
+            standard.button(ControllerRole::Popover),
+            ControllerButton::West
+        );
+        encoded["buttons"][6] = "west".into();
+        let custom: ControllerBindings = serde_json::from_value(encoded).unwrap();
+        assert_eq!(
+            custom.button(ControllerRole::Preview),
+            ControllerButton::West
+        );
+        assert_ne!(
+            custom.button(ControllerRole::Popover),
+            ControllerButton::West
+        );
+        assert_eq!(
+            serde_json::from_value::<ControllerBindings>(serde_json::to_value(&custom).unwrap())
+                .unwrap(),
+            custom
+        );
+    }
 }

@@ -67,11 +67,13 @@ fn scope_song(
     track.looped = false;
     // Audition is explicit even when the arrangement lane is muted.
     track.muted = false;
-    usage.repeats = 1;
+    if usage.chain.special().is_none() {
+        usage.repeats = 1;
+    }
     if let Some(phrase_use) = phrase_use {
         let chain = song
             .chains
-            .get_mut(&usage.chain)
+            .get_mut(&usage.chain.pattern()?)
             .ok_or(DocumentError::Invalid(
                 "audition chain definition is missing",
             ))?;
@@ -86,6 +88,52 @@ fn scope_song(
 }
 
 impl Runtime {
+    /// Resume an internal producer from its first undelivered beat. Everything
+    /// before the horizon has already reached audio; everything after it still
+    /// belongs to Playback, including releases, expression and send lifetimes.
+    /// Move that remaining schedule together instead of bursting overdue notes
+    /// or canceling voices. The audible result of a stall is a delay, not Stop.
+    pub(super) fn recover_audio_deadline(
+        &mut self,
+        playback: &Playback,
+        clock: HostClock,
+    ) -> Result<(), String> {
+        if self.sync.external()
+            || playback.finished()
+            || self.frame_at_beat(playback.horizon(), clock)? >= clock.audio.rendered_frames()
+        {
+            return Ok(());
+        }
+        let anchor = clock
+            .audio
+            .rendered_frames()
+            .checked_add(u64::from(clock.sample_rate) / 20)
+            .ok_or("Audio frame overflow")?;
+        let offset = self
+            .tempo
+            .frame_at(playback.horizon(), clock.sample_rate)
+            .map_err(|error| error.to_string())?;
+        // Input timestamps captured against the old timeline cannot safely be
+        // reinterpreted against the new anchor. Retain the take, but keep music
+        // running. Ordinary playback does not enter this path.
+        let capturing = !matches!(
+            self.recorder.state(),
+            CaptureState::Idle | CaptureState::Interrupted { .. }
+        );
+        self.interrupt_capture("Audio scheduling delayed; take retained; playback resumed")?;
+        self.voices.recover_expression(&self.expression);
+        self.anchor = anchor;
+        self.transport_offset_frames = offset;
+        self.playback_recoveries = self.playback_recoveries.saturating_add(1);
+        self.app.borrow_mut().status = if capturing {
+            "PLAYING · Timing recovered · Recording interrupted; take retained"
+        } else {
+            "PLAYING · Timing recovered"
+        }
+        .into();
+        Ok(())
+    }
+
     pub(super) fn start_at(
         &mut self,
         sound: &mut Sound<'_>,
@@ -120,13 +168,84 @@ mod tests {
     use super::*;
 
     #[test]
+    fn deadline_recovery_preserves_pending_events_tempo_and_retains_recording() {
+        use crest_synth::real_time::AudioObservationSnapshot;
+        use crest_tracker::time::Tempo;
+        let mut runtime = super::super::tests::capture_fixture();
+        let mut song = runtime.app.borrow().editor.song().clone();
+        let id = EventId::new(song.next_identity().unwrap()).unwrap();
+        song.phrases
+            .values_mut()
+            .next()
+            .unwrap()
+            .events
+            .push(Event::note(
+                id,
+                Beat::ZERO,
+                runtime.capture_target.clone().unwrap(),
+                Note::new(60, 100, Beat::integer(3)).unwrap(),
+            ));
+        let snapshot = Snapshot::compile(&song, 0, PlaybackBudget::default()).unwrap();
+        let mut playback = Playback::new(Arc::new(snapshot));
+        playback.window(Beat::ONE).unwrap();
+        let pending = playback.clone().window(Beat::integer(10)).unwrap();
+        assert!(pending
+            .iter()
+            .any(|event| matches!(event.message, Message::NoteOff { .. })));
+        runtime.tempo = TempoMap::new(Tempo::new(120_000).unwrap());
+        runtime.tempo.insert(Beat::ONE, Tempo::new(60_000).unwrap());
+        runtime
+            .tempo
+            .insert(Beat::integer(2), Tempo::new(180_000).unwrap());
+        runtime.anchor = 100;
+        let mut clock = super::super::tests::clock();
+        clock.audio = AudioObservationSnapshot::from_mix(1, 1, 48_000, 0, 0, 0, Default::default());
+        runtime.last_clock = Some(clock);
+        runtime.recover_audio_deadline(&playback, clock).unwrap();
+        assert_eq!(runtime.playback_recoveries, 1);
+        assert!(matches!(
+            runtime.recorder.state(),
+            CaptureState::Interrupted { .. }
+        ));
+        assert!(runtime.app.borrow().status.contains("take retained"));
+        assert_eq!(runtime.transport_beat(clock).unwrap(), Beat::ONE);
+        assert_eq!(runtime.frame_at_beat(Beat::ONE, clock).unwrap(), 50_400);
+        assert_eq!(
+            runtime.frame_at_beat(Beat::integer(2), clock).unwrap(),
+            98_400
+        );
+        assert_eq!(
+            runtime.frame_at_beat(Beat::integer(3), clock).unwrap(),
+            114_400
+        );
+        runtime.recover_audio_deadline(&playback, clock).unwrap();
+        assert_eq!(
+            runtime.playback_recoveries, 1,
+            "no repeated recovery while ahead"
+        );
+        assert_eq!(playback.window(Beat::integer(10)).unwrap(), pending);
+        clock.audio =
+            AudioObservationSnapshot::from_mix(2, 2, 480_000, 0, 0, 0, Default::default());
+        runtime.recover_audio_deadline(&playback, clock).unwrap();
+        assert_eq!(
+            runtime.playback_recoveries, 1,
+            "finished playback must end normally"
+        );
+    }
+
+    #[test]
     fn scoped_audition_preserves_arrangement_and_seek_rebuilds_tempo_without_stale_releases() {
         let mut app = App::new();
         app.apply(Request::Confirm).unwrap();
         app.apply(Request::Confirm).unwrap();
         let path = app.occurrence().unwrap();
         let mut song = app.editor.song().clone();
-        let chain = song.tracks[0].slots[0].as_ref().unwrap().chain;
+        let chain = song.tracks[0].slots[0]
+            .as_ref()
+            .unwrap()
+            .chain
+            .pattern()
+            .unwrap();
         let phrase = song.chains[&chain].phrases[0].phrase;
         let target = Target::Channel {
             channel: Channel::FIRST,

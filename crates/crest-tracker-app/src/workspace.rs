@@ -1,16 +1,21 @@
 //! Tracker interaction reducer; physical input and rendering remain Synth-owned.
 mod arrangement;
+mod channel_expression;
 mod chord_editor;
 pub(crate) mod chords;
 mod commands;
 mod effects;
+mod expression;
 mod files;
 mod generator;
+mod hints;
+pub(crate) mod input;
 mod library;
 mod midi;
 mod minimap;
 mod notes;
 mod phrase;
+mod piano;
 mod projection;
 mod settings;
 pub(crate) mod sticks;
@@ -34,13 +39,14 @@ use serde_json::Value;
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum Panel {
     Menu,
-    QuickJump,
     Settings,
     SongSettings,
+    ChainSettings,
     PhraseSettings,
     File,
     Tools,
     Arrangement,
+    SongSlot,
     Chords,
     ChordEditor,
     Generator,
@@ -50,7 +56,15 @@ enum Panel {
     NoteValues,
     NoteSelection,
     NoteHistory,
+    PianoView,
+    PianoTiming,
+    PianoDefaults,
+    PianoTarget,
+    PianoQuantize,
+    PianoVelocity,
+    PianoStack,
     Expression,
+    ChannelExpression,
     Library,
     ChordLibrary,
     Repair,
@@ -61,12 +75,15 @@ enum Panel {
 
 #[derive(Default)]
 pub struct Navigation {
+    pub(crate) patch_capacity: Option<crest_synth::shell::hosted_synth::HostedPatchCapacity>,
+    pub(crate) synth_detail_available: bool,
+    pub(crate) synth_surface: Option<crest_synth::control::SurfaceId>,
+    controller_bindings: crest_synth::control::ControllerBindings,
     panel: Option<Panel>,
-    synth_return: Option<(View, usize, usize, SynthPage)>,
     focus: Option<String>,
+    list_page_size: Option<(String, usize)>,
     text: Option<WorkspaceTextEntry>,
     gesture: u64,
-    opening_direction: Option<Direction>,
     parents: Vec<(Option<Panel>, Option<String>)>,
     chord: Option<crate::app::ChordDraft>,
     chord_octave: i8,
@@ -77,9 +94,11 @@ pub struct Navigation {
     minimap_follow_paused: bool,
     expression_index: usize,
     master_expression: bool,
+    channel_expression: channel_expression::Editor,
     midi_binding: Option<crate::preferences::MidiControlBinding>,
     midi_binding_index: Option<usize>,
     settings_tab: settings::Tab,
+    piano: piano::PianoEditor,
 }
 
 fn row(id: impl Into<String>, label: impl Into<String>, value: impl Into<String>) -> WorkspaceRow {
@@ -87,6 +106,8 @@ fn row(id: impl Into<String>, label: impl Into<String>, value: impl Into<String>
         id: id.into(),
         label: label.into(),
         value: value.into(),
+        enabled: true,
+        span: 1,
         selected: false,
         playing: false,
     }
@@ -103,6 +124,8 @@ fn open(app: &mut App, panel: Option<Panel>) {
             .parents
             .push((app.workspace.panel, app.workspace.focus.clone()));
     } else if panel.is_none() {
+        app.workspace.piano.draft = None;
+        app.workspace.piano.defaults = None;
         app.workspace.parents.clear();
     }
     app.workspace.panel = panel;
@@ -111,6 +134,21 @@ fn open(app: &mut App, panel: Option<Panel>) {
     cancel_edit(app);
 }
 fn back(app: &mut App) {
+    if app.is_piano_roll()
+        && matches!(
+            app.workspace.panel,
+            Some(
+                Panel::NoteValues
+                    | Panel::PianoQuantize
+                    | Panel::PianoDefaults
+                    | Panel::PianoVelocity
+            )
+        )
+    {
+        app.workspace.piano.draft = None;
+        open(app, None);
+        return;
+    }
     let (panel, focus) = app.workspace.parents.pop().unwrap_or((None, None));
     app.workspace.panel = panel;
     app.workspace.focus = focus;
@@ -122,7 +160,8 @@ pub fn text_entry_active(app: &App) -> bool {
 }
 
 pub fn owns_input(app: &App) -> bool {
-    app.view != View::Instruments
+    app.load_progress.is_some()
+        || app.view != View::Instruments
         || app.workspace.panel.is_some()
         || !app.file_dialog.is_null()
         || !app.shared_edit_projection().is_null()
@@ -134,6 +173,9 @@ pub fn cancel_edit(app: &mut App) {
 }
 
 pub(crate) fn follow_playback(app: &mut App, at: Beat) {
+    if app.workspace.panel.is_none() {
+        app.follow_piano_playback();
+    }
     if app.view == View::Minimap
         && !app.workspace.minimap_follow_paused
         && app.workspace.panel.is_none()
@@ -147,6 +189,21 @@ pub(crate) fn follow_playback(app: &mut App, at: Beat) {
 /// Both keyboard and SDL call this same semantic boundary. Native Synth actions
 /// fall through while its workspace is active, preserving all original pages.
 pub fn action(app: &mut App, action: SemanticAction) -> bool {
+    if app.load_progress.is_some() {
+        return true;
+    }
+    match action {
+        SemanticAction::PreviewStart => {
+            app.requests.push(Request::Play);
+            return true;
+        }
+        SemanticAction::PreviewStop => return true,
+        _ => {}
+    }
+    if !owns_input(app) && action == SemanticAction::Return {
+        app.requests.push(Request::SynthAction { action });
+        return true;
+    }
     if action == SemanticAction::Return {
         return_to_parent(app);
         return true;
@@ -169,7 +226,6 @@ pub fn action(app: &mut App, action: SemanticAction) -> bool {
             }
             app.edit_held = mode == InteractionMode::Adjust;
             if !app.edit_held {
-                app.workspace.opening_direction = None;
                 app.requests.push(Request::EndGesture);
             }
         }
@@ -177,8 +233,7 @@ pub fn action(app: &mut App, action: SemanticAction) -> bool {
         SemanticAction::NavigatePage(direction) => navigate_page(app, direction),
         SemanticAction::Adjust(direction) => adjust(app, direction),
         SemanticAction::Activate => activate_focused(app),
-        SemanticAction::PreviewStart => app.requests.push(Request::Play),
-        SemanticAction::PreviewStop => {}
+        SemanticAction::OpenPopover => popover(app),
         SemanticAction::ToggleTestMidi => open(app, Some(Panel::Menu)),
         SemanticAction::OpenMidiSettings => unreachable!(),
         SemanticAction::SelectContext(TopLevelContext::Patch) => synth(app, SynthPage::Instruments),
@@ -187,7 +242,11 @@ pub fn action(app: &mut App, action: SemanticAction) -> bool {
         SemanticAction::SelectPatch(Direction::Left) => {
             return_to_parent(app);
         }
-        SemanticAction::SelectPatch(Direction::Right) => app.requests.push(Request::Clear),
+        SemanticAction::SelectPatch(Direction::Right)
+            if !(app.is_piano_roll() && piano::panel(app.workspace.panel)) =>
+        {
+            app.requests.push(Request::Clear);
+        }
         _ => {}
     }
     true
@@ -219,22 +278,25 @@ fn return_to_parent(app: &mut App) {
 }
 
 fn navigate_page(app: &mut App, direction: Direction) {
-    if app.workspace.panel.is_some() && matches!(direction, Direction::Up | Direction::Down) {
+    if app.workspace.panel == Some(Panel::Menu) && direction == Direction::Down {
+        return;
+    }
+    if app.workspace.panel == Some(Panel::Menu) && direction == Direction::Up {
+        back(app);
+        return;
+    }
+    if app.workspace.panel.is_some() && direction == Direction::Down {
         back(app);
         return;
     }
     if direction == Direction::Down {
-        if app.view == View::Song && app.workspace.panel.is_none() {
-            synth(app, SynthPage::Mixer);
-        } else {
-            open(app, Some(Panel::QuickJump));
-        }
+        open(app, Some(Panel::Menu));
         return;
     }
     match (app.workspace.panel, app.view, direction) {
-        (Some(Panel::File), _, Direction::Up) => open(app, Some(Panel::SongSettings)),
-        (_, View::Song, Direction::Up) => open(app, Some(Panel::Settings)),
-        (_, View::Phrase, Direction::Up) => open(app, Some(Panel::PhraseSettings)),
+        (None, View::Song, Direction::Up) => open(app, Some(Panel::SongSettings)),
+        (None, View::Chain, Direction::Up) => open(app, Some(Panel::ChainSettings)),
+        (None, View::Phrase, Direction::Up) => open(app, Some(Panel::PhraseSettings)),
         (None, View::Song | View::Chain, Direction::Right) => app.requests.push(Request::Confirm),
         (_, _, Direction::Left) => {
             return_to_parent(app);
@@ -244,8 +306,30 @@ fn navigate_page(app: &mut App, direction: Direction) {
 }
 
 fn navigate(app: &mut App, direction: Direction) {
+    let modal = modal_list(app);
+    if !modal && app.workspace.panel == Some(Panel::PianoVelocity) {
+        if matches!(direction, Direction::Up | Direction::Down) {
+            open(app, None);
+        } else {
+            app.requests.push(Request::PianoControl {
+                control: PianoControl::NextNote {
+                    delta: if direction == Direction::Left { -1 } else { 1 },
+                },
+            });
+        }
+        return;
+    }
     let view = project(app).workspace.expect("Tracker owns input");
-    if app.workspace.panel == Some(Panel::Settings)
+    if !modal && app.is_piano_roll() && piano::panel(app.workspace.panel) {
+        piano::navigate(app, direction, &view);
+        return;
+    }
+    if !modal && app.workspace.panel == Some(Panel::ChordEditor) {
+        chord_editor::navigate(app, direction, &view);
+        return;
+    }
+    if !modal
+        && app.workspace.panel == Some(Panel::Settings)
         && settings::navigate(app, direction, &view.focus)
     {
         return;
@@ -256,10 +340,20 @@ fn navigate(app: &mut App, direction: Direction) {
             .iter()
             .position(|row| row.id == view.focus)
             .unwrap_or(0);
-        let delta = if matches!(direction, Direction::Up | Direction::Left) {
-            -1
-        } else {
-            1
+        // Native layout supplies the page capacity. Headless input and the
+        // first frame use ten rows until the current list has been measured.
+        let page = app
+            .workspace
+            .list_page_size
+            .as_ref()
+            .filter(|(id, _)| id == &view.rows[0].id)
+            .map_or(10, |(_, rows)| *rows)
+            .min(view.rows.len()) as isize;
+        let delta = match direction {
+            Direction::Up => -1,
+            Direction::Down => 1,
+            Direction::Left => -page,
+            Direction::Right => page,
         };
         let next = (index as isize + delta).clamp(0, view.rows.len() as isize - 1) as usize;
         app.workspace.focus = Some(view.rows[next].id.clone());
@@ -274,6 +368,13 @@ fn navigate(app: &mut App, direction: Direction) {
         vertical,
     });
 }
+
+fn modal_list(app: &App) -> bool {
+    !app.file_dialog.is_null()
+        || !app.shared_edit_projection().is_null()
+        || !app.resource_repair.is_null()
+}
+
 fn direction_delta(direction: Direction) -> (i32, i32) {
     match direction {
         Direction::Up => (0, -1),
@@ -283,41 +384,54 @@ fn direction_delta(direction: Direction) -> (i32, i32) {
     }
 }
 fn adjust(app: &mut App, direction: Direction) {
-    if app.workspace.opening_direction == Some(direction) {
-        return;
-    }
-    app.workspace.opening_direction = None;
     let delta = if matches!(direction, Direction::Left | Direction::Down) {
         -1
     } else {
         1
     };
-    let field_delta = field_delta(app, &focused_id(app), direction, delta);
+    if app.workspace.panel == Some(Panel::PianoVelocity) {
+        let coarse = matches!(direction, Direction::Up | Direction::Down) && !app.fine_held;
+        piano::adjust(app, "piano_lane_value", delta * if coarse { 10 } else { 1 });
+        return;
+    }
+    let Some(view) = project(app).workspace else {
+        return;
+    };
+    let focus = view.focus;
+    if view.rows.iter().any(|row| row.id == focus && !row.enabled) {
+        return;
+    }
+    let field_delta = field_delta(app, &focus, direction, delta);
+    if app.is_piano_roll() && focus.starts_with("piano_") {
+        piano::adjust(app, &focus, field_delta);
+        return;
+    }
     match app.workspace.panel {
         Some(Panel::FxCommands) => navigate(app, direction),
-        Some(Panel::Midi | Panel::MidiBinding) => midi::adjust(app, &focused_id(app), field_delta),
-        Some(Panel::Generator) => generator::adjust(app, &focused_id(app), field_delta),
-        Some(Panel::Effects) => effects::adjust(app, &focused_id(app), field_delta),
-        Some(Panel::Notes | Panel::NoteValues | Panel::NoteSelection) => {
-            notes::adjust(app, &focused_id(app), field_delta)
+        Some(Panel::Midi | Panel::MidiBinding) => midi::adjust(app, &focus, field_delta),
+        Some(Panel::Generator) => generator::adjust(app, &focus, field_delta),
+        Some(Panel::Effects) => effects::adjust(app, &focus, field_delta),
+        Some(Panel::Notes | Panel::NoteValues | Panel::NoteSelection | Panel::PianoView) => {
+            notes::adjust(app, &focus, field_delta)
         }
         Some(Panel::Expression) => {
-            notes::expression_action(app, &focused_id(app), field_delta);
+            expression::adjust(app, &focus, field_delta);
         }
-        Some(Panel::Arrangement) => arrangement::adjust(app, &focused_id(app), field_delta),
-        Some(Panel::Settings) => settings::adjust(app, &focused_id(app), field_delta),
+        Some(Panel::ChannelExpression) => channel_expression::adjust(app, &focus, field_delta),
+        Some(Panel::Arrangement) => arrangement::adjust(app, &focus, field_delta),
+        Some(Panel::Settings) => settings::adjust(app, &focus, field_delta),
         Some(Panel::SongSettings) => {
-            let focus = focused_id(app);
-            if focus == "tempo" {
+            if focus == "patch_capacity" {
+                settings::adjust(app, &focus, field_delta);
+            } else if focus == "tempo" {
                 let bpm = (app.editor.song().tempo.bpm() + f64::from(field_delta)).max(1.0);
                 if let Ok(tempo) = Tempo::new((bpm * 1000.0) as u32) {
                     app.requests.push(Request::Tempo { tempo });
                 }
             }
         }
-        Some(Panel::PhraseSettings) => phrase::adjust(app, &focused_id(app), field_delta),
+        Some(Panel::PhraseSettings) => phrase::adjust(app, &focus, field_delta),
         Some(Panel::ChordEditor) => {
-            let focus = focused_id(app);
             if matches!(direction, Direction::Up | Direction::Down) {
                 if let Some(interval) = focus
                     .strip_prefix("chord_key:")
@@ -334,16 +448,16 @@ fn adjust(app: &mut App, direction: Direction) {
             }
             chord_editor::adjust(app, &focus, field_delta);
         }
-        Some(Panel::Text) => commands::adjust_text(app, &focused_id(app), delta),
+        Some(Panel::Text) => commands::adjust_text(app, &focus, delta),
         Some(Panel::Chords) if matches!(direction, Direction::Left | Direction::Right) => {
             let choices: Vec<_> = chord_rows(app)
                 .into_iter()
                 .filter(|row| row.id.starts_with("chord:"))
                 .collect();
-            let current = focused_id(app);
+            let current = &focus;
             let index = choices
                 .iter()
-                .position(|row| row.id == current)
+                .position(|row| &row.id == current)
                 .map_or(0, |index| index.saturating_add_signed(delta as isize))
                 .min(choices.len().saturating_sub(1));
             if let Some(choice) = choices.get(index) {
@@ -352,14 +466,10 @@ fn adjust(app: &mut App, direction: Direction) {
         }
         Some(_) => {}
         None if app.view == View::Minimap => minimap::adjust(app, direction),
-        None if generator::active(app) => generator::adjust(app, &focused_id(app), field_delta),
-        None if app.is_piano_roll() && direction == Direction::Up => {
-            open(app, Some(Panel::Notes));
-            app.workspace.opening_direction = Some(direction);
-        }
+        None if generator::active(app) => generator::adjust(app, &focus, field_delta),
         None if app.is_piano_roll() => {
             let control = if matches!(direction, Direction::Left | Direction::Right) {
-                PianoControl::Resize { delta }
+                PianoControl::Nudge { delta }
             } else {
                 PianoControl::Velocity { delta: delta * 10 }
             };
@@ -376,12 +486,6 @@ fn adjust(app: &mut App, direction: Direction) {
             },
             gesture: app.workspace.gesture.max(1),
         }),
-        None if direction == Direction::Up && app.view == View::Phrase && app.column >= 3 => {
-            let held = app.edit_held;
-            effects::begin(app);
-            app.edit_held = held;
-            app.workspace.opening_direction = Some(direction);
-        }
         None if app.view == View::Phrase
             && app.column == 0
             && matches!(direction, Direction::Up | Direction::Down) =>
@@ -394,7 +498,7 @@ fn adjust(app: &mut App, direction: Direction) {
         None => app.requests.push(Request::AdjustGesture {
             delta: if (app.view == View::Song
                 || (app.view == View::Chain && app.column == 1)
-                || (app.view == View::Phrase && app.column == 2))
+                || (app.view == View::Phrase && app.column >= 2))
                 && matches!(direction, Direction::Up | Direction::Down)
             {
                 delta * 10
@@ -405,10 +509,44 @@ fn adjust(app: &mut App, direction: Direction) {
         }),
     }
 }
-fn synth(app: &mut App, page: SynthPage) {
-    if app.view != View::Instruments {
-        app.workspace.synth_return = Some((app.view, app.row, app.column, page));
+fn popover(app: &mut App) {
+    match app.workspace.panel {
+        Some(Panel::SongSlot) => open(app, None),
+        Some(Panel::Effects) => {
+            let focus = focused_id(app);
+            effects::activate(
+                app,
+                if focus == "fx_value"
+                    && matches!(
+                        app.workspace.fx,
+                        Some(
+                            crest_tracker::composition::Fx::ChordRevision { .. }
+                                | crest_tracker::composition::Fx::Chord { .. }
+                                | crest_tracker::composition::Fx::Add { .. }
+                        )
+                    )
+                {
+                    "fx_value"
+                } else {
+                    "fx_kind"
+                },
+            );
+        }
+        Some(_) => {}
+        None if app.view == View::Song => open(app, Some(Panel::SongSlot)),
+        None if app.view == View::Chain => open(app, Some(Panel::Arrangement)),
+        None if app.is_piano_roll() => {
+            app.requests.push(Request::PianoControl {
+                control: PianoControl::Select,
+            });
+            open(app, Some(Panel::Notes));
+        }
+        None if app.view == View::Phrase && app.column >= 3 => effects::begin(app),
+        None if app.view == View::Phrase => open(app, Some(Panel::Notes)),
+        _ => {}
     }
+}
+fn synth(app: &mut App, page: SynthPage) {
     open(app, None);
     app.requests.push(Request::SynthPage { page });
 }
@@ -418,19 +556,37 @@ fn focused_id(app: &App) -> String {
         .map_or(String::new(), |view| view.focus)
 }
 fn activate_focused(app: &mut App) {
+    if app.workspace.panel == Some(Panel::PianoVelocity) {
+        piano::activate(app, "piano_inspect");
+        app.workspace.focus = Some("piano_velocity_value".into());
+        return;
+    }
     let id = focused_id(app);
-    if id.starts_with("piano:") {
-        app.requests.push(Request::PianoControl {
-            control: PianoControl::Toggle,
-        });
-    } else if id.starts_with("cell:") || id.starts_with("map:") {
+    if id.starts_with("piano:") || id.starts_with("cell:") || id.starts_with("map:") {
         app.requests.push(Request::Confirm);
-    } else {
+    } else if project(app)
+        .workspace
+        .is_some_and(|view| view.rows.iter().any(|row| row.id == id && row.enabled))
+    {
         activate(app, &id);
     }
 }
 
 pub fn event(app: &mut App, event: WorkspaceEvent) {
+    if app.load_progress.is_some() {
+        return;
+    }
+    if let WorkspaceEvent::ListPageSize { id, rows } = event {
+        if let Some(view) = project(app).workspace {
+            if rows > 0
+                && rows <= view.rows.len()
+                && view.rows.first().is_some_and(|row| row.id == id)
+            {
+                app.workspace.list_page_size = Some((id, rows));
+            }
+        }
+        return;
+    }
     if let WorkspaceEvent::TextChanged { id, value } = event {
         if let Some(entry) = &mut app.workspace.text {
             if entry.id == id {
@@ -446,7 +602,9 @@ pub fn event(app: &mut App, event: WorkspaceEvent) {
     let (id, activate_row) = match event {
         WorkspaceEvent::Focus { id } => (id, false),
         WorkspaceEvent::Activate { id } => (id, true),
-        WorkspaceEvent::Submit { .. } | WorkspaceEvent::TextChanged { .. } => unreachable!(),
+        WorkspaceEvent::Submit { .. }
+        | WorkspaceEvent::TextChanged { .. }
+        | WorkspaceEvent::ListPageSize { .. } => unreachable!(),
     };
     if id == "transport" && activate_row {
         app.requests.push(Request::Play);
@@ -476,22 +634,46 @@ pub fn event(app: &mut App, event: WorkspaceEvent) {
             return;
         }
     }
-    if let Some(timeline) = &view.timeline {
-        if timeline.spans.iter().any(|span| span.id == id) {
-            if let (Some(event), Some(occurrence)) = (
-                id.strip_prefix("note:")
-                    .and_then(|id| id.parse().ok())
-                    .and_then(|id| crest_tracker::composition::EventId::new(id).ok()),
-                app.occurrence(),
-            ) {
-                app.requests.push(Request::SelectEvents {
-                    revision: app.editor.revision(),
-                    occurrence,
-                    events: vec![event],
-                    toggle: false,
-                });
+    if view
+        .rows
+        .iter()
+        .chain(&view.inspector)
+        .any(|row| row.id == id && !row.enabled)
+    {
+        return;
+    }
+    if !view.overlay {
+        if let Some(timeline) = &view.timeline {
+            if id == timeline.level_action.id {
+                if activate_row {
+                    piano::activate(app, &id);
+                }
+                return;
             }
-            return;
+            if let Some(span) = timeline
+                .spans
+                .iter()
+                .find(|span| span.id == id || span.level_id == id)
+            {
+                if span.level_id == id {
+                    open(app, Some(Panel::PianoVelocity));
+                }
+                if let (Some(event), Some(occurrence)) = (
+                    span.id
+                        .strip_prefix("note:")
+                        .and_then(|id| id.parse().ok())
+                        .and_then(|id| crest_tracker::composition::EventId::new(id).ok()),
+                    app.occurrence(),
+                ) {
+                    app.requests.push(Request::SelectEvents {
+                        revision: app.editor.revision(),
+                        occurrence,
+                        events: vec![event],
+                        toggle: false,
+                    });
+                }
+                return;
+            }
         }
     }
     if !view
@@ -501,6 +683,9 @@ pub fn event(app: &mut App, event: WorkspaceEvent) {
         .chain(&view.tabs)
         .any(|row| row.id == id)
     {
+        if view.overlay {
+            return;
+        }
         if let Some(cell) = view
             .grid
             .iter()
@@ -543,7 +728,7 @@ fn select_cell(app: &mut App, id: &str) {
     if parts[0] == "cell" {
         app.requests.push(Request::Focus { row, column });
     } else if parts[0] == "piano" && app.selected_phrase().is_some() {
-        if let Ok(at) = app.roll_grid.checked_scale(row as u64, 1) {
+        if let Ok(at) = app.piano_paint_step().checked_scale(row as u64, 1) {
             app.requests.push(Request::PianoControl {
                 control: PianoControl::Cursor {
                     at,
@@ -562,29 +747,18 @@ pub(crate) fn return_from_synth(
     surface: crest_synth::control::SurfaceId,
 ) -> bool {
     use crest_synth::control::SurfaceId;
-    let Some((view, row, column, page)) = app.workspace.synth_return else {
-        return false;
-    };
     let returns = matches!(
-        (page, surface, action),
+        (surface, action),
         (
-            SynthPage::Mixer,
-            SurfaceId::MixerMain | SurfaceId::MixerInspector,
-            SemanticAction::NavigatePage(Direction::Up)
-        ) | (
-            _,
-            SurfaceId::PatchMain,
-            SemanticAction::NavigatePage(Direction::Left)
+            SurfaceId::PatchMain | SurfaceId::MixerMain | SurfaceId::Sends,
+            SemanticAction::NavigatePage(Direction::Down | Direction::Left)
+                | SemanticAction::Return
         )
     );
     if !returns {
         return false;
     }
-    app.workspace.synth_return = None;
-    open(app, None);
-    app.view = view;
-    app.row = row;
-    app.column = column;
+    open(app, Some(Panel::Menu));
     true
 }
 
@@ -602,7 +776,7 @@ fn field_delta(app: &App, id: &str, direction: Direction, delta: i32) -> i32 {
     }
     if matches!(
         id,
-        "gen_pitch" | "gen_low" | "gen_high" | "notes_pitch" | "chord_root"
+        "gen_pitch" | "gen_low" | "gen_high" | "notes_pitch" | "piano_pitch" | "chord_root"
     ) || id.starts_with("gen_note:")
         || id.starts_with("chord_interval:")
     {
@@ -611,6 +785,7 @@ fn field_delta(app: &App, id: &str, direction: Direction, delta: i32) -> i32 {
     let numeric = matches!(
         id,
         "tempo"
+            | "patch_capacity"
             | "default_tempo"
             | "clock_delay"
             | "phrase_steps"
@@ -628,6 +803,12 @@ fn field_delta(app: &App, id: &str, direction: Direction, delta: i32) -> i32 {
             | "binding_channel"
             | "binding_number"
             | "notes_start"
+            | "piano_start"
+            | "piano_velocity_value"
+            | "piano_new_velocity"
+            | "piano_channel"
+            | "piano_release"
+            | "piano_lane_value"
             | "notes_velocity"
             | "notes_release"
             | "notes_length"
@@ -635,6 +816,9 @@ fn field_delta(app: &App, id: &str, direction: Direction, delta: i32) -> i32 {
             | "expr_offset"
             | "expr_value"
             | "expr_number"
+            | "channel_time"
+            | "channel_value"
+            | "channel_number"
             | "arr_chain_repeat"
             | "arr_phrase_repeat"
     );

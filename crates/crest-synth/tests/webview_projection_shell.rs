@@ -260,6 +260,14 @@ fn main() {
         return;
     }
 
+    if live && std::env::var("CREST_WEBVIEW_METER_WITNESS").as_deref() == Ok("1") {
+        prove_token_table_freshness();
+        prove_protocol_policy_parity();
+        run_live_sections(None, false, false, false, false, false);
+        println!("CREST_ACCEPTANCE mixer_meters passed (unrelated fixtures and forced faults outside scoped witness)");
+        return;
+    }
+
     let fidelity = prove_serialized_schema_fidelity();
     prove_token_table_freshness();
     prove_protocol_policy_parity();
@@ -4140,6 +4148,7 @@ fn run_live_sections(
 ) {
     use tauri::{Listener, Manager};
     let controller_witness = std::env::var(CONTROLLER_WITNESS_ENV).as_deref() == Ok("1");
+    let meter_witness = std::env::var("CREST_WEBVIEW_METER_WITNESS").as_deref() == Ok("1");
 
     let manifest = Path::new(env!("CARGO_MANIFEST_DIR"));
     let assets = PageAssets::load(manifest);
@@ -4265,6 +4274,9 @@ fn run_live_sections(
     let driver_outcome = Arc::clone(&outcome);
     let driver = std::thread::spawn(move || {
         let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            if meter_witness {
+                return drive_meter_window(&handle, &harness_receiver, &ready_receiver);
+            }
             if controller_witness {
                 return controller_settings_native::drive(
                     &handle,
@@ -4330,7 +4342,9 @@ fn run_live_sections(
         "T026 harness window owned shutdown: PASS (run_return = 0 through the owned close path)"
     );
 
-    if controller_witness {
+    if meter_witness {
+        println!("CREST_WEBVIEW_METER_WITNESS meter checks passed; owned window closed.");
+    } else if controller_witness {
         println!("CREST_WEBVIEW_CONTROLLER_WITNESS Controller Settings journey passed; owned window closed.");
     } else if page_witness {
         println!("CREST_WEBVIEW_PAGE_NAVIGATION_WITNESS authored edges passed, including Shift+Right Settings return; owned window closed.");
@@ -5269,15 +5283,239 @@ fn observe_meter_paint(
                function (node) {{ return {{ trackId: Number(node.getAttribute('data-meter-track')), \
                  state: node.getAttribute('data-meter-state'), \
                  label: node.getAttribute('aria-label'), \
-                 rms: node.style.getPropertyValue('--meter-rms') }}; }}); \
+                 rms: node.style.getPropertyValue('--meter-rms'), \
+                 level: node.style.getPropertyValue('--meter-level') }}; }}); \
              var selected = document.getElementById('inspector-meter-readout'); \
              window.__TAURI__.event.emit('{HARNESS_EVENT}', {{ phase: '{phase}', \
                meters: nodes, selectedText: selected ? selected.textContent : null, \
-               selectedState: selected ? selected.getAttribute('data-meter-state') : null }}); \
+               selectedState: selected ? selected.getAttribute('data-meter-state') : null, \
+               masterText: document.getElementById('meter-readout').textContent, \
+               clip: document.getElementById('master-clip').textContent, \
+               masterPeak: document.querySelector('[data-role=master-meter]').style.getPropertyValue('--meter-peak'), \
+               inspectorFits: !selected || selected.parentElement.scrollWidth <= selected.parentElement.clientWidth }}); \
              }}, 50);"
         ))
         .map_err(|error| format!("meter paint probe {phase:?} failed: {error}"))?;
     receive_phase(receiver, phase, Duration::from_secs(10))
+}
+
+/// Focused production-page meter regression, also used by the full shell suite.
+fn prove_meter_paint(
+    window: &tauri::WebviewWindow,
+    handle: &tauri::AppHandle,
+    receiver: &mpsc::Receiver<Value>,
+    document_a: &str,
+) -> Result<(), String> {
+    // One deterministic all-track meter correlation probe. Rendering sets
+    // the page's current document; only the meter transport then repaints
+    // these passive nodes. UI generations do not invalidate sounding audio;
+    // mismatched graph revisions do.
+    window
+        .eval(format!("window.crest.render({document_a});"))
+        .map_err(|error| format!("rendering the meter correlation document failed: {error}"))?;
+    let document: Value = serde_json::from_str(document_a).map_err(|error| error.to_string())?;
+    let document_generation = document
+        .get("generation")
+        .and_then(Value::as_u64)
+        .ok_or_else(|| "the meter document carries its generation".to_owned())?;
+    let document_revision = document
+        .pointer("/status/graphRevision")
+        .cloned()
+        .ok_or_else(|| "the meter document carries its graph revision".to_owned())?;
+    let mut stale_generation = serde_json::to_value(AudioObservationSnapshot::from_mix(
+        1,
+        1,
+        512,
+        document_generation + 1,
+        0,
+        0,
+        MixObservation::default(),
+    ))
+    .map_err(|error| format!("the stale meter frame serializes: {error}"))?;
+    stale_generation["activeGraphRevision"] = document_revision.clone();
+    tauri::Emitter::emit(handle, METER_EVENT, stale_generation)
+        .map_err(|error| format!("emitting the stale-generation frame failed: {error}"))?;
+    let stale_generation_paint = observe_meter_paint(window, receiver, "meter-stale-generation")?;
+    assert!(
+        stale_generation_paint
+            .get("meters")
+            .and_then(Value::as_array)
+            .is_some_and(|meters| {
+                meters.len() == MixerTrackId::COUNT
+                    && meters
+                        .iter()
+                        .all(|meter| meter.get("state").and_then(Value::as_str) == Some("zero"))
+            }),
+        "navigation generations do not invalidate meters from the same audio graph"
+    );
+
+    let mut stale_revision = serde_json::to_value(AudioObservationSnapshot::from_mix(
+        2,
+        2,
+        1_024,
+        document_generation,
+        0,
+        0,
+        MixObservation::default(),
+    ))
+    .map_err(|error| format!("the stale-revision meter frame serializes: {error}"))?;
+    stale_revision["activeGraphRevision"] = Value::from(u64::MAX);
+    tauri::Emitter::emit(handle, METER_EVENT, stale_revision)
+        .map_err(|error| format!("emitting the stale-revision frame failed: {error}"))?;
+    let stale_revision_paint = observe_meter_paint(window, receiver, "meter-stale-revision")?;
+    assert!(
+        stale_revision_paint
+            .get("meters")
+            .and_then(Value::as_array)
+            .is_some_and(|meters| {
+                meters.len() == MixerTrackId::COUNT
+                    && meters
+                        .iter()
+                        .all(|meter| meter.get("state").and_then(Value::as_str) == Some("stale"))
+            }),
+        "all sixteen meter shapes refuse a stale graph revision"
+    );
+
+    let mut compatible = serde_json::to_value(AudioObservationSnapshot::from_mix(
+        3,
+        3,
+        1_536,
+        document_generation,
+        0,
+        0,
+        MixObservation::default(),
+    ))
+    .map_err(|error| format!("the compatible meter frame serializes: {error}"))?;
+    compatible["activeGraphRevision"] = document_revision;
+    for track in 0..MixerTrackId::COUNT {
+        let rms = (track + 1) as f64 / 32.0;
+        compatible["tracks"][track]["leftPeak"] = Value::from(rms);
+        compatible["tracks"][track]["rightPeak"] = Value::from(rms);
+        compatible["tracks"][track]["rms"] = Value::from(rms);
+    }
+    tauri::Emitter::emit(handle, METER_EVENT, compatible.clone())
+        .map_err(|error| format!("emitting the compatible meter frame failed: {error}"))?;
+    let compatible_paint = observe_meter_paint(window, receiver, "meter-compatible")?;
+    let painted_meters = compatible_paint
+        .get("meters")
+        .and_then(Value::as_array)
+        .ok_or_else(|| "the compatible paint reports all meters".to_owned())?;
+    assert_eq!(painted_meters.len(), MixerTrackId::COUNT);
+    for (track, meter) in painted_meters.iter().enumerate() {
+        let expected_rms = (track + 1) as f64 / 32.0;
+        assert_eq!(
+            meter.get("trackId").and_then(Value::as_u64),
+            Some(track as u64)
+        );
+        assert_eq!(meter.get("state").and_then(Value::as_str), Some("active"));
+        assert_eq!(
+            meter
+                .get("rms")
+                .and_then(Value::as_str)
+                .and_then(|value| value.parse::<f64>().ok()),
+            Some(expected_rms),
+            "T{track:02X} meter geometry must use its own canonical array index"
+        );
+        assert!(
+            meter
+                .get("label")
+                .and_then(Value::as_str)
+                .is_some_and(|text| text.starts_with(&format!("T{track:02X} meter"))),
+            "T{track:02X} meter exposes its identity and numeric state without color"
+        );
+    }
+    assert_eq!(
+        compatible_paint.get("selectedText").and_then(Value::as_str),
+        Some("RMS -30 / PEAK -30 dBFS"),
+        "the Inspector numeric meter is correlated to selected T00"
+    );
+    assert_eq!(compatible_paint["inspectorFits"], true);
+    let first_level: f64 = painted_meters[0]["level"]
+        .as_str()
+        .unwrap()
+        .parse()
+        .unwrap();
+    assert!(
+        (first_level - 0.5).abs() < 0.01,
+        "-30 dBFS occupies half the -60 to 0 dBFS rail"
+    );
+    // Quiet individual tracks can sum (including returns/master gain) above
+    // full scale. The output meter must show this independently of track RMS.
+    compatible["sequence"] = Value::from(4);
+    compatible["metering"] = serde_json::json!({
+        "tracks": (0..MixerTrackId::COUNT).map(|_| serde_json::json!({"rms": 0.1, "peak": 0.2})).collect::<Vec<_>>(),
+        "output": {"rms": 0.1, "peak": 0.5}, "clippedSamples": 8
+    });
+    tauri::Emitter::emit(handle, METER_EVENT, compatible.clone())
+        .map_err(|error| format!("emitting retained clip count failed: {error}"))?;
+    let retained = observe_meter_paint(window, receiver, "meter-retained-clip")?;
+    assert_eq!(
+        retained["clip"], "CLIP",
+        "clipped blocks missed by the UI remain visible"
+    );
+    compatible["sequence"] = Value::from(5);
+    compatible["metering"]["output"] = serde_json::json!({"rms": 0.7, "peak": 1.4});
+    tauri::Emitter::emit(handle, METER_EVENT, compatible.clone())
+        .map_err(|error| format!("emitting overload frame failed: {error}"))?;
+    let overload = observe_meter_paint(window, receiver, "meter-master-overload")?;
+    assert_eq!(overload["clip"], "CLIP");
+    assert_eq!(overload["masterPeak"], "1.000000");
+    assert!(overload["meters"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .all(|meter| meter["state"] == "active"));
+    std::thread::sleep(Duration::from_millis(550));
+    tauri::Emitter::emit(handle, METER_EVENT, compatible)
+        .map_err(|error| format!("emitting stalled observation failed: {error}"))?;
+    let stalled = observe_meter_paint(window, receiver, "meter-stalled")?;
+    assert_eq!(
+        stalled["selectedState"], "stale",
+        "repeated snapshots cannot keep a stopped audio stream fresh"
+    );
+    println!("Mixer meter paint: PASS (graph identity, dBFS, per-track readings, master overload)");
+    Ok(())
+}
+
+fn drive_meter_window(
+    handle: &tauri::AppHandle,
+    receiver: &mpsc::Receiver<Value>,
+    ready: &mpsc::Receiver<()>,
+) -> Result<(), String> {
+    use tauri::Manager;
+    ready
+        .recv_timeout(Duration::from_secs(30))
+        .map_err(|error| error.to_string())?;
+    let window = handle
+        .get_webview_window("main")
+        .ok_or("meter window missing")?;
+    let (_, _, _, shell, _) = StateProjector::new()
+        .project_with_shell(&production_mixer_state())
+        .map_err(|error| error.to_string())?;
+    let model = serde_json::to_value(shell.semantic_model()).map_err(|error| error.to_string())?;
+    let document = serde_json::to_string(&model).map_err(|error| error.to_string())?;
+    for viewport in [
+        RepresentativeViewport::WideReference,
+        RepresentativeViewport::StandardReference,
+    ] {
+        let viewport = viewport.fixture();
+        window
+            .set_size(tauri::LogicalSize::new(
+                f64::from(viewport.width_px),
+                f64::from(viewport.height_px),
+            ))
+            .map_err(|error| error.to_string())?;
+        std::thread::sleep(Duration::from_millis(100));
+        let observation = observe_render(&window, receiver, &document, "meter-layout")?;
+        assert_observation_structure(
+            &observation,
+            &serde_json::from_str(&document).unwrap(),
+            ResponsiveShellContract::get().side_track.minimum_px,
+            "meter layout",
+        );
+        prove_meter_paint(&window, handle, receiver, &document)?;
+    }
+    Ok(())
 }
 
 /// Structural correctness of one painted observation against the document it
@@ -5773,14 +6011,14 @@ fn assert_observation_structure(
     // (only the meter listener may write a live reading).
     assert_eq!(
         observation.get("meter").and_then(Value::as_str),
-        Some("METER 0.000"),
+        Some("MASTER — dBFS"),
         "{label}: the meter paints the zero state under a pure render"
     );
     assert_eq!(
         observation
             .pointer("/inspector/meter")
             .and_then(Value::as_str),
-        Some("METER 0.000 / STALE"),
+        Some("RMS — / PEAK — dBFS"),
         "{label}: the Inspector numeric meter explicitly marks stale input"
     );
 }
@@ -7961,129 +8199,7 @@ fn drive_live_window(
             "T024 standard 1280x800 MIXER Inspector",
         );
 
-        // One deterministic all-track meter correlation probe. Rendering sets
-        // the page's current document; only the meter transport then repaints
-        // these passive nodes. A stale generation and a stale graph revision are
-        // both refused before the compatible frame is accepted.
-        window
-            .eval(format!("window.crest.render({document_a});"))
-            .map_err(|error| format!("rendering the meter correlation document failed: {error}"))?;
-        let document_generation = document
-            .get("generation")
-            .and_then(Value::as_u64)
-            .ok_or_else(|| "the meter document carries its generation".to_owned())?;
-        let document_revision = document
-            .pointer("/status/graphRevision")
-            .cloned()
-            .ok_or_else(|| "the meter document carries its graph revision".to_owned())?;
-        let mut stale_generation = serde_json::to_value(AudioObservationSnapshot::from_mix(
-            1,
-            1,
-            512,
-            document_generation + 1,
-            0,
-            0,
-            MixObservation::default(),
-        ))
-        .map_err(|error| format!("the stale meter frame serializes: {error}"))?;
-        stale_generation["activeGraphRevision"] = document_revision.clone();
-        tauri::Emitter::emit(handle, METER_EVENT, stale_generation)
-            .map_err(|error| format!("emitting the stale-generation frame failed: {error}"))?;
-        let stale_generation_paint =
-            observe_meter_paint(&window, receiver, "meter-stale-generation")?;
-        assert!(
-            stale_generation_paint
-                .get("meters")
-                .and_then(Value::as_array)
-                .is_some_and(|meters| {
-                    meters.len() == MixerTrackId::COUNT
-                        && meters.iter().all(|meter| {
-                            meter.get("state").and_then(Value::as_str) == Some("stale")
-                        })
-                }),
-            "all sixteen meter shapes refuse a stale parameter generation"
-        );
-
-        let mut stale_revision = serde_json::to_value(AudioObservationSnapshot::from_mix(
-            2,
-            2,
-            1_024,
-            document_generation,
-            0,
-            0,
-            MixObservation::default(),
-        ))
-        .map_err(|error| format!("the stale-revision meter frame serializes: {error}"))?;
-        stale_revision["activeGraphRevision"] = Value::from(u64::MAX);
-        tauri::Emitter::emit(handle, METER_EVENT, stale_revision)
-            .map_err(|error| format!("emitting the stale-revision frame failed: {error}"))?;
-        let stale_revision_paint = observe_meter_paint(&window, receiver, "meter-stale-revision")?;
-        assert!(
-            stale_revision_paint
-                .get("meters")
-                .and_then(Value::as_array)
-                .is_some_and(|meters| {
-                    meters.len() == MixerTrackId::COUNT
-                        && meters.iter().all(|meter| {
-                            meter.get("state").and_then(Value::as_str) == Some("stale")
-                        })
-                }),
-            "all sixteen meter shapes refuse a stale graph revision"
-        );
-
-        let mut compatible = serde_json::to_value(AudioObservationSnapshot::from_mix(
-            3,
-            3,
-            1_536,
-            document_generation,
-            0,
-            0,
-            MixObservation::default(),
-        ))
-        .map_err(|error| format!("the compatible meter frame serializes: {error}"))?;
-        compatible["activeGraphRevision"] = document_revision;
-        for track in 0..MixerTrackId::COUNT {
-            let rms = (track + 1) as f64 / 32.0;
-            compatible["tracks"][track]["leftPeak"] = Value::from(rms);
-            compatible["tracks"][track]["rightPeak"] = Value::from(rms);
-            compatible["tracks"][track]["rms"] = Value::from(rms);
-        }
-        tauri::Emitter::emit(handle, METER_EVENT, compatible)
-            .map_err(|error| format!("emitting the compatible meter frame failed: {error}"))?;
-        let compatible_paint = observe_meter_paint(&window, receiver, "meter-compatible")?;
-        let painted_meters = compatible_paint
-            .get("meters")
-            .and_then(Value::as_array)
-            .ok_or_else(|| "the compatible paint reports all meters".to_owned())?;
-        assert_eq!(painted_meters.len(), MixerTrackId::COUNT);
-        for (track, meter) in painted_meters.iter().enumerate() {
-            let expected_rms = (track + 1) as f64 / 32.0;
-            assert_eq!(
-                meter.get("trackId").and_then(Value::as_u64),
-                Some(track as u64)
-            );
-            assert_eq!(meter.get("state").and_then(Value::as_str), Some("active"));
-            assert_eq!(
-                meter
-                    .get("rms")
-                    .and_then(Value::as_str)
-                    .and_then(|value| value.parse::<f64>().ok()),
-                Some(expected_rms),
-                "T{track:02X} meter geometry must use its own canonical array index"
-            );
-            assert!(
-                meter
-                    .get("label")
-                    .and_then(Value::as_str)
-                    .is_some_and(|text| text.starts_with(&format!("T{track:02X} meter"))),
-                "T{track:02X} meter exposes its identity and numeric state without color"
-            );
-        }
-        assert_eq!(
-            compatible_paint.get("selectedText").and_then(Value::as_str),
-            Some("METER 0.031 / ACTIVE"),
-            "the Inspector numeric meter is correlated to selected T00"
-        );
+        prove_meter_paint(&window, handle, receiver, document_a)?;
     }
 
     // The PATCH fixture documents at the standard reference width.

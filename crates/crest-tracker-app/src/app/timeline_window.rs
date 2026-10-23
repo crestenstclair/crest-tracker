@@ -66,7 +66,10 @@ pub(super) fn linear_track_length(
 ) -> Result<Option<Beat>, DocumentError> {
     let mut length = Beat::ZERO;
     for usage in track.slots.iter().flatten() {
-        let Some(chain) = linear_chain_length(song, &song.chains[&usage.chain])? else {
+        if usage.chain.special().is_some() {
+            return Ok(None);
+        }
+        let Some(chain) = linear_chain_length(song, &song.chains[&usage.chain.pattern()?])? else {
             return Ok(None);
         };
         length = length.checked_add(chain.checked_scale(u64::from(usage.repeats), 1)?)?;

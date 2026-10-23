@@ -16,6 +16,7 @@ pub(crate) type PatchSampleVisualizations =
 #[derive(Clone, Debug, PartialEq)]
 pub struct SessionReplacementPayload {
     patches: Vec<Patch>,
+    patch_capacity: usize,
     asset_descriptors: Vec<crate::synth::CapabilityDescriptor>,
     mixer: MixerState,
     global: GlobalParameters,
@@ -32,6 +33,7 @@ impl SessionReplacementPayload {
     ) -> Self {
         Self {
             patches: state.patches().to_vec(),
+            patch_capacity: state.patch_capacity(),
             asset_descriptors: state.capabilities().asset_descriptors().to_vec(),
             mixer: state.mixer().clone(),
             global: *state.global(),
@@ -50,6 +52,7 @@ impl SessionReplacementPayload {
         BusReturnBank,
         GraphRevision,
         PatchSampleVisualizations,
+        usize,
     ) {
         (
             self.patches,
@@ -58,6 +61,7 @@ impl SessionReplacementPayload {
             self.returns,
             self.target_graph_revision,
             self.sample_visualizations,
+            self.patch_capacity,
         )
     }
 

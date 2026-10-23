@@ -19,7 +19,7 @@ enum KeyHold {
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub struct KeyboardInputTranslator {
     host_navigation: bool,
-    page_keys_held: [KeyHold; 6],
+    page_keys_held: [KeyHold; 7],
     k_held: bool,
     shift_held: bool,
     start_held: bool,
@@ -31,7 +31,7 @@ impl KeyboardInputTranslator {
     pub const fn new() -> Self {
         Self {
             host_navigation: false,
-            page_keys_held: [KeyHold::Released; 6],
+            page_keys_held: [KeyHold::Released; 7],
             k_held: false,
             shift_held: false,
             start_held: false,
@@ -51,8 +51,11 @@ impl KeyboardInputTranslator {
             match event.kind() {
                 WindowInputKind::KeyUp => self.page_keys_held[index] = KeyHold::Released,
                 WindowInputKind::KeyDown => {
-                    let page =
-                        self.shift_held || matches!(event.key(), WindowKey::Q | WindowKey::E);
+                    let page = self.shift_held
+                        || matches!(
+                            event.key(),
+                            WindowKey::Q | WindowKey::E | WindowKey::BracketLeft
+                        );
                     let hold = &mut self.page_keys_held[index];
                     let prior = *hold;
                     // Once a hold participates in a page chord, releasing
@@ -72,7 +75,7 @@ impl KeyboardInputTranslator {
         }
         match event.kind() {
             WindowInputKind::FocusLost => {
-                self.page_keys_held = [KeyHold::Released; 6];
+                self.page_keys_held = [KeyHold::Released; 7];
                 self.k_held = false;
                 self.shift_held = false;
                 self.start_held = false;
@@ -113,12 +116,14 @@ impl KeyboardInputTranslator {
             WindowKey::D => Some(3),
             WindowKey::Q => Some(4),
             WindowKey::E => Some(5),
+            WindowKey::BracketLeft => Some(6),
             _ => None,
         }
     }
 
     fn translate_key_down(&mut self, key: WindowKey) -> Option<SemanticAction> {
         match key {
+            WindowKey::BracketLeft => return Some(SemanticAction::OpenPopover),
             WindowKey::Digit4 => {
                 return Some(SemanticAction::Send(crate::control::SendAction::Open))
             }
@@ -155,7 +160,7 @@ impl KeyboardInputTranslator {
                 return None;
             }
             self.start_held = true;
-            if self.shift_held {
+            if self.shift_held && !self.host_navigation {
                 self.start_preview_held = false;
                 return Some(SemanticAction::OpenMidiSettings);
             }
@@ -225,10 +230,8 @@ mod tests {
 
     /// The keys the window normalizes and this translator binds to nothing.
     ///
-    /// The four the gallery added — `Digit9`, `Digit0`, and the two brackets —
-    /// are here for the same reason the six digits are: normalizing a key so a
-    /// scene may bind it locally must not give it an application meaning.
-    const UNBOUND_DIGITS: [WindowKey; 9] = [
+    /// Gallery-only keys remain unbound. BracketLeft now opens edit popovers.
+    const UNBOUND_DIGITS: [WindowKey; 8] = [
         WindowKey::Digit3,
         WindowKey::Digit5,
         WindowKey::Digit6,
@@ -236,7 +239,6 @@ mod tests {
         WindowKey::Digit8,
         WindowKey::Digit9,
         WindowKey::Digit0,
-        WindowKey::BracketLeft,
         WindowKey::BracketRight,
     ];
 
@@ -524,7 +526,7 @@ mod tests {
         assert_eq!(
             translator.translate(WindowInput::key_down(WindowKey::W)),
             Some(SemanticAction::Adjust(Direction::Up)),
-            "Edit+Up enters the reducer-owned option state"
+            "Edit+Up remains a coarse adjustment"
         );
         assert_eq!(
             translator.translate(WindowInput::key_up(WindowKey::K)),

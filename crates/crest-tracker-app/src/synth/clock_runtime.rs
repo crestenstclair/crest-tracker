@@ -17,6 +17,7 @@ struct ClockOutputRun {
     // Re-correlating Instant and CoreAudio separately can reorder SPP/Continue
     // and the first Tick by a few microseconds in the output priority queue.
     start_deadline: std::time::Instant,
+    start_frame: u64,
 }
 
 pub(super) struct ClockRuntime {
@@ -421,6 +422,7 @@ impl Runtime {
         drop(app);
         self.playback = Some(playback);
         self.last_scheduled_frame = clock.audio.rendered_frames();
+        self.playback_recoveries = 0;
         self.graph_revision = graph_revision;
         self.sync.awaiting_start = None;
         self.app.borrow_mut().playing = true;
@@ -514,6 +516,7 @@ impl Runtime {
             self.sync.output = Some(ClockOutputRun {
                 pulses: ClockOutput::new(self.transport_start, 4096).map_err(|e| e.to_string())?,
                 start_deadline: deadline,
+                start_frame: self.anchor,
             });
         }
         Ok(())
@@ -530,6 +533,7 @@ impl Runtime {
             .as_deref()
             .ok_or("Clock output destination missing")?;
         let start_deadline = output.start_deadline;
+        let start_frame = output.start_frame;
         let pulses = output
             .pulses
             .window(end, &self.tempo, clock.sample_rate)
@@ -538,7 +542,7 @@ impl Runtime {
             // Seeking rebases notes and clock to the same audio anchor. The
             // pulse's TempoMap frame alone still includes time before the seek.
             let frame = self.frame_at_beat(pulse.at, clock)?;
-            let deadline = if frame == self.anchor {
+            let deadline = if frame == start_frame {
                 start_deadline
             } else {
                 // Later pulses follow current backend clock observations, so

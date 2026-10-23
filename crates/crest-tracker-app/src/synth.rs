@@ -1,6 +1,5 @@
 mod chord_library;
 mod clock_runtime;
-pub(crate) mod corridors;
 mod demo;
 mod expression;
 mod external_expression;
@@ -10,6 +9,7 @@ mod file_runtime;
 mod fixture_authoring;
 mod inventory;
 mod midi_controls;
+pub(crate) mod midi_import;
 #[cfg(test)]
 mod mpe_tests;
 pub(crate) mod resources;
@@ -29,6 +29,7 @@ use crest_synth::kernel::midi_message::{MidiMessage, MidiMessageKind};
 use crest_synth::kernel::{MidiChannel, PatchId};
 use crest_synth::shell::hosted_application::{ApplicationHost, HostClock};
 use crest_synth::shell::hosted_synth::HostedSynthControl;
+use crest_synth::shell::performance::{self, Stage};
 use crest_synth::shell::standalone_application::{production_application, ApplicationConfig};
 use crest_synth::shell::webview::host_presentation::HostPresentation;
 use crest_synth::shell::webview::TauriWebviewWindow;
@@ -76,9 +77,18 @@ type SoundLibraryRead = (
 /// Identities outlive the release packet until all events at that time have
 /// been delivered, including expression at the exact physical release time.
 struct ScheduledVoices {
-    entries: BTreeMap<Owner, (MidiVoiceId, Option<Beat>)>,
+    entries: BTreeMap<Owner, VoiceIdentity>,
+    pedals: std::collections::BTreeSet<Target>,
     next: u64,
     at: Option<Beat>,
+    expired_expression: std::collections::BTreeSet<Owner>,
+}
+struct VoiceIdentity {
+    id: MidiVoiceId,
+    until: Option<Beat>,
+    target: Target,
+    killed: bool,
+    released: bool,
 }
 fn poll_once<T>(
     receiver: &std::sync::mpsc::Receiver<Result<T, String>>,
@@ -95,39 +105,97 @@ impl Default for ScheduledVoices {
     fn default() -> Self {
         Self {
             entries: BTreeMap::new(),
+            pedals: Default::default(),
             next: 1,
             at: None,
+            expired_expression: Default::default(),
         }
     }
 }
 impl ScheduledVoices {
+    fn recover_expression(&mut self, expression: &expression::Ledger) {
+        // A release envelope runs on audio time even when the producer
+        // stalls. Late expression must not target a naturally retired tail.
+        self.expired_expression.extend(
+            self.entries
+                .iter()
+                .filter(|(owner, voice)| {
+                    voice.released
+                        && !self.pedals.contains(&voice.target)
+                        && expression.unsustained(owner)
+                })
+                .map(|(owner, _)| owner.clone()),
+        );
+    }
+
+    fn discard_expired_expression(&mut self, events: &mut Vec<TimedEvent>) {
+        events.retain(|event| match event.message {
+            Message::NoteOn { .. } | Message::EndExpression | Message::KillNote { .. } => {
+                self.expired_expression.remove(&event.owner);
+                true
+            }
+            Message::Expression { .. } | Message::MasterExpression { .. } => {
+                !self.expired_expression.contains(&event.owner)
+            }
+            _ => true,
+        });
+    }
+
     fn voice_for(&mut self, event: &TimedEvent) -> Result<Option<MidiVoiceId>, String> {
         if self.at != Some(event.at) {
-            self.entries
-                .retain(|_, (_, released)| released.is_none_or(|at| at >= event.at));
+            self.entries.retain(|_, voice| {
+                voice.until.is_none_or(|at| at >= event.at)
+                    || (!voice.killed && self.pedals.contains(&voice.target))
+            });
             self.at = Some(event.at);
         }
         match event.message {
             Message::NoteOn { .. } => {
                 let id = MidiVoiceId::new(self.next).ok_or("Voice identity exhausted")?;
                 self.next = self.next.checked_add(1).ok_or("Voice identity exhausted")?;
-                self.entries.insert(event.owner.clone(), (id, None));
+                self.entries.insert(
+                    event.owner.clone(),
+                    VoiceIdentity {
+                        id,
+                        until: None,
+                        target: event.target.clone(),
+                        killed: false,
+                        released: false,
+                    },
+                );
                 Ok(Some(id))
             }
-            Message::NoteOff { .. } => {
-                let (id, released) = self
+            Message::NoteOff { .. } | Message::KillNote { .. } => {
+                if matches!(event.message, Message::KillNote { .. })
+                    && matches!(
+                        &event.target,
+                        Target::Channel {
+                            endpoint: Some(_),
+                            ..
+                        }
+                    )
+                    && self.pedals.contains(&event.target)
+                {
+                    return Err("Track Kill cannot isolate channel-wide sustain on a raw MIDI endpoint; use per-note MPE routing".into());
+                }
+                let voice = self
                     .entries
                     .get_mut(&event.owner)
                     .ok_or("Release has no owned attack")?;
-                *released = Some(released.unwrap_or(event.at).max(event.at));
-                Ok(Some(*id))
+                voice.until = Some(voice.until.unwrap_or(event.at).max(event.at));
+                voice.released = true;
+                if matches!(event.message, Message::KillNote { .. }) {
+                    voice.killed = true;
+                    voice.until = Some(event.at);
+                }
+                Ok(Some(voice.id))
             }
             Message::ExpressionLifetime { duration } => {
-                let (_, until) = self
+                let voice = self
                     .entries
                     .get_mut(&event.owner)
                     .ok_or("Expression lifetime has no owned attack")?;
-                *until = Some(event.at.checked_add(duration).map_err(|e| e.to_string())?);
+                voice.until = Some(event.at.checked_add(duration).map_err(|e| e.to_string())?);
                 Ok(None)
             }
             Message::EndExpression => {
@@ -139,8 +207,18 @@ impl ScheduledVoices {
             Message::Expression { .. } | Message::MasterExpression { .. } => self
                 .entries
                 .get(&event.owner)
-                .map(|(id, _)| Some(*id))
+                .map(|voice| Some(voice.id))
                 .ok_or_else(|| "Expression has no owned attack".into()),
+            Message::Control {
+                control: Control::Cc { number: 64, value },
+            } => {
+                if value >= 64 {
+                    self.pedals.insert(event.target.clone());
+                } else {
+                    self.pedals.remove(&event.target);
+                }
+                Ok(None)
+            }
             _ => Ok(None),
         }
     }
@@ -160,7 +238,12 @@ pub fn run(app: App) -> Result<(), Box<dyn std::error::Error>> {
     let events = Rc::clone(&app);
     let presentation = HostPresentation {
         projection: Rc::new(move || crate::workspace::project(&projection.borrow())),
-        event: Rc::new(move |event| crate::workspace::event(&mut events.borrow_mut(), event)),
+        event: Rc::new(move |event| {
+            crate::workspace::input::enqueue(
+                &mut events.borrow_mut(),
+                crate::workspace::input::Input::Event(event),
+            )
+        }),
     };
     let window = TauriWebviewWindow::new("Crest Tracker").with_host(presentation);
     production_application(window, ApplicationConfig::default())?
@@ -175,10 +258,39 @@ pub fn run_demo() -> Result<(), Box<dyn std::error::Error>> {
     scene::run()
 }
 
+pub fn run_piano_demo() -> Result<(), Box<dyn std::error::Error>> {
+    scene::run_piano()
+}
+
+pub fn run_cursor_demo() -> Result<(), Box<dyn std::error::Error>> {
+    scene::run_cursors()
+}
+
+pub fn run_named_demo(name: &str) -> Result<(), Box<dyn std::error::Error>> {
+    scene::run_scene(scene::Scene::named(name)?)
+}
+
+pub fn run_song_demo(path: &std::path::Path) -> Result<(), Box<dyn std::error::Error>> {
+    scene::run_scene(scene::Scene::song(path)?)
+}
+
+pub fn run_stress_demo(
+    path: &std::path::Path,
+    name: &str,
+) -> Result<(), Box<dyn std::error::Error>> {
+    scene::run_scene(scene::Scene::stress(path, name)?)
+}
+
+pub fn run_mixer_demo(path: &std::path::Path) -> Result<(), Box<dyn std::error::Error>> {
+    scene::run_scene(scene::Scene::mixer(path)?)
+}
+
 struct Runtime {
+    data_directory: PathBuf,
     app: Rc<RefCell<App>>,
     sticks: crate::workspace::sticks::Sticks,
     playback: Option<Playback>,
+    graph_revision: u64,
     sync: clock_runtime::ClockRuntime,
     tempo: TempoMap,
     anchor: u64,
@@ -190,8 +302,8 @@ struct Runtime {
         Option<std::sync::mpsc::Receiver<Result<Vec<library::chords::PublishedChord>, String>>>,
     library_chords: Vec<library::chords::PublishedChord>,
     last_scheduled_frame: u64,
+    playback_recoveries: u64,
     last_clock: Option<HostClock>,
-    graph_revision: u64,
     saved_sound: Option<Value>,
     initial_sound: Option<Value>,
     pending_open: Option<(Document, Option<PathBuf>)>,
@@ -268,14 +380,17 @@ impl Runtime {
     ) -> Result<Self, Box<dyn std::error::Error>> {
         let sync = clock_runtime::ClockRuntime::new(directory.clone(), shared)?;
         let recovery_worker = RecoveryWorker::new(directory.clone())?;
+        let data_directory = directory.clone();
         let (send, receive) = std::sync::mpsc::sync_channel(1);
         std::thread::spawn(move || {
             let _ = send.send(RecoveryWorker::load(&directory));
         });
         Ok(Self {
+            data_directory,
             app,
             sticks: crate::workspace::sticks::Sticks::default(),
             playback: None,
+            graph_revision: 0,
             sync,
             tempo: TempoMap::new(crest_tracker::time::Tempo::DEFAULT),
             anchor: 0,
@@ -286,8 +401,8 @@ impl Runtime {
             chord_library_publishing: false,
             library_chords: Vec::new(),
             last_scheduled_frame: 0,
+            playback_recoveries: 0,
             last_clock: None,
-            graph_revision: 0,
             saved_sound: None,
             initial_sound: None,
             pending_open: None,
@@ -383,19 +498,21 @@ impl Runtime {
         let capture_result = self.interrupt_capture(reason);
         self.monitor_cleanup = true;
         self.voices.entries.clear();
+        self.voices.expired_expression.clear();
         self.expression.clear();
         self.external_expression.clear();
         self.send_leases.clear();
         self.playback = None;
         let mut app = self.app.borrow_mut();
         app.playing = false;
-        if app.status == "PLAYING" {
+        if app.status.starts_with("PLAYING") {
             app.status = "STOPPED".into();
         }
         app.play_row = None;
         app.play_occurrence = None;
         app.play_phrase_beat = None;
         app.play_heads.clear();
+        app.song_play_heads.clear();
         app.play_beat = None;
         app.playback_revision = None;
         app.playback_pending = false;
@@ -475,6 +592,7 @@ impl Runtime {
             .rendered_frames()
             .saturating_add(u64::from(clock.sample_rate) / 20);
         self.last_scheduled_frame = self.anchor;
+        self.playback_recoveries = 0;
         self.graph_revision = sound.active_graph_revision().value();
         let mut app = self.app.borrow_mut();
         app.playing = true;
@@ -488,6 +606,7 @@ impl Runtime {
         Ok(())
     }
     fn advance(&mut self, sound: &mut Sound<'_>, clock: HostClock) -> Result<(), String> {
+        let _timing = performance::span(Stage::Scheduler);
         let Some(mut playback) = self.playback.take() else {
             return Ok(());
         };
@@ -503,20 +622,10 @@ impl Runtime {
         clock: HostClock,
         playback: &mut Playback,
     ) -> Result<(), String> {
-        if sound.active_graph_revision().value() != self.graph_revision {
-            return Err(
-                "Sound graph changed; transport stopped safely. Press Play to continue.".into(),
-            );
-        }
-        // The internal producer promised this complete half-open window to
-        // audio. Once its horizon is behind the renderer, catching up would
-        // collapse past attacks/releases into one callback and exhaust prepared
-        // voices. Cancel owned output before emitting that overdue burst.
-        if !self.sync.external()
-            && self.frame_at_beat(playback.horizon(), clock)? < clock.audio.rendered_frames()
-        {
-            return Err("Playback missed its audio deadline; transport stopped safely. Press Play to restart.".into());
-        }
+        // Local Synth edits preserve the schedule and stable Patch identities.
+        // Document replacement owns explicit Stop before activating its graph.
+        self.graph_revision = sound.active_graph_revision().value();
+        self.recover_audio_deadline(playback, clock)?;
         {
             let app = self.app.borrow();
             if app.editor.revision() != playback.revision() {
@@ -558,7 +667,8 @@ impl Runtime {
                 .map_err(|e| e.to_string())?
                 .max(playback.horizon())
         };
-        let events = playback.window(end).map_err(|v| v.to_string())?;
+        let mut events = playback.window(end).map_err(|v| v.to_string())?;
+        self.voices.discard_expired_expression(&mut events);
         // Equal-time tempo winners follow lowest track order, then last slot.
         let mut tempo_track = std::collections::BTreeMap::new();
         for event in &events {
@@ -608,6 +718,7 @@ impl Runtime {
                     event.message,
                     Message::NoteOn { .. }
                         | Message::NoteOff { .. }
+                        | Message::KillNote { .. }
                         | Message::Expression { .. }
                         | Message::MasterExpression { .. }
                         | Message::ExpressionLifetime { .. }
@@ -697,13 +808,13 @@ impl Runtime {
         self.send_clock_output(end, clock)?;
         let now = self.transport_beat(clock)?;
         let heads = playback.playheads_at(now).map_err(|e| e.to_string())?;
+        let song_heads = playback.song_playheads_at(now).map_err(|e| e.to_string())?;
         // Native projections consume only the current audible position. Keeping
         // minutes of past rows makes transactional scheduling copy unused history.
         playback.discard_playheads_before(now);
-        let audible_finished = heads.as_ref().is_some_and(Vec::is_empty);
+        let audible_finished = song_heads.as_ref().is_some_and(Vec::is_empty);
         let mut app = self.app.borrow_mut();
         app.play_beat = Some(now);
-        crate::workspace::follow_playback(&mut app, now);
         app.playback_revision = Some(playback.revision());
         app.playback_pending = playback.pending_revision();
         let selected = app.occurrence();
@@ -714,6 +825,8 @@ impl Runtime {
         app.play_phrase_beat = head.map(|head| head.local_beat);
         app.play_row = head.map(|head| head.row);
         app.play_heads = heads.unwrap_or_default();
+        app.song_play_heads = song_heads.unwrap_or_default();
+        crate::workspace::follow_playback(&mut app, now);
         app.playback_scope = match self.transport_selection {
             transport::PlaybackSelection::Song => TransportScope::Song,
             transport::PlaybackSelection::Chain { .. } => TransportScope::Chain,
@@ -741,6 +854,9 @@ impl Runtime {
         clock: HostClock,
         request: Request,
     ) -> Result<(), String> {
+        if self.load_progress().is_some() && !matches!(request, Request::EndGesture) {
+            return Ok(());
+        }
         if self.close_requested {
             return Err("MIDI cleanup for close is still pending".into());
         }
@@ -748,6 +864,7 @@ impl Runtime {
             && !matches!(
                 &request,
                 Request::FileBrowse { .. }
+                    | Request::WorkspaceInput { .. }
                     | Request::FileChoose { .. }
                     | Request::FileDecision { .. }
                     | Request::FileCancel { .. }
@@ -762,6 +879,7 @@ impl Runtime {
             && !matches!(
                 &request,
                 Request::RepairResource { .. }
+                    | Request::WorkspaceInput { .. }
                     | Request::FileBrowse { .. }
                     | Request::FileChoose { .. }
                     | Request::FileDecision { .. }
@@ -872,12 +990,46 @@ impl Runtime {
                 _ => return Err("Unknown MIDI output action".into()),
             }
             .map_err(|v| v.to_string()),
+            Request::PatchCapacity { capacity } => sound
+                .set_patch_capacity(capacity)
+                .map_err(|e| e.to_string()),
+            Request::WorkspaceInput { input } => {
+                let unhandled = crate::workspace::input::apply(&mut self.app.borrow_mut(), input);
+                if let Some(action) = unhandled {
+                    sound
+                        .dispatch_action(action, crest_synth::control::EventSource::System)
+                        .map_err(|error| error.to_string())?;
+                }
+                Ok(())
+            }
             Request::SynthAction { action } => {
-                let surface = sound.projection().semantic_model().active_surface();
+                // An earlier queued action may have opened the host menu. Resolve
+                // ownership again at dispatch so rapid page chords keep their order.
+                if crate::workspace::owns_input(&self.app.borrow()) {
+                    crate::workspace::action(&mut self.app.borrow_mut(), action);
+                    return Ok(());
+                }
+                let surface = sound.active_surface();
                 if crate::workspace::return_from_synth(&mut self.app.borrow_mut(), &action, surface)
+                    || (surface == crest_synth::control::SurfaceId::MixerInspector
+                        && action
+                            == SemanticAction::NavigatePage(crest_synth::control::Direction::Up))
                 {
                     Ok(())
                 } else {
+                    let action = match (surface, action) {
+                        (
+                            _,
+                            SemanticAction::NavigatePage(crest_synth::control::Direction::Left),
+                        ) => SemanticAction::NavigatePage(crest_synth::control::Direction::Down),
+                        (
+                            crest_synth::control::SurfaceId::MixerMain,
+                            SemanticAction::NavigatePage(crest_synth::control::Direction::Up),
+                        ) => SemanticAction::EnterSurface(
+                            crest_synth::control::SurfaceId::MixerInspector,
+                        ),
+                        (_, action) => action,
+                    };
                     sound
                         .dispatch_action(action, crest_synth::control::EventSource::System)
                         .map_err(|e| e.to_string())
@@ -1396,7 +1548,7 @@ impl Runtime {
         match action {
             "recover" => {
                 if self.recovery_load_error.is_some() {
-                    let directory = library::data_directory();
+                    let directory = self.data_directory.clone();
                     let (send, receive) = std::sync::mpsc::sync_channel(1);
                     std::thread::spawn(move || {
                         let _ = send.send(RecoveryWorker::load(&directory));
@@ -1835,17 +1987,14 @@ impl Runtime {
                     .capture_sound_definition(patch)
                     .map_err(|v| v.to_string())?;
                 let (send, receive) = std::sync::mpsc::sync_channel(1);
+                let sounds = self.data_directory.join("sounds");
                 std::thread::spawn(move || {
                     let result = resources::freeze_definition(definition)
                         .and_then(|definition| {
                             serde_json::to_value(definition).map_err(|e| e.to_string())
                         })
                         .and_then(|definition| {
-                            library::publish(
-                                &library::data_directory().join("sounds"),
-                                resource.as_deref(),
-                                definition,
-                            )
+                            library::publish(&sounds, resource.as_deref(), definition)
                         });
                     let _ = send.send(result);
                 });
@@ -1861,7 +2010,7 @@ impl Runtime {
                     },
                     "Adopt sound revision".into(),
                     file_dialog::Mode::Open,
-                    library::data_directory().join("sounds"),
+                    self.data_directory.join("sounds"),
                     &["crest-sound"],
                 )?;
             }
@@ -2600,13 +2749,30 @@ impl Runtime {
 }
 impl ApplicationHost<LockFreeControlHandle> for Runtime {
     fn tick(&mut self, sound: &mut Sound<'_>, clock: HostClock) {
+        performance::transport(
+            self.app.borrow().playing,
+            self.playback_recoveries,
+            self.app.borrow().requests.len(),
+        );
+        performance::observe_audio(clock.audio);
+        let _timing = performance::span(Stage::HostTick);
         self.last_clock = Some(clock);
+        // Drop input admitted against the loading screen before polling a
+        // completion. It must not spill into the newly activated document.
+        if self.load_progress().is_some() {
+            self.app
+                .borrow_mut()
+                .requests
+                .retain(|request| matches!(request, Request::EndGesture));
+        }
+        self.project_loading();
         self.sticks
             .advance(&mut self.app.borrow_mut(), clock.elapsed);
         let result = (|| -> Result<(), String> {
             self.initialize(sound)?;
             self.poll_file_dialog(sound)?;
             self.poll_files(sound)?;
+            self.project_loading();
             self.advance_clock(sound, clock)?;
             let failures = (
                 clock.audio.routing_failures(),
@@ -2628,18 +2794,61 @@ impl ApplicationHost<LockFreeControlHandle> for Runtime {
                     return Err(format!("MIDI OUTPUT: {}", error.message));
                 }
             }
-            let requests = std::mem::take(&mut self.app.borrow_mut().requests);
-            for request in requests {
-                let previous_revision = self.app.borrow().editor.revision();
-                self.app
-                    .borrow_mut()
-                    .editor
-                    .set_recording_guard(self.recorder.edit_guard());
-                let requested = self.request(sound, clock, request);
-                let captured = self.adopt_capture_editor_revision(previous_revision);
-                if let Err(error) = requested.and(captured) {
-                    self.app.borrow_mut().status = error;
+            // Refill the scheduled window before potentially expensive UI
+            // projections. The clock was sampled at tick entry; doing this only
+            // after editing would spend that window before publishing its notes.
+            self.advance(sound, clock)?;
+            let mut requests: std::collections::VecDeque<_> =
+                std::mem::take(&mut self.app.borrow_mut().requests).into();
+            while let Some(request) = requests.pop_front() {
+                let mut commands = std::collections::VecDeque::from([request]);
+                while let Some(command) = commands.pop_front() {
+                    let previous_revision = self.app.borrow().editor.revision();
+                    self.app
+                        .borrow_mut()
+                        .editor
+                        .set_recording_guard(self.recorder.edit_guard());
+                    let requested = {
+                        let _timing = performance::span(Stage::Request);
+                        self.request(sound, clock, command)
+                    };
+                    self.project_loading();
+                    let captured = self.adopt_capture_editor_revision(previous_revision);
+                    if let Err(error) = requested.and(captured) {
+                        self.app.borrow_mut().status = error;
+                    }
+                    // Finish this input's commands before resolving the next input.
+                    // Otherwise rapid page/field events inspect the preceding context.
+                    for child in std::mem::take(&mut self.app.borrow_mut().requests)
+                        .into_iter()
+                        .rev()
+                    {
+                        commands.push_front(child);
+                    }
                 }
+                if self.app.borrow().playing {
+                    // A burst of native UI projections must not consume the
+                    // transport's complete scheduling window. Keep subsequent
+                    // input ordered, and service audio before the next edit.
+                    self.app.borrow_mut().requests.extend(requests);
+                    break;
+                }
+            }
+            {
+                let mut app = self.app.borrow_mut();
+                app.workspace.patch_capacity = Some(sound.patch_capacity());
+                app.workspace.synth_surface = Some(sound.active_surface());
+                app.workspace.synth_detail_available = sound
+                    .projection()
+                    .semantic_model()
+                    .valid_actions()
+                    .iter()
+                    .any(|action| {
+                        action.action()
+                            == &SemanticAction::EnterSurface(
+                                crest_synth::control::SurfaceId::MixerInspector,
+                            )
+                    });
             }
             self.project_file_dialog();
             self.poll_chord_library();
@@ -2666,6 +2875,8 @@ impl ApplicationHost<LockFreeControlHandle> for Runtime {
             }
             app.status = error;
         }
+        // Failure paths must release the modal as well as successful activation.
+        self.project_loading();
     }
     fn midi_transport(
         &mut self,
@@ -2721,6 +2932,9 @@ impl ApplicationHost<LockFreeControlHandle> for Runtime {
         )
     }
     fn session_command(&mut self, sound: &mut Sound<'_>, command: SessionCommand) -> bool {
+        if self.load_progress().is_some() {
+            return false;
+        }
         let action = match command {
             SessionCommand::New => FileAction::New,
             SessionCommand::Open => FileAction::Open,
@@ -2728,13 +2942,15 @@ impl ApplicationHost<LockFreeControlHandle> for Runtime {
             SessionCommand::SaveAs => FileAction::SaveAs,
             SessionCommand::Close => FileAction::Close,
         };
-        match self.file(sound, action) {
+        let close = match self.file(sound, action) {
             Ok(close) => close,
             Err(error) => {
                 self.app.borrow_mut().status = error;
                 false
             }
-        }
+        };
+        self.project_loading();
+        close
     }
     fn controller_input(
         &mut self,
@@ -2749,12 +2965,12 @@ impl ApplicationHost<LockFreeControlHandle> for Runtime {
         )
     }
     fn action(&mut self, action: SemanticAction) -> bool {
-        crate::workspace::action(&mut self.app.borrow_mut(), action)
+        crate::workspace::input::action(&mut self.app.borrow_mut(), action)
     }
     fn action_handler(&self) -> Option<Rc<dyn Fn(SemanticAction) -> bool>> {
         let app = Rc::clone(&self.app);
         Some(Rc::new(move |action| {
-            crate::workspace::action(&mut app.borrow_mut(), action)
+            crate::workspace::input::action(&mut app.borrow_mut(), action)
         }))
     }
     fn take_close_request(&mut self) -> bool {
@@ -2803,6 +3019,19 @@ fn deliver(
     let (kind, data1, data2) = match event.message {
         Message::NoteOn { pitch, velocity } => (MidiMessageKind::NoteOn, pitch, velocity),
         Message::NoteOff { pitch, velocity } => (MidiMessageKind::NoteOff, pitch, velocity),
+        Message::KillNote { pitch } => {
+            if matches!(
+                &event.target,
+                Target::Channel {
+                    endpoint: Some(_),
+                    ..
+                }
+            ) {
+                (MidiMessageKind::NoteOff, pitch, 0)
+            } else {
+                (MidiMessageKind::AllNotesOff, pitch, 0)
+            }
+        }
         Message::Control { control }
         | Message::Expression { control }
         | Message::MasterExpression { control } => match control {

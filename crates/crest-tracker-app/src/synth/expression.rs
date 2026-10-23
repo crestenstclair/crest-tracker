@@ -155,6 +155,11 @@ impl Ledger {
     pub fn clear(&mut self) {
         self.active.clear();
     }
+    pub fn unsustained(&self, owner: &Owner) -> bool {
+        self.active
+            .get(owner)
+            .is_some_and(|voice| voice.member.pedal < 64 && voice.master.pedal < 64)
+    }
     /// Stages all admission before the caller queues any event from this window.
     /// Zero-offset snapshots join the attack as one bounded native command.
     pub fn prepare(
@@ -242,7 +247,7 @@ impl Ledger {
                         return Err("Master expression has no initialized attack".into());
                     }
                 }
-                Message::EndExpression => {
+                Message::EndExpression | Message::KillNote { .. } => {
                     staged.active.remove(&event.owner);
                 }
                 _ => {}
@@ -305,6 +310,125 @@ pub(super) fn validate_song(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn recovery_expires_only_released_unpedaled_expression_and_keeps_cleanup() {
+        for (released, member, master, channel) in [
+            (true, false, false, false),
+            (false, false, false, false),
+            (true, true, false, false),
+            (true, false, true, false),
+            (true, false, false, true),
+        ] {
+            let owner = Owner {
+                track: TrackId::new(1).unwrap(),
+                chain_use: UseId::new(2).unwrap(),
+                phrase_use: UseId::new(3).unwrap(),
+                cycle: 0,
+                event: EventId::new(4).unwrap(),
+                voice: 0,
+            };
+            let mut event = TimedEvent {
+                at: Beat::ZERO,
+                owner: owner.clone(),
+                target: Target::Channel {
+                    channel: Channel::FIRST,
+                    endpoint: None,
+                },
+                message: Message::NoteOn {
+                    pitch: 60,
+                    velocity: 100,
+                },
+            };
+            let mut voices = ScheduledVoices::default();
+            voices.voice_for(&event).unwrap();
+            event.message = Message::ExpressionLifetime {
+                duration: Beat::integer(4),
+            };
+            voices.voice_for(&event).unwrap();
+            if released {
+                event.message = Message::NoteOff {
+                    pitch: 60,
+                    velocity: 0,
+                };
+                voices.voice_for(&event).unwrap();
+            }
+            if channel {
+                event.message = Message::Control {
+                    control: Control::Cc {
+                        number: 64,
+                        value: 127,
+                    },
+                };
+                voices.voice_for(&event).unwrap();
+            }
+            let mut state = VoiceState::new(60, Channel::FIRST);
+            if member {
+                state
+                    .apply(
+                        Control::Cc {
+                            number: 64,
+                            value: 127,
+                        },
+                        false,
+                    )
+                    .unwrap();
+            }
+            if master {
+                state
+                    .apply(
+                        Control::Cc {
+                            number: 64,
+                            value: 127,
+                        },
+                        true,
+                    )
+                    .unwrap();
+            }
+            let expression = Ledger {
+                active: BTreeMap::from([(owner.clone(), state)]),
+            };
+            voices.recover_expression(&expression);
+            event.at = Beat::ONE;
+            let expression_message = Message::Expression {
+                control: Control::Bend { value: 8192 },
+            };
+            let mut events: Vec<_> = [
+                expression_message.clone(),
+                Message::NoteOff {
+                    pitch: 60,
+                    velocity: 0,
+                },
+                Message::EndExpression,
+                Message::NoteOn {
+                    pitch: 60,
+                    velocity: 100,
+                },
+                expression_message,
+            ]
+            .into_iter()
+            .map(|message| TimedEvent {
+                message,
+                ..event.clone()
+            })
+            .collect();
+            voices.discard_expired_expression(&mut events);
+            let expired = released && !member && !master && !channel;
+            assert_eq!(events.len(), if expired { 4 } else { 5 });
+            assert!(matches!(
+                events.last().unwrap().message,
+                Message::Expression { .. }
+            ));
+            assert!(events
+                .iter()
+                .any(|event| matches!(event.message, Message::NoteOff { .. })));
+            assert!(events
+                .iter()
+                .any(|event| matches!(event.message, Message::EndExpression)));
+            assert!(voices.expired_expression.is_empty());
+        }
+    }
+
     #[test]
     fn initialization_retains_raw_opposing_bends_without_intermediate_pitch_admission() {
         let mut state = VoiceState::new(0, Channel::new(2).unwrap());

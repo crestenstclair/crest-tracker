@@ -91,7 +91,11 @@ pub(super) fn rows(app: &App) -> Vec<WorkspaceRow> {
     rows
 }
 pub(super) fn beat_label(beat: Beat) -> String {
-    format!("{}/{}", beat.numerator(), beat.denominator())
+    if beat.denominator() == 1 {
+        beat.numerator().to_string()
+    } else {
+        format!("{}/{}", beat.numerator(), beat.denominator())
+    }
 }
 pub(super) fn step_beat(beat: Beat, delta: i32) -> Beat {
     let amount = Beat::new(delta.unsigned_abs() as u64, 16).unwrap();
@@ -395,5 +399,4 @@ pub(super) fn project(app: &App, view: &mut WorkspaceProjection) {
         ("generator", "More options"),
         ("gen_bake_tracker", "Use notes in Tracker"),
     ]);
-    view.hints = "D-pad: field · Edit+←/→: fine · Edit+↑/↓: coarse · Edit: choose / preview · Shift+Up: phrase settings · Shift+Left: Chain".into();
 }

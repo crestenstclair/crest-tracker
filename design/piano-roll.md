@@ -1,6 +1,37 @@
-# Piano Roll — recording and controller editing
+# Piano Roll — controller editing and deferred recording
 
-15 October 2026. Piano Roll is the fifth phrase type, alongside Tracker, Drum Machine, Euclidean and Randomizer. This is the design/implementation contract. The repository now contains the pure capture/playback core and native Tracker host; README.md records implemented behavior and remaining native/hardware gates. Recording external MIDI/MPE performances while the Song plays is the primary outcome. The user confirmed that priority, routing to channels/instruments, gamepad editing, nudging and grid quantize. Defaults and bindings below are proposed Crest behavior, ready for implementation review.
+## Current design review — 16 October 2026
+
+The [KORG Gadget study in Figma](https://www.figma.com/design/mvRQEFZc5Oi2ZbRkoHhXjH/Crest-Tracker?node-id=2174-6040) contains ten editable 1280 × 800 screens, T59–T68, plus research, source links and an attributed official screenshot. The user approved this editing direction. The shared native renderer now implements these editing states, replacing T57's full-page action list with the roll, bottom controls and compact side panels. Production-projection visual checks and event-driven application/DSP witnesses cover the editing workflow; physical controller acceptance remains a separate check. Recording setup remains deferred; the recording contract below is retained for future work. Expanded view and the minimap are excluded.
+
+The primary references are the [official Switch manual and screenshot](https://www.detune.co.jp/KORG_Gadget_User_Manual_en.html), the [Gadget 3 Studio Guide](https://korguser.net/gadget/manual/studioguide/Gadget_SG_E1.pdf) (pages 22, 27 and 39–44), and [KORG's note-editing guide](https://support.korguser.net/hc/en-us/articles/115001289063-Editing-notes). The design adopts a dominant roll, visible piano keys, continuous duration bars, a time-aligned velocity lane and contextual editing. KORG's physical button assignments are reference material; Crest's configured semantic roles remain authoritative.
+
+### Four independent timing controls
+
+| Control | Changes | Does not change |
+|---|---|---|
+| Step Grid | Cursor step, visual subdivisions and placement of newly inserted notes | Existing onsets/durations, phrase execution division |
+| New Length | Default duration for future inserted notes | Selected or existing notes |
+| Selected Length | Duration of the selected notes; rhythmic or exact fractional beats | Their starts or the New Length default |
+| Quantize Grid | Target spacing for the pending quantize operation | Edit grid, insertion defaults, or notes before Apply |
+
+Step Grid and Quantize share 1/4, 1/8, 1/16, 1/32 and 1/64 values, with Straight/Triplet selection. Length uses the same values plus whole/half notes and exact beat fractions. A triplet lasts two-thirds of its straight counterpart: 1/4T = 2/3 quarter-note beat, 1/8T = 1/3, 1/16T = 1/6, 1/32T = 1/12, and 1/64T = 1/24. The picker displays both notation and beat duration.
+
+### Editing and quantize flow
+
+The roll retains its selected notes, exact cursor and viewport while a right-hand panel is open. Editing tools sit below the roll. West/Square (keyboard `[`) opens Tools, which exposes Grid, Defaults, View, selected-note editing, Velocity, Copy/Cut/Paste/Duplicate, Quantize, Note Off, Delete, Expression/FX, selection, Undo and Redo. Every bottom control has a controller path through this panel. Blank time/pitch cells stay reachable; holding navigation scans. Selecting an occupied cell never silently deletes a note.
+
+The inspector exposes Pitch, Start, Length, Velocity, Release and Target. New-note velocity is separately labeled and affects future notes only. Velocity uses raw MIDI values 1–127, with fine ±1 and coarse ±10 adjustments. Pitch fields use semitone and octave increments. Note Off explicitly ends the targeted sounding note at the cursor; it is unavailable when no eligible note exists or the resulting duration would be non-positive. Delete removes the note instead.
+
+Quantize opens with an explicit selected-note count and a preview. Starts is enabled and Lengths disabled by default. Solid cyan notes show the result; amber outlines show prior timing. Grid choices use a dedicated Quantize Grid picker, so choosing them cannot alter Step Grid. Selected is unavailable without a selection; All Notes requires an explicit scope change. Apply commits one transaction and returns focus to the roll; Cancel restores the original data. One Undo restores exact starts, durations and expression. The integrity rules below continue to apply.
+
+Bottom-right hints describe the current grid, picker, field, lane or dialog. D-pad navigates; Edit activates; numeric adjustment hints specify both fine and coarse directions. Shift+Down returns from details to their parent and opens Main Menu from the roll. Shift+Up opens phrase settings from the roll. North/Start controls transport. The shipped UI must substitute actual configured button labels for semantic roles, including Fine and Range.
+
+The Figma prototype links review states; it does not execute musical edits. Changing rhythmic tabs, applying a note edit or playing audio requires the future application implementation. Existing source screens remain intact for comparison.
+
+## Deferred recording contract
+
+15 October 2026. Piano Roll is the fifth phrase type, alongside Tracker, Drum Machine, Euclidean and Randomizer. This is the design/implementation contract. The repository now contains the pure capture/playback core and native Tracker host; README.md records implemented behavior and remaining native/hardware gates. Recording external MIDI/MPE performances while the Song plays is the primary outcome. The user confirmed that priority, routing to channels/instruments, gamepad editing, nudging and grid quantize. The editing behavior above is implemented; the recording defaults and capability gates below remain deferred design contracts.
 
 ## Record a performance
 
@@ -32,26 +63,27 @@ Sustain does not overwrite key-release time. Store the physical release and peda
 
 The main screen puts **Arm / Record / End take**, source, target, monitor, recording status and loop length above the roll. Show separate edit cursor and playhead. Notes use pitch names, velocity shading and a visible target label on selection. A continuation mark identifies notes crossing the loop edge. Scale shading is guidance; captured pitches are never scale-corrected. A lower lane switches between Velocity, Bend, Pressure, Timbre, Sustain and other captured controls. MPE lanes follow the selected note; shared-channel/master controls visibly identify their wider scope.
 
-The implemented time viewport shows up to 16 beats at 100% zoom in bounded 64-beat sections that overlap by 32 beats. Previous/Next Beats and exact Go To Beat are also controller actions. Cursor movement and Follow reveal the appropriate section; zoom and explicit cursor movement pause Follow. This is presentation only: long phrases retain every note and exact timestamp. Sustained notes and held expression remain visible after their attacks move offscreen.
+The native time viewport starts at eight beats; Grid / view changes its width from a quarter beat to 64 beats. Previous/Next Beats move by half a window. Cursor movement and optional playback Follow reveal the appropriate window; zoom, scrolling and explicit cursor movement pause Follow. Cursor navigation reveals pitches when they leave the visible lanes; View also offers explicit octave scrolling without moving the cursor. These are presentation changes: notes, their exact timestamps and the edit cursor survive zoom/scroll. The renderer bounds visual subdivisions to 64 cells while retaining exact note and cursor positions. Sustained notes remain visible after their attacks move offscreen, with continuation markers at window/phrase edges.
 
-Every operation is available from a controller-navigable contextual menu. Shortcuts accelerate the same commands; no mouse-only controls. Keep a visible focus ring, selected-note count, readable recording status beyond color, and shortcut help. Overlapping notes are individually reachable through Next/Previous note and a stacked-note chooser. Endpoint/instrument pickers and errors must also be reachable without a keyboard.
+Editing operations are available from controller-navigable contextual panels. Expression shows a held-value trace aligned to the roll for the selected control lane, with explicit note/MPE-master scope, exact raw values, point navigation and Undo/Redo. Trace projection sorts a copy of the points, retains held values entering the viewport, and stops at the owned expression lifetime. Channel automation has its own explicit destination scope, phrase-time trace and point controls. Moving or deleting one channel point preserves notes and other controls in a mixed event. The recording workflow below remains deferred. Shortcuts accelerate the same commands; no mouse-only controls. Keep a visible focus ring, selected-note count, readable recording status beyond color, and shortcut help. Overlapping notes are individually reachable through Next/Previous note and a stacked-note chooser. Endpoint/instrument pickers and errors must also be reachable without a keyboard.
 
 | Semantic control | Piano Roll behavior |
 |---|---|
 | D-pad / left stick | Move time/pitch cursor; navigate focused toolbar, menu or lane. |
 | Select | Select note, confirm command, or insert a note in an empty cell. Selecting an occupied cell does not silently erase a take. |
 | Edit + Left/Right | Nudge selected notes by one edit-grid unit. With Fine held, use 1/16 of that unit, displayed numerically. |
-| Edit + Up | Open contextual note/selection menu, preserving Crest's existing popover convention. Pitch changes use the Pitch field/right stick, avoiding this binding conflict. |
+| West / Square (`[`) | Open the contextual note/selection menu. |
+| Edit + Up/Down | Increase/decrease selected-note velocity by ten. |
 | Right stick Left/Right | Resize selected notes by grid; Fine uses 1/16 grid. In a value field, adjust that field instead. |
 | Right stick Up/Down | Adjust the focused Pitch, Velocity or expression value; Pitch moves by semitones for captured notes. Authored entry follows phrase pitch policy. |
 | Range + D-pad | Extend rectangular time/pitch selection; Select all and target/channel filters also exist in the menu. |
 | Back | Close popover/cancel draft and return focus. Never silently discard a recorded take. |
 | Play | Toggle playback; stopping also finalizes active capture and releases owned notes. |
 | Record action | Arm, start or end capture through toolbar/menu; ending capture can leave playback running. A hold-Play shortcut may be mapped, but must suppress its short-press action. |
-| Shift + Up / Down / Left | Phrase settings / Quick Jump / parent Chain; navigation does not redirect the armed occurrence. |
+| Shift + Up / Down / Left | Phrase settings / Main Menu / parent Chain; navigation does not redirect the armed occurrence. |
 | Help | Show current bindings, including physical mappings for Edit, Fine, Range and Record. |
 
-The proposed Switch-style physical profile uses D-pad/left stick for navigation, A for Select, B for Back, X for Menu, Y for Play, ZR for Range and ZL for Fine/grid adjustment. Preserve existing global Shift/Edit mappings; offer recording explicitly in the toolbar rather than relying on a hidden long press. Exact mapping is configurable and must be tested for modifier conflicts. KORG's mappings are inspiration, not a new hardcoded input API.
+Crest retains its global physical roles: South is Edit, East is Shift, North is playback/preview, and Start controls transport in Tracker. Fine and Range use the configured bindings. KORG's A/B/X/Y/ZL/ZR assignments are research references, not a proposed replacement profile. Recording, when resumed, needs an explicit toolbar action rather than an undiscoverable hold gesture.
 
 Context menu includes **Insert, Delete, Pitch, Start, Length, Velocity, Release velocity, Target, Select range/all, Copy, Paste, Duplicate, Quantize, Undo, Redo, Grid, Zoom, Scroll/follow, Expression and Record setup**. Edit exact start/duration through numeric fields as well as shortcuts. Expression point editing supports lane choice, previous/next point, add/delete point and time/value adjustment. Channel/master lanes require an explicit scope selection; deleting one note does not delete a pedal event shared by other notes. Three existing FX slots remain accessible in the selection/FX panel.
 

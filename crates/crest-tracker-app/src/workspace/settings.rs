@@ -10,22 +10,36 @@ pub(super) enum Tab {
     Clock,
     Devices,
     Files,
+    Defaults,
 }
 impl Tab {
-    const ALL: [Self; 4] = [Self::Music, Self::Clock, Self::Devices, Self::Files];
+    const ALL: [Self; 5] = [
+        Self::Music,
+        Self::Clock,
+        Self::Devices,
+        Self::Files,
+        Self::Defaults,
+    ];
     fn id(self) -> &'static str {
         match self {
             Self::Music => "settings_music",
             Self::Clock => "settings_clock",
             Self::Devices => "settings_devices",
             Self::Files => "settings_files",
+            Self::Defaults => "settings_defaults",
         }
     }
 }
 pub(super) fn tabs(app: &App) -> Vec<WorkspaceRow> {
     Tab::ALL
         .into_iter()
-        .zip(["Music", "Clock / MIDI", "Devices", "Files"])
+        .zip([
+            "Music",
+            "Clock / MIDI",
+            "Devices",
+            "Files",
+            "Global / defaults",
+        ])
         .map(|(tab, name)| {
             let mut item = row(tab.id(), name, "");
             item.selected = app.workspace.settings_tab == tab;
@@ -50,7 +64,8 @@ pub(super) fn navigate(app: &mut App, direction: Direction, focus: &str) -> bool
                 let delta = if direction == Direction::Left { -1 } else { 1 };
                 select(
                     app,
-                    Tab::ALL[(index as i32 + delta).rem_euclid(4) as usize].id(),
+                    Tab::ALL[(index as i32 + delta).rem_euclid(Tab::ALL.len() as i32) as usize]
+                        .id(),
                 );
             }
             Direction::Down => app.workspace.focus = rows(app).first().map(|row| row.id.clone()),
@@ -152,16 +167,13 @@ pub(super) fn rows(app: &App) -> Vec<WorkspaceRow> {
                 Tab::Music => {
                     matches!(
                         row.id.as_str(),
-                        "tempo"
-                            | "song_settings"
-                            | "pitch_display"
-                            | "pitch_entry"
-                            | "default_tempo"
+                        "tempo" | "song_settings" | "pitch_display" | "pitch_entry"
                     ) || row.id.starts_with("key_")
                 }
                 Tab::Clock => row.id.starts_with("clock_") || row.id == "midi_outputs",
                 Tab::Devices => matches!(row.id.as_str(), "synth_settings" | "instruments"),
                 Tab::Files => matches!(row.id.as_str(), "sample_folder" | "soundfont_folder"),
+                Tab::Defaults => row.id == "default_tempo",
             }
     });
     rows
@@ -196,6 +208,16 @@ pub(super) fn adjust(app: &mut App, id: &str, delta: i32) {
         return;
     }
     match id {
+        "patch_capacity" => {
+            if let Some(budget) = app.workspace.patch_capacity {
+                app.requests.push(Request::PatchCapacity {
+                    capacity: budget
+                        .limit
+                        .saturating_add_signed(delta as isize)
+                        .clamp(budget.installed.max(1), budget.maximum),
+                });
+            }
+        }
         "tempo" => {
             let bpm = (app.editor.song().tempo.bpm() + f64::from(delta)).max(1.0);
             if let Ok(tempo) = Tempo::new((bpm * 1000.0) as u32) {

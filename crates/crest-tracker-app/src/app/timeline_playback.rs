@@ -120,7 +120,11 @@ mod tests {
             .unwrap()
             .clone();
         let mut song = app.editor.song().clone();
-        song.chains.get_mut(&usage.chain).unwrap().phrases[0].repeats = 2;
+        song.chains
+            .get_mut(&usage.chain.pattern().unwrap())
+            .unwrap()
+            .phrases[0]
+            .repeats = 2;
         song.tracks[1].slots[0].as_mut().unwrap().repeats = 2;
         app.editor = Editor::new(song).unwrap();
         app.expanded_selection = app.editor.song().tracks[..2]

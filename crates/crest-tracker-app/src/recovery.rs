@@ -366,7 +366,7 @@ mod tests {
             .apply(0, Command::AddPhrase { track, slot: 0 })
             .unwrap();
         let usage = editor.song().tracks[0].slots[0].as_ref().unwrap();
-        let phrase_use = &editor.song().chains[&usage.chain].phrases[0];
+        let phrase_use = &editor.song().chains[&usage.chain.pattern().unwrap()].phrases[0];
         let occurrence = Occurrence {
             track,
             chain_use: usage.id,

@@ -726,7 +726,7 @@
       if (hasWaveform(surfaceByRole(model, "detail")) && !surfaceByRole(model, "modal")) {
         return '<span class="type-label patch" data-role="sample-patch-number">' +
           escapeHtml(summary && summary.kind === "patch"
-            ? "PATCH " + String(summary.patchId).padStart(2, "0") : "NEW PATCH") +
+            ? "PATCH " + String(summary.patchId).padStart(2, "0") : "PATCH " + String(summary ? summary.activeCount : 0).padStart(2, "0")) +
           '</span><span class="type-heading" data-role="sample-patch-name">/ ' +
           escapeHtml(summary && summary.kind === "patch" ? String(summary.patchName) : "DEFAULT") +
           '</span><span class="spring"></span><span class="type-hint muted" data-role="sample-subject-annotation">' +
@@ -738,7 +738,7 @@
           HINT_SEPARATOR +
           escapeHtml(engine ? controlValueText(engine) : UNAVAILABLE_MARK)
         : summary && summary.kind === "emptyPatch"
-          ? "NEW PATCH" +
+          ? "PATCH " + String(summary.activeCount).padStart(2, "0") +
             HINT_SEPARATOR +
             "DEFAULT " +
             escapeHtml(engine ? controlValueText(engine) : UNAVAILABLE_MARK) +
@@ -802,7 +802,7 @@
         column.trackId +
         '" data-meter-state="stale" aria-label="' +
         trackName(column.trackId) +
-        ' meter stale"><div class="track-meter-fill"></div></div></div>';
+        ' meter stale"><div class="track-meter-fill"></div><div class="track-meter-peak"></div></div></div>';
     } else {
       fader =
         '<div class="structure level-fader unavailable" data-structure="LevelFader"' +
@@ -813,7 +813,7 @@
         column.trackId +
         '" data-meter-state="stale" aria-label="' +
         trackName(column.trackId) +
-        ' meter stale"><div class="track-meter-fill"></div></div></div>';
+        ' meter stale"><div class="track-meter-fill"></div><div class="track-meter-peak"></div></div></div>';
     }
 
     var readout = column.level
@@ -902,11 +902,11 @@
   // zero/stale state (or nothing when no mixer track is focused) and only
   // the meter listener may overwrite it.
   function meterHtml(model) {
-    return (
-      '<span class="type-value secondary meter" id="meter-readout" data-meter-state="stale" aria-label="selected track meter stale">' +
-      (focusedTrackId(model) === null ? "" : "METER 0.000") +
-      "</span>"
-    );
+    if (focusedTrackId(model) === null) return "";
+    return '<span class="master-meter" data-role="master-meter" data-meter-state="stale">' +
+      '<span class="type-hint secondary" id="meter-readout">MASTER — dBFS</span>' +
+      '<span class="master-meter-rail"><span class="track-meter-fill"></span><span class="track-meter-peak"></span></span>' +
+      '<span class="type-hint" id="master-clip">0 dBFS</span></span>';
   }
 
   // The shared workspace scaffold both contexts ride: one caption row
@@ -1469,7 +1469,7 @@
       escapeHtml(empty ? "NEW" : String(summary.patchId || UNAVAILABLE_MARK)) +
       "</span>" +
       '<span class="type-display" data-role="overview-patch-name">' +
-      escapeHtml(empty ? "NEW PATCH / DEFAULT" : String(summary.patchName || UNAVAILABLE_MARK)) +
+      escapeHtml(empty ? String(summary.activeCount).padStart(2, "0") + " / DEFAULT" : String(summary.patchName || UNAVAILABLE_MARK)) +
       "</span>" +
       (empty
         ? '<span class="type-hint ' +
@@ -1615,7 +1615,7 @@
     var subjectKind = String(subjectSummary.kind || "unknown");
     var mainSummary = (main && main.summary) || {};
     var prospective = mainSummary.kind === "emptyPatch";
-    var patchName = prospective ? "NEW PATCH / DEFAULT" : String(mainSummary.patchName || UNAVAILABLE_MARK);
+    var patchName = prospective ? String(mainSummary.activeCount).padStart(2, "0") + " / DEFAULT" : String(mainSummary.patchName || UNAVAILABLE_MARK);
     var patchId = prospective ? null : mainSummary.patchId;
     var patchPosition = prospective ? summary.patchPosition : patchId;
     var originControl = controlIdOf({
@@ -1739,7 +1739,7 @@
       "</span>" +
       '<span class="spring"></span>' +
       '<span class="type-hint secondary" data-role="detail-patch">' +
-      (prospective ? "NEW PATCH · DEFAULT" : "PATCH " + escapeHtml(String(patchId))) +
+      (prospective ? "PATCH " + String(mainSummary.activeCount).padStart(2, "0") + " · DEFAULT" : "PATCH " + escapeHtml(String(patchId))) +
       HINT_SEPARATOR +
       escapeHtml(patchName) +
       "</span>" +
@@ -2706,7 +2706,7 @@
       '" data-role="big-readout">' +
       escapeHtml(big) +
       "</span>" +
-      '<span class="type-value secondary inspector-meter" id="inspector-meter-readout" data-meter-state="stale">METER 0.000 / STALE</span></div>' +
+      '<span class="type-value secondary inspector-meter" id="inspector-meter-readout" data-meter-state="stale">RMS — / PEAK — dBFS</span></div>' +
       (rangeHint
         ? '<span class="type-hint muted" data-role="readout-range">' +
           escapeHtml(rangeHint) +
@@ -2750,19 +2750,33 @@
   var activeWorkspace = null;
   var hostView = null;
 
+  function workspaceHints(hints) {
+    return '<span class="workspace-hints" data-role="footer-guidance" aria-label="Current controls">' +
+      String(hints).split('\n').map(function (line) {
+        return '<span class="workspace-hint-line">' + line.split(' · ').map(function (hint) {
+          return '<span class="workspace-hint">' + escapeHtml(hint) + '</span>';
+        }).join(' · ') + '</span>';
+      }).join(' ') + '</span>';
+  }
+
   function workspaceRows(rows, workspace) {
     var keyIds = workspace.preview ? workspace.preview.keys.map(function (key) { return key.id; }) : [];
-    return rows.filter(function (row) { return keyIds.indexOf(row.id) < 0; }).map(function (row) {
+    var detailIds = workspace.preview ? (workspace.preview.controls || []).map(function (row) { return row.id; }) : [];
+    return workspaceRowButtons(rows.filter(function (row) { return keyIds.indexOf(row.id) < 0 && detailIds.indexOf(row.id) < 0; }), workspace);
+  }
+
+  function workspaceRowButtons(rows, workspace) {
+    return rows.map(function (row) {
       var focused = workspace.focus === row.id;
-      return '<button class="workspace-action" data-workspace-id="' + escapeHtml(row.id) +
+      return '<button class="workspace-action" ' + (row.enabled === false ? 'disabled ' : '') + 'data-span="' + row.span + '" data-selected="' + row.selected + '" data-workspace-id="' + escapeHtml(row.id) +
         '" aria-current="' + String(focused) + '"><span class="workspace-focus-marker">' + (focused ? '›' : '') +
-        '</span><span class="workspace-action-label">' + escapeHtml(row.label) + '</span><span class="workspace-action-value">' + escapeHtml(row.value) + '</span></button>';
+        '</span><span class="workspace-action-label">' + (row.selected ? '✓ ' : '') + escapeHtml(row.label) + '</span><span class="workspace-action-value">' + escapeHtml(row.value) + '</span></button>';
     }).join("");
   }
 
-  function workspaceToolbar(rows) {
-    return rows.length ? '<nav class="workspace-toolbar">' + rows.map(function (row) {
-      return '<button data-workspace-id="' + escapeHtml(row.id) + '">' + escapeHtml(row.label) + '</button>';
+  function workspaceToolbar(rows, timeline) {
+    return rows.length ? '<nav class="workspace-toolbar" data-timeline="' + !!timeline + '">' + rows.map(function (row) {
+      return '<button data-workspace-id="' + escapeHtml(row.id) + '">' + '<span>' + escapeHtml(row.label) + '</span>' + (timeline ? '<strong>' + escapeHtml(row.value) + '</strong>' : '') + '</button>';
     }).join('') + '</nav>' : '';
   }
 
@@ -2778,38 +2792,65 @@
     return '<section class="workspace-preview"><h2>' + escapeHtml(preview.title) + '</h2><p class="type-hint secondary">' + escapeHtml(preview.caption) +
       '</p><div class="workspace-intervals">' + preview.values.map(function (value) { return '<span>' + escapeHtml(value) + '</span>'; }).join('') +
       '</div><p class="workspace-resolved">' + escapeHtml(preview.footer) + '</p>' +
-      (keys ? '<div class="workspace-keyboard" aria-label="Chord interval keyboard">' + keys + '</div>' : '') + '</section>';
+      (keys ? '<div class="workspace-keyboard" aria-label="Chord interval keyboard">' + keys + '</div>' : '') +
+      '<div class="workspace-preview-controls">' + workspaceRowButtons(preview.controls || [], workspace) + '</div></section>';
+  }
+
+  function workspaceSpan(span, original) {
+    return '<button class="workspace-duration" data-original="' + original + '" ' + (original ? 'tabindex="-1" aria-hidden="true" ' : '') +
+      'data-workspace-id="' + escapeHtml(span.id) + '" data-start="' + span.start + '" data-end="' + span.end +
+      '" data-selected="' + span.selected + '" aria-pressed="' + span.selected + '">' + (original ? '' : escapeHtml(span.label)) + '</button>';
+  }
+
+  function workspaceTimeLane(workspace, row, lane) {
+    var timeline = workspace.timeline;
+    var cells = row.cells.map(function (cell, index) {
+      return '<button class="workspace-time-cell" data-beat="' + (timeline.beatColumns.indexOf(index) >= 0) + '" data-workspace-id="' + escapeHtml(cell.id) +
+        '" aria-label="' + escapeHtml(row.label + ', ' + cell.label) + '"></button>';
+    }).join('');
+    var originals = timeline.originals.filter(function (span) { return span.lane === lane; }).map(function (span) { return workspaceSpan(span, true); }).join('');
+    var spans = timeline.spans.filter(function (span) { return span.lane === lane; }).map(function (span) { return workspaceSpan(span, false); }).join('');
+    var cursor = lane === timeline.cursorLane && timeline.cursor !== null ? '<i class="workspace-cursor-cell" data-start="' + timeline.cursor + '" data-end="' + Math.min(10000, timeline.cursor + timeline.cursorWidth) + '"></i>' : '';
+    return '<div class="workspace-time-lane" data-secondary="' + (timeline.secondaryLanes.indexOf(lane) >= 0) + '" data-muted="' + (timeline.mutedLanes.indexOf(lane) >= 0) + '"><span class="workspace-pitch-label">' + escapeHtml(row.label) +
+      '</span><div class="workspace-time-track"><div class="workspace-time-cells">' + cells + '</div>' + originals + spans + cursor + '</div></div>';
+  }
+
+  function workspaceCurve(curve) {
+    var path = curve.path.map(function (point) { return point[0] + ',' + (10000 - point[1]); }).join(' ');
+    var points = curve.points.map(function (point) {
+      return '<span class="workspace-curve-point" role="img" aria-label="' + escapeHtml(point.label) + '" title="' + escapeHtml(point.label) +
+        '" data-start="' + point.position + '" data-value="' + point.value + '" data-selected="' + point.selected + '"></span>';
+    }).join('');
+    return '<section class="workspace-curve" aria-label="' + escapeHtml(curve.label) + '"><div class="workspace-curve-heading"><strong>' + escapeHtml(curve.label) +
+      '</strong><span>' + escapeHtml(curve.caption) + '</span></div><div class="workspace-curve-body"><div class="workspace-curve-scale"><span>' + curve.maximum +
+      '</span><span>0</span></div><div class="workspace-curve-track"><svg viewBox="0 0 10000 10000" preserveAspectRatio="none" aria-hidden="true"><polyline points="' + path +
+      '"></polyline></svg>' + points + (curve.path.length ? '' : '<span class="workspace-curve-empty">No points in this window</span>') + '</div></div></section>';
   }
 
   function workspaceTimeline(workspace) {
     var timeline = workspace.timeline;
     var headings = workspace.columns.map(function (column) { return '<span>' + escapeHtml(column) + '</span>'; }).join('');
-    var lanes = workspace.grid.map(function (row, lane) {
-      var cells = row.cells.map(function (cell) {
-        return '<button class="workspace-time-cell" data-workspace-id="' + escapeHtml(cell.id) + '" aria-label="' + escapeHtml(row.label + ', step ' + cell.id.split(':')[1]) +
-          '" data-focused="' + (workspace.focus === cell.id) + '"></button>';
-      }).join('');
-      var spans = timeline.spans.filter(function (span) { return span.lane === lane; }).map(function (span) {
-        return '<button class="workspace-duration" data-workspace-id="' + escapeHtml(span.id) + '" data-start="' + span.start + '" data-end="' + span.end +
-          '" data-selected="' + span.selected + '" aria-pressed="' + span.selected + '">' + escapeHtml(span.label) + '</button>';
-      }).join('');
-      var focused = row.cells.some(function (cell) { return cell.id === workspace.focus; });
-      return '<div class="workspace-time-lane" data-secondary="' + (timeline.secondaryLanes.indexOf(lane) >= 0) + '" data-focused="' + focused + '"><span class="workspace-pitch-label">' + escapeHtml(row.label) + '</span><div class="workspace-time-track"><div class="workspace-time-cells">' + cells + '</div>' + spans + '</div></div>';
-    }).join('');
+    var lanes = workspace.grid.map(function (row, lane) { return workspaceTimeLane(workspace, row, lane); }).join('');
     var levels = timeline.spans.map(function (span) {
-      return '<button class="workspace-level" aria-label="Velocity ' + span.level + '" data-workspace-id="' + escapeHtml(span.id) + '" data-start="' + span.start +
+      return '<button class="workspace-level" aria-label="' + escapeHtml(span.label) + ' velocity ' + span.level + '" data-workspace-id="' + escapeHtml(span.levelId) + '" data-start="' + span.start +
         '" data-level="' + span.level + '" data-selected="' + span.selected + '"></button>';
     }).join('');
-    return '<div class="workspace-timeline" data-columns="' + workspace.columns.length + '"><div class="workspace-time-ruler"><span>NOTE</span><div class="workspace-time-cells">' + headings + '</div></div><div class="workspace-time-body">' + lanes +
-      (timeline.playhead !== null ? '<div class="workspace-playhead-track"><i class="workspace-playhead" data-start="' + timeline.playhead + '"></i></div>' : '') +
-      '</div><div class="workspace-velocity"><span class="type-hint">VELOCITY</span><div class="workspace-levels">' + levels + '</div></div></div>';
+    var beatLines = timeline.beatColumns.map(function (index) { return '<i class="workspace-beat-line" data-start="' + Math.round(index / workspace.columns.length * 10000) + '"></i>'; }).join('');
+    return '<div class="workspace-timeline" data-columns="' + workspace.columns.length + '"><div class="workspace-time-ruler"><span></span><div class="workspace-time-cells">' + headings +
+      '</div></div><div class="workspace-time-body">' + lanes +
+      (timeline.cursor !== null ? '<div class="workspace-playhead-track"><i class="workspace-edit-cursor" aria-label="Edit cursor" data-start="' + timeline.cursor + '"></i></div>' : '') +
+      (timeline.playhead !== null ? '<div class="workspace-playhead-track"><i class="workspace-playhead" aria-label="Playback position" data-start="' + timeline.playhead + '"></i></div>' : '') +
+      '</div>' + (timeline.curve ? workspaceCurve(timeline.curve) : '<div class="workspace-velocity" data-focused="' + timeline.levelFocused + '"><button class="workspace-velocity-label" data-workspace-id="' + escapeHtml(timeline.levelAction.id) + '">' + escapeHtml(timeline.levelAction.label) + '<span>127</span><span>1</span></button><div class="workspace-levels">' + beatLines + levels + '</div></div>') + '</div>';
   }
 
   function layoutWorkspace(doc, workspace) {
+    doc.querySelectorAll('.workspace-popover').forEach(function (element) { element.style.setProperty('--panel-columns', element.dataset.columns || 1); });
+    doc.querySelectorAll('.workspace-popover .workspace-action').forEach(function (element) { element.style.gridColumn = 'span ' + (element.dataset.span || 1); });
     doc.querySelectorAll('.workspace-timeline').forEach(function (element) { element.style.setProperty('--time-columns', element.dataset.columns); });
-    doc.querySelectorAll('.workspace-duration, .workspace-level, .workspace-playhead').forEach(function (element) {
+    doc.querySelectorAll('.workspace-duration, .workspace-level, .workspace-playhead, .workspace-edit-cursor, .workspace-cursor-cell, .workspace-beat-line, .workspace-curve-point').forEach(function (element) {
       element.style.left = (Number(element.dataset.start) / 100) + '%';
       if (element.dataset.end) element.style.width = Math.max(0.25, (Number(element.dataset.end) - Number(element.dataset.start)) / 100) + '%';
+      if (element.dataset.value) element.style.bottom = (Number(element.dataset.value) / 100) + '%';
       if (element.dataset.level) element.style.height = (Number(element.dataset.level) / 127 * 100) + '%';
     });
   }
@@ -2838,7 +2879,30 @@
   }
 
   function emitWorkspace(event) {
+    if (activeWorkspace && activeWorkspace.busy) return;
     if (window.__TAURI__) window.__TAURI__.event.emit("crest://host-input", event).catch(function (error) { emitRenderError(error, null); });
+  }
+
+  var lastWorkspacePageSize = null;
+  function reportWorkspacePageSize(workspace) {
+    var list = window.document.querySelector('.workspace-rows');
+    var row = list && list.querySelector('[data-workspace-id]');
+    if (!row || !workspace.rows.length || list.clientHeight <= 0) {
+      lastWorkspacePageSize = null;
+      return;
+    }
+    var height = row.getBoundingClientRect().height;
+    if (height <= 0) return;
+    var observation = {
+      kind: 'listPageSize',
+      id: workspace.rows[0].id,
+      rows: Math.max(1, Math.min(workspace.rows.length, Math.floor(list.clientHeight / height)))
+    };
+    var key = JSON.stringify(observation);
+    if (key !== lastWorkspacePageSize) {
+      lastWorkspacePageSize = key;
+      emitWorkspace(observation);
+    }
   }
 
   function attachWorkspaceInput() {
@@ -2869,16 +2933,21 @@
     doc.body.classList.remove("settings-active", "sends-active");
     doc.body.classList.add("workspace-active");
     doc.body.dataset.workspaceContext = workspace.context;
+    doc.body.dataset.workspaceTimeline = !!workspace.timeline;
     doc.getElementById("context-line").innerHTML = '<span class="type-label">' + escapeHtml(hostView.name) + '</span><span class="spring"></span><button class="workspace-tab" data-current="true" data-workspace-id="home">SONG</button><button class="workspace-tab" data-workspace-id="instruments">INSTRUMENTS</button><button class="workspace-tab" data-workspace-id="menu">MENU</button><button class="workspace-transport" data-workspace-id="transport" aria-label="Play or stop">' + (workspace.playing ? '■ STOP' : '▶ PLAY') + '</button>';
-    doc.getElementById("identity-header").innerHTML = '<span class="workspace-context type-label">' + escapeHtml(workspace.context) + '</span><span class="type-heading">/ ' + escapeHtml(workspace.title) + '</span><span class="spring"></span><span class="type-hint secondary">' + escapeHtml(workspace.subtitle) + '</span>';
+    doc.getElementById("identity-header").innerHTML = '<span class="workspace-context type-label">' + escapeHtml(workspace.timeline ? workspace.timeline.label : workspace.context) + '</span><span class="type-heading">' + escapeHtml(workspace.title) + '</span><span class="spring"></span><span class="type-hint secondary">' + escapeHtml(workspace.subtitle) + '</span>';
+    if (workspace.timeline) doc.getElementById("identity-header").insertAdjacentHTML("beforeend", '<div class="workspace-roll-meta"><span>' + escapeHtml(workspace.timeline.caption) + '</span><span>' + escapeHtml(workspace.timeline.viewLabel) + '</span></div>');
     var list = '<div class="workspace-list-preview"><div class="workspace-rows">' + workspaceRows(workspace.rows, workspace) + '</div>' + workspacePreview(workspace) + '</div>';
     var grid = workspaceGrid(workspace);
     var tabs = '<nav class="workspace-tabs" aria-label="Settings pages">' + (workspace.tabs || []).map(function (tab) {
       return '<button class="workspace-tab" data-workspace-id="' + escapeHtml(tab.id) + '" data-focused="' + (workspace.focus === tab.id) + '" data-current="' + tab.selected + '" aria-current="' + tab.selected + '">' + escapeHtml(tab.label) + '</button>';
     }).join('') + '</nav>';
-    var body = tabs + grid + list + workspaceToolbar(workspace.inspector);
+    var body = tabs + grid + list + workspaceToolbar(workspace.inspector, workspace.timeline);
     if (workspace.overlay) {
-      body = '<div class="workspace-backdrop" inert>' + grid + '</div><section class="workspace-popover" role="dialog" aria-modal="true" aria-label="' + escapeHtml(workspace.context) + '"><h1 class="type-heading">' + escapeHtml(workspace.context) + '</h1>' + list + '</section>';
+      body = '<div class="workspace-backdrop" inert>' + grid + workspaceToolbar(workspace.inspector, workspace.timeline) + '</div><section class="workspace-popover" data-columns="' + workspace.panelColumns + '" data-timeline="' + !!workspace.timeline + '" role="dialog" aria-modal="true" aria-label="' + escapeHtml(workspace.context) + '"><h1 class="type-heading">' + escapeHtml(workspace.context) + '</h1>' + (workspace.panelCaption ? '<p class="workspace-panel-caption">' + escapeHtml(workspace.panelCaption) + '</p>' : '') + list + '</section>';
+    }
+    if (workspace.busy) {
+      body = '<div class="workspace-backdrop" inert aria-hidden="true">' + grid + '</div><section class="workspace-popover" data-busy="true" role="dialog" aria-modal="true" aria-labelledby="workspace-loading-title" tabindex="-1"><h1 id="workspace-loading-title" class="type-heading">' + escapeHtml(workspace.context) + '</h1><div class="workspace-loading-spinner" aria-hidden="true"></div><p class="workspace-panel-caption" role="status" aria-live="polite">' + escapeHtml(workspace.panelCaption) + '</p></section>';
     }
     if (workspace.textEntry) {
       var entry = workspace.textEntry;
@@ -2887,12 +2956,20 @@
     }
     doc.getElementById("workspace").innerHTML = '<div class="workspace-page">' + body + '</div>';
     doc.getElementById("inspector").innerHTML = '';
-    doc.getElementById("footer").innerHTML = '<span class="type-hint workspace-status">' + escapeHtml(workspace.status) + '</span><span class="type-hint secondary">' + escapeHtml(workspace.hints) + '</span>';
+    doc.getElementById("footer").innerHTML = (workspace.summary ? '<div class="workspace-summary">' + escapeHtml(workspace.summary).replace(/\n/g, '<br>') + '<small>' + escapeHtml(workspace.status) + '</small></div>' : '<span class="type-hint workspace-status">' + escapeHtml(workspace.status) + '</span>') + workspaceHints(workspace.hints);
     layoutWorkspace(doc, workspace);
     attachWorkspaceInput();
+    if (workspace.busy) {
+      doc.querySelectorAll('#context-line button, [data-workspace-id]').forEach(function (element) {
+        element.disabled = true;
+        element.setAttribute('aria-disabled', 'true');
+      });
+      doc.querySelector('.workspace-popover[data-busy="true"]').focus({preventScroll: true});
+    }
     applyDynamicGeometry(doc);
     var focused = doc.querySelector('[data-workspace-id="' + CSS.escape(workspace.focus) + '"]');
     if (focused) focused.scrollIntoView({block: "nearest", inline: "nearest"});
+    reportWorkspacePageSize(workspace);
     var input = doc.querySelector('#workspace-text-form input');
     if (input) { input.focus({preventScroll: true}); if (draft && draft.start !== null) input.setSelectionRange(draft.start, draft.start); }
   }
@@ -2901,7 +2978,10 @@
     hostView = view;
     activeWorkspace = view.workspace;
     if (activeWorkspace) renderWorkspace(activeWorkspace);
-    else if (latestModel) render(latestModel);
+    else {
+      lastWorkspacePageSize = null;
+      if (latestModel) render(latestModel);
+    }
   }
 
 
@@ -4005,6 +4085,9 @@
   // latest snapshot frame. Never read by render().
   var latestModel = null;
   var latestFrame = null;
+  var meterFrameAt = -Infinity;
+  var meterText = { key: null, at: -Infinity };
+  var masterClip = { graph: null, count: 0, until: 0 };
   var latestMidiActivity = null;
 
   function midiActivityValue(message) {
@@ -4102,63 +4185,79 @@
     );
   }
 
-  function meterReading(frame, model, trackId) {
-    var compatible =
-      frame &&
-      frame.parameterGeneration === model.generation &&
-      graphRevisionsMatch(frame, model);
-    var track = compatible && frame.tracks ? frame.tracks[trackId] : null;
-    var rms = track ? Number(track.rms) : 0;
-    if (!track || !Number.isFinite(rms) || rms < 0) {
-      return { rms: 0, state: "stale" };
+  function meterReading(frame, model, trackId, now) {
+    // Meters describe sounding audio, not navigation or queued MIDI generations.
+    // Only a different graph (different routing identity) invalidates the frame.
+    var compatible = frame && graphRevisionsMatch(frame, model) && now - meterFrameAt < 500;
+    var raw = compatible && (trackId === null ? frame : frame.tracks && frame.tracks[trackId]);
+    var level = compatible && frame.metering && (trackId === null ? frame.metering.output : frame.metering.tracks[trackId]);
+    var rms = level ? Number(level.rms) : raw ? Number(trackId === null ? raw.outputRms : raw.rms) : NaN;
+    var peak = level ? Number(level.peak) : raw ? Math.max(Number(raw.leftPeak), Number(raw.rightPeak)) : NaN;
+    if (!Number.isFinite(rms) || !Number.isFinite(peak) || rms < 0 || peak < 0) {
+      return { rms: 0, peak: 0, state: "stale" };
     }
-    return { rms: rms, state: rms > 0 ? "active" : "zero" };
+    return { rms: rms, peak: peak, state: peak > 1 ? "over" : peak >= 0.001 ? "active" : "zero" };
   }
 
-  // Repaints all passive track meters and the selected-track numeric meter
-  // from one compatible latest snapshot. Missing or incompatible values are
-  // explicitly stale; compatible silence is explicitly zero.
+  function meterFraction(amplitude) {
+    return amplitude > 0 ? Math.max(0, Math.min(1, (20 * Math.log10(amplitude) + 60) / 60)) : 0;
+  }
+
+  function meterDb(amplitude) {
+    return amplitude >= 0.001 ? String(Math.round(20 * Math.log10(amplitude))) : "−∞";
+  }
+
+  function paintMeter(node, reading, label) {
+    node.style.setProperty("--meter-rms", reading.rms.toFixed(6));
+    node.style.setProperty("--meter-level", meterFraction(reading.rms).toFixed(6));
+    node.style.setProperty("--meter-peak", meterFraction(reading.peak).toFixed(6));
+    node.setAttribute("data-meter-state", reading.state);
+    node.setAttribute("aria-label", label + " meter RMS " + meterDb(reading.rms) +
+      " dBFS, peak " + meterDb(reading.peak) + " dBFS, " + reading.state);
+  }
+
   function updateMeter() {
     var doc = window.document;
-    if (!latestModel) {
-      return;
-    }
+    if (!latestModel) return;
+    var now = performance.now();
     var meterNodes = doc.querySelectorAll("[data-meter-track]");
     for (var i = 0; i < meterNodes.length; i += 1) {
-      var meterTrackId = Number(meterNodes[i].getAttribute("data-meter-track"));
-      var reading = meterReading(latestFrame, latestModel, meterTrackId);
-      meterNodes[i].style.setProperty("--meter-rms", reading.rms.toFixed(6));
-      meterNodes[i].setAttribute("data-meter-state", reading.state);
-      meterNodes[i].setAttribute(
-        "aria-label",
-        trackName(meterTrackId) +
-          " meter " +
-          reading.rms.toFixed(3) +
-          " " +
-          reading.state
-      );
+      var track = Number(meterNodes[i].getAttribute("data-meter-track"));
+      paintMeter(meterNodes[i], meterReading(latestFrame, latestModel, track, now), trackName(track));
     }
-
     var trackId = focusedTrackId(latestModel);
-    var caption = doc.getElementById("meter-readout");
-    var inspectorMeter = doc.getElementById("inspector-meter-readout");
-    if (trackId === null || !caption) {
-      if (caption) {
-        caption.textContent = "";
-      }
-      return;
+    var master = doc.querySelector('[data-role="master-meter"]');
+    if (trackId === null || !master) return;
+    var output = meterReading(latestFrame, latestModel, null, now);
+    var selected = meterReading(latestFrame, latestModel, trackId, now);
+    paintMeter(master, output, "Master output");
+    var graph = latestModel.status && latestModel.status.graphRevision;
+    var count = latestFrame && latestFrame.metering ? latestFrame.metering.clippedSamples : 0;
+    if (masterClip.graph !== graph || count < masterClip.count) {
+      masterClip = { graph: graph, count: count, until: 0 };
     }
-    var selected = meterReading(latestFrame, latestModel, trackId);
-    caption.textContent = "METER " + selected.rms.toFixed(3);
-    caption.setAttribute("data-meter-state", selected.state);
-    caption.setAttribute(
-      "aria-label",
-      "selected track meter " + selected.rms.toFixed(3) + " " + selected.state
-    );
-    if (inspectorMeter) {
-      inspectorMeter.textContent =
-        "METER " + selected.rms.toFixed(3) + " / " + selected.state.toUpperCase();
-      inspectorMeter.setAttribute("data-meter-state", selected.state);
+    if (output.state !== "stale" && (count > masterClip.count || output.peak > 1)) {
+      masterClip.until = now + 2000;
+    }
+    masterClip.count = count;
+    var clipped = output.state !== "stale" && now < masterClip.until;
+    master.setAttribute("data-clipped", String(clipped));
+    doc.getElementById("master-clip").textContent = output.state === "stale" ? "WAITING" : clipped ? "CLIP" : "0 dBFS";
+    var key = String(graph) + ":" + trackId + ":" + selected.state + ":" + output.state;
+    // Numeric labels update at 4 Hz; bars retain the 30 Hz observation cadence.
+    if (meterText.key !== key || now - meterText.at >= 250) {
+      meterText = { key: key, at: now,
+        master: output.state === "stale" ? "MASTER — dBFS" : "MASTER " + meterDb(output.peak) + " dBFS",
+        selected: selected.state === "stale" ? "RMS — / PEAK — dBFS" :
+          "RMS " + meterDb(selected.rms) + " / PEAK " + meterDb(selected.peak) + " dBFS" + (selected.state === "over" ? " · OVER" : "") };
+    }
+    var caption = doc.getElementById("meter-readout");
+    caption.textContent = meterText.master;
+    caption.setAttribute("data-meter-state", output.state);
+    var inspector = doc.getElementById("inspector-meter-readout");
+    if (inspector) {
+      inspector.textContent = meterText.selected;
+      inspector.setAttribute("data-meter-state", selected.state);
     }
   }
 
@@ -4215,6 +4314,7 @@
   }
 
   function observeAudio(frame) {
+    if (!latestFrame || frame.sequence !== latestFrame.sequence || frame.activeGraphRevision !== latestFrame.activeGraphRevision) meterFrameAt = performance.now();
     latestFrame = frame;
     updateMeter();
     updatePreviewObservation();
@@ -4314,6 +4414,12 @@
     });
   }
 
+  function reportRenderTime(start) {
+    if (start !== null) {
+      window.__TAURI__.event.emit("crest://performance", performance.now() - start).catch(function () {});
+    }
+  }
+
   function attachTransports() {
     var tauri = window.__TAURI__;
     if (!tauri || !tauri.event) {
@@ -4327,6 +4433,7 @@
         // A document that fails to render must NOT ack: the catch emits the
         // typed crest://render-error payload (fatal shell-side) and returns
         // before the acknowledgment below is ever scheduled.
+        var renderStart = window.__CREST_PERF__ ? performance.now() : null;
         try {
           render(model);
           updateMeter();
@@ -4336,6 +4443,7 @@
           emitRenderError(error, model);
           return; // a failed render must NOT ack
         }
+        reportRenderTime(renderStart);
         // Exactly one paint ack per painted document, in paint order: emitted
         // after this frame has painted, carrying the document's own identity
         // with post-paint region evidence.
@@ -4368,7 +4476,9 @@
       observeSessionDocument(event.payload);
     });
     var workspaceListener = tauri.event.listen("crest://host-projection", function (event) {
+      var renderStart = window.__CREST_PERF__ ? performance.now() : null;
       try { observeWorkspace(event.payload); } catch (error) { emitRenderError(error, null); }
+      reportRenderTime(renderStart);
     });
     Promise.all([projectionListener, meterListener, midiActivityListener, sessionDocumentListener, workspaceListener])
       .then(function () {
@@ -4400,6 +4510,10 @@
   });
 
   window.addEventListener("resize", function () {
+    if (activeWorkspace) {
+      reportWorkspacePageSize(activeWorkspace);
+      return;
+    }
     if (latestModel) {
       revealSemanticFocus(window.document, latestModel);
     }

@@ -37,7 +37,7 @@ fn setup() -> (Editor, Occurrence, PhraseId) {
     );
     song.tracks[0].slots.push(Some(ChainUse {
         id: UseId::new(104).unwrap(),
-        chain,
+        chain: chain.into(),
         repeats: 1,
     }));
     let path = Occurrence {
@@ -991,7 +991,7 @@ fn phrase_at(song: &Song, occurrence: Occurrence) -> (PhraseId, &Phrase) {
         .flatten()
         .find(|usage| usage.id == occurrence.chain_use)
         .unwrap();
-    let phrase_use = song.chains[&chain_use.chain]
+    let phrase_use = song.chains[&chain_use.chain.pattern().unwrap()]
         .phrases
         .iter()
         .find(|usage| usage.id == occurrence.phrase_use)

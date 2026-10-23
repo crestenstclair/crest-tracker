@@ -4,6 +4,7 @@ use crate::real_time::audio_observation::{
     AudioObservation, CallbackAudioObservation, ControlAudioObservation,
 };
 use crate::real_time::audio_observation_snapshot::AudioObservationSnapshot;
+use crate::real_time::meter_ballistics::{MeterLevel, MeterLevels};
 use core::sync::atomic::{fence, AtomicU32, AtomicU64, Ordering};
 use std::sync::Arc;
 
@@ -109,6 +110,53 @@ struct AtomicObservationFields {
     wet_output_rms: AtomicU32,
     non_finite_samples: AtomicU64,
     clipped_samples: AtomicU64,
+    metering: AtomicMetering,
+}
+
+// These fields share AtomicObservationFields' seqlock, so readers receive one
+// coherent meter frame without clearing peaks or racing another UI reader.
+struct AtomicMetering {
+    present: AtomicU32,
+    rms: [AtomicU32; MixerTrackId::COUNT + 1],
+    peak: [AtomicU32; MixerTrackId::COUNT + 1],
+    clips: AtomicU64,
+}
+impl AtomicMetering {
+    fn new(levels: Option<MeterLevels>) -> Self {
+        let result = Self {
+            present: AtomicU32::new(0),
+            rms: std::array::from_fn(|_| AtomicU32::new(0)),
+            peak: std::array::from_fn(|_| AtomicU32::new(0)),
+            clips: AtomicU64::new(0),
+        };
+        result.store(levels);
+        result
+    }
+    fn store(&self, levels: Option<MeterLevels>) {
+        self.present
+            .store(u32::from(levels.is_some()), Ordering::Relaxed);
+        if let Some(levels) = levels {
+            for (index, level) in levels.tracks.into_iter().chain([levels.output]).enumerate() {
+                self.rms[index].store(level.rms.to_bits(), Ordering::Relaxed);
+                self.peak[index].store(level.peak.to_bits(), Ordering::Relaxed);
+            }
+            self.clips.store(levels.clipped_samples, Ordering::Relaxed);
+        }
+    }
+    fn read(&self) -> Option<MeterLevels> {
+        if self.present.load(Ordering::Relaxed) == 0 {
+            return None;
+        }
+        let level = |index: usize| MeterLevel {
+            rms: f32::from_bits(self.rms[index].load(Ordering::Relaxed)),
+            peak: f32::from_bits(self.peak[index].load(Ordering::Relaxed)),
+        };
+        Some(MeterLevels {
+            tracks: std::array::from_fn(level),
+            output: level(MixerTrackId::COUNT),
+            clipped_samples: self.clips.load(Ordering::Relaxed),
+        })
+    }
 }
 
 impl AtomicObservationFields {
@@ -176,6 +224,7 @@ impl AtomicObservationFields {
             wet_output_rms: AtomicU32::new(initial.wet_output_rms().to_bits()),
             non_finite_samples: AtomicU64::new(initial.non_finite_samples()),
             clipped_samples: AtomicU64::new(initial.clipped_samples()),
+            metering: AtomicMetering::new(initial.metering()),
         }
     }
 
@@ -283,6 +332,7 @@ impl AtomicObservationFields {
             .store(snapshot.non_finite_samples(), Ordering::Relaxed);
         self.clipped_samples
             .store(snapshot.clipped_samples(), Ordering::Relaxed);
+        self.metering.store(snapshot.metering());
         self.version
             .store(version.wrapping_add(2), Ordering::Release);
     }
@@ -363,6 +413,10 @@ impl AtomicObservationFields {
                         f32::from_bits(self.preview_playhead.load(Ordering::Relaxed)),
                     ),
                 );
+            let snapshot = self
+                .metering
+                .read()
+                .map_or(snapshot, |levels| snapshot.with_metering(levels));
             fence(Ordering::Acquire);
             let after = self.version.load(Ordering::Relaxed);
             if before == after {
@@ -383,6 +437,7 @@ mod tests {
         AudioObservation, CallbackAudioObservation, ControlAudioObservation,
     };
     use crate::real_time::audio_observation_snapshot::AudioObservationSnapshot;
+    use crate::real_time::meter_ballistics::{MeterLevel, MeterLevels};
 
     fn snapshot(sequence: u64) -> AudioObservationSnapshot {
         let value = sequence as f32;
@@ -407,6 +462,17 @@ mod tests {
                 sequence,
             ),
         )
+        .with_metering(MeterLevels {
+            tracks: [MeterLevel {
+                rms: value,
+                peak: value * 2.0,
+            }; MixerTrackId::COUNT],
+            output: MeterLevel {
+                rms: value * 3.0,
+                peak: value * 4.0,
+            },
+            clipped_samples: sequence * 6,
+        })
         .with_schedule_metrics(sequence * 3, sequence * 4, sequence * 5)
         .with_voice_limit_refusals(sequence * 2)
         .with_preview_observation(crate::real_time::PreviewAudioObservation::from_parts(

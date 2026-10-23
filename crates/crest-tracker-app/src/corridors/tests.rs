@@ -17,7 +17,7 @@ fn complete_score_preserves_audible_notes_and_exact_times_through_playback() {
             "the Song grid must expose the arrangement"
         );
         for (row, slot) in track.slots.iter().enumerate() {
-            let chain = &song.chains[&slot.as_ref().unwrap().chain];
+            let chain = &song.chains[&slot.as_ref().unwrap().chain.pattern().unwrap()];
             assert_eq!(chain.phrases.len(), 1);
             let phrase = &song.phrases[&chain.phrases[0].phrase];
             assert_eq!(

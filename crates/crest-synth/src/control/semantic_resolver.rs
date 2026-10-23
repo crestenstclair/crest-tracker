@@ -1291,6 +1291,7 @@ fn action_presentation(
             ("Unavailable mode", None)
         }
         SemanticAction::OpenRelated => ("Open related", None),
+        SemanticAction::OpenPopover => ("Open options (West)", Some("[")),
         SemanticAction::OpenMidiSettings => ("Open Settings", Some("Shift+Space / Shift+Start")),
         SemanticAction::Activate if surface == SurfaceId::PatchMain => {
             ("Open Detail", Some("Return"))

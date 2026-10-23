@@ -37,8 +37,11 @@ engines, or preserve them as architectural invariants.
 
 Patch admission, scalar snapshots, graph racks and observations share one
 build-time storage budget, defaulting to 32. Set `CREST_SYNTH_PATCH_CAPACITY`
-when building for different hardware. It must be a positive integer. Runtime
-resizing remains unimplemented; callback storage stays preallocated and Copy.
+when building for different hardware. It must be a positive integer. A saved session admission limit can be adjusted through `SetPatchCapacity` up to
+that prepared budget. It cannot fall below installed count or change during
+structural preparation. Old sessions default to the prepared budget. Tracker
+exposes this setting in Song Settings. Runtime storage resizing remains
+unimplemented; callback storage stays preallocated and Copy.
 Patch count is independent of the sixteen MIDI channels and mixer lanes; new
 Patch defaults cycle those routes after the first sixteen.
 
@@ -85,6 +88,12 @@ Only graph activation acknowledgement commits the replacement. Compatible
 scalar snapshots target the prepared revision while the source graph ignores
 incompatible revisions. Nothing silently substitutes a capability or asset.
 
+New Patch names use zero-based installation order (`00`, `01`, …), independent
+of persistent Patch identities. Saved and imported names are preserved. Hosted
+Tracker intercepts root Down/Back to open its Main Menu and Mixer Up to open
+track detail; native detail/choice return ownership stays in Synth. Standalone
+Synth retains its own top-level navigation.
+
 The footer is the sole visual action-guide owner. Numeric presentation uses
 projected ranges, steps, and units rather than arbitrary decimal precision.
 PATCH Overview labels Return as opening Detail. The compatibility Detail action
@@ -125,7 +134,7 @@ Crest Synth is a standalone, controller-first MIDI instrument host. The
 production composition is a Rust application using Tauri v2 with WKWebView on
 macOS and WebKitGTK on Linux, plus CPAL stereo audio output. Normal startup
 opens one clean, playable Sample
-`INIT` document and starts a bounded repeating test MIDI pattern on channel 1:
+`00` document and starts a bounded repeating test MIDI pattern on channel 1:
 the catalog demo's ascending/descending major-seventh arpeggio across three
 octaves, played as eighth notes at 120 BPM with 200 ms gates.
 `T` stops or restarts the pattern; the footer reports the available action.
@@ -175,7 +184,7 @@ The application currently provides:
   commands listed later in this file.
 
 Normal `make run` resolves the composition-root-designated Sample capability
-exactly and constructs Patch 1 `INIT`: MIDI channel 1, T00 at 0 dB Patch trim,
+exactly and constructs Patch 1 `00`: MIDI channel 1, T00 at 0 dB Patch trim,
 neutral envelope, capability-seeded voice settings, and empty post-effect
 slots. It also installs the default Mixer, 0 dB master, and the
 default bank of sixteen empty `INIT` send chains. Retained effects/buses diagnostic
@@ -249,11 +258,46 @@ The code is organized around hexagonal boundaries:
 
 `production_application` is the shared composition root for standalone Synth and a hosted application. `ApplicationHost` contributes a document and musical transport without replacing Synth's reducer, device authority or renderer. `HostedSynthControl` exposes validated operations, installed Patch identities, saved sound capture and correlated candidate restore; it exposes no mutable state, preparation workers or raw queues. Required Patch identities are checked before replacement graph staging, so a rejected host document leaves the prior sound and focus active.
 
+During Tracker playback, native Synth actions join the host's ordered input queue.
+Tracker refills scheduled audio before UI work and processes one input transaction
+per control tick, including that input's child commands. Remaining input stays in
+order for later ticks; native edits still reduce in Synth. This prevents queued
+Mixer projections from consuming the transport window. If the internal producer
+still misses its deadline, Tracker resumes from the first unscheduled beat with
+fresh scheduling lead time. Notes, releases, expression and send lifetimes move
+together; existing voices and effect tails continue without a cancellation or
+an overdue attack burst. Deferred expression for already released, unpedaled
+voices is discarded because their audio release tails may have finished during
+the stall; lifetime cleanup and expression for held or sustained voices remain.
+This introduces an audible timing delay, not a transport
+stop. An active recording is interrupted with its take retained because its input
+timestamps belong to the old timeline. External clock ownership and genuine
+routing or voice-budget failures retain their existing stop behavior. Local graph
+activation preserves the host timeline, queued events, unchanged engines and effect
+tails. Only the edited engine is replaced; its next scheduled attack uses the new
+engine. A complete document replacement still stops transport before activation.
+
 `HostedSynthControl::set_browser_start` delivers a typed `SetBrowserStart` event for Sample or SoundFont browsing. Browser state remembers the last successful folder per asset kind and falls back to its configured starting directory or the existing default. Starting folders are shared machine preferences in `browser-starts.json` beside the Synth controller/MIDI configuration, not sound/session data. Interactive Synth loads them at startup; Tracker imports legacy local paths only when the shared file is absent and writes folder changes there atomically. Isolated event scenes omit this production preference load. The filesystem adapter exposes an opaque `@root` location on Unix; hosts validate accessible directories before persisting machine paths.
 
-A host may provide a typed `WorkspaceProjection` containing rows, top tabs, a grid with selected/playing cell states and compact spacing, focus identity, text entry and hints. Lists scroll within the bounded content region; host hints reflect the current workspace and editing target. The existing page paints those through its shared shell bands, Patch rows, typography and tokens. The host cannot inject a second page, script, stylesheet or keyboard adapter. `WorkspaceEvent` admits only focus, activation, text-draft changes and submission; its owner validates visible identities and operation tokens. Native Synth projections and paint acknowledgments resume when the host workspace closes. Hidden Synth frames never produce painted evidence. Host-consumed semantic actions may replace their matching native footer hints through `HostView::action_overrides`; local Synth action hints remain intact. The host owns panel history and restoration of row identity, so sidebar operations do not replace the active editing target.
+Tracker document replacement owns a blocking loading popover from file reading
+and asset checks through sound preparation and acknowledged graph activation.
+The host drops navigation, editing, transport and file commands during that work,
+including queued inputs on the completion tick; held stick repeats require a
+fresh edge afterward. The shared shell displays stage text and a progress spinner,
+disables background controls, and honors reduced-motion preferences. Success or
+failure releases the modal; missing assets return to the existing repair flow.
 
-Keyboard and SDL input share the existing semantic vocabulary. The optional host action handler receives gestures after saved mapping, hold suppression and Edit arbitration; unconsumed actions retain the original Synth path. Hosted Shift+Q / Shift+Previous Patch emits Return for the parent menu. Standalone Synth retains Q/E behavior. No sequencing type enters Synth's state or callback. Tracker consumes Settings globally and Shift+Down for its Song/Mixer or Quick Jump transition, including while the native Synth workspace is visible. Native subordinate navigation remains available through a forwarded semantic action.
+A host may provide a typed `WorkspaceProjection` containing rows, top tabs, a grid with selected/playing cell states and compact spacing, focus identity, text entry and hints. Lists scroll within the bounded content region; host hints reflect the current workspace and editing target. The existing page paints those through its shared shell bands, Patch rows, typography and tokens. The host cannot inject a second page, script, stylesheet or keyboard adapter. `WorkspaceEvent` admits focus, activation, text-draft changes, submission, and measured list-page capacity; its owner validates visible identities and operation tokens. List measurements are correlated to the first projected row and bounded by the current row count. Tracker owns paging and focus; the renderer only reports geometry on layout/resize and reveals the resulting selection. Native Synth projections and paint acknowledgments resume when the host workspace closes. Hidden Synth frames never produce painted evidence. Host-consumed semantic actions may replace their matching native footer hints through `HostView::action_overrides`; local Synth action hints remain intact. The host owns panel history and restoration of row identity, so sidebar operations do not replace the active editing target.
+
+Keyboard and SDL input share the existing semantic vocabulary. The optional host action handler receives gestures after saved mapping, hold suppression and Edit arbitration; unconsumed actions retain the original Synth path. Hosted Shift+Q / Shift+Previous Patch emits Return for the parent menu. Standalone Synth retains Q/E behavior. No sequencing type enters Synth's state or callback. Tracker consumes Shift+Start for global settings and Shift+Down for its Main Menu or detail return, including while the native Synth workspace is visible. Native subordinate navigation remains available through a forwarded semantic action.
+
+SDL initializes only the gamepad subsystem with its POSIX signal handlers disabled. Terminal SIGINT/SIGTERM retain the process's normal disposition instead of becoming unconsumed SDL Quit events. Window/menu Close still uses the document lifecycle and owned shutdown.
+
+Tracker resolves queued semantic actions, workspace events, stick gestures and roll modifiers at its application tick. It finishes the commands generated by one input before resolving the next input against the resulting context. Pending host navigation therefore cannot race a subsequent detail/menu action. When native Synth owns the settled context, unconsumed actions return to its normal dispatch path; standalone Synth has no Tracker input queue.
+
+Host timeline projections carry separate editing and playback coordinates. The shared renderer paints a dashed cyan editing cursor and a solid amber playback cursor; the host owns timing, viewport, selection and scrolling. Selected/playing cell states remain independent, so an arrangement can mark different rows in different columns. Timeline projections also admit duration/velocity marks, original outlines during previews, lane shading, a labeled ruler and optional normalized value traces. The host supplies every trace segment and raw-value label; the renderer never infers musical interpolation or owns expression data. Contextual fields carry enabled state and column spans shared with host navigation. Compact side panels, bottom action cards and a selection summary use the existing shell tokens and renderer.
+
+Host footer guidance is projected after focus resolution. Tracker describes the focused field's directional edits, activation, page exits, transport and Piano modifiers, using the controller mapping received at its input boundary. Newlines group the controls in a wrapping, right-aligned footer; the renderer owns no action semantics. Native Synth pages retain their existing admitted-action guidance.
 
 The complete source is forked into the Tracker workspace; `FORK.json` records the imported working-tree hashes and original commit. The Synth package still builds and runs independently with `cargo run -p crest-synth --bin crest-synth`.
 
@@ -261,10 +305,12 @@ There is one canonical public type per concept. Private transport values may
 exist inside adapters, but duplicate public `Patch`, `MidiEvent`, `Parameter`,
 focus, asset, or routing models are forbidden.
 
-Control-side `AppState` snapshots share the Patch collection and bus-return
+Control-side `AppState` snapshots share the Patch collection, Mixer and bus-return
 bank through copy-on-write `Arc` storage. Accepted reducer edits detach only
 the aggregate being changed; navigation and action-availability probes do not
-deep-copy unchanged configurations. The immutable Patch-creation blueprint,
+deep-copy unchanged configurations. Saved-content comparison checks shared
+identity before comparing detached values, so Mixer action probes do not repeatedly
+scan unchanged Patch and return configurations. The immutable Patch-creation blueprint,
 including installed defaults and structural preset choices, is also shared;
 per-control availability probes never duplicate that catalog. No shared
 control aggregate enters the callback. MIDI-only semantic projections replace
@@ -304,8 +350,9 @@ audio buffers.
   typed failure states.
 - Only one structural request is in flight application-wide. Failure, busy,
   early, stale, mismatched, or cancelled results never select a fallback.
-- A complete graph change may reset voices and effect tails; seamless migration
-  is not claimed.
+- Correlated local graph changes carry unchanged engines and effects across the
+  block-boundary swap. A replaced engine loses its own held voices; unrelated voices
+  and effect tails continue. Whole-session replacement resets all live state.
 
 The installed capability registries own available choices and ordered schema.
 Reducers, projectors, racks, renderers, and demo orchestration must not switch
@@ -348,11 +395,14 @@ Different real-time data has different transport semantics:
 | Physical MIDI activity | latest compatible control-side snapshot | exact active revision, decimated to at most 30 Hz |
 
 Scheduled deliveries retain future entries and share one per-block work budget
-with immediate commands. The renderer splits at event sample offsets. Cancellation
+with immediate commands. The renderer splits at event sample offsets. A revision
+fence accepts queued events across correlated local graph edits, whose Patch
+identities remain stable. Whole-session and unscoped replacements advance the fence;
+future revisions and events older than that fence remain rejected. Cancellation
 invalidates old epochs at consumption and releases only Scheduled voices. Native
 voice banks distinguish Immediate, Scheduled and Monitor sources, MIDI channels,
 and optional attack identities; this protects overlapping same-pitch attacks and
-owned expression. Raw channel controls remain channel-wide. Braids exposes an
+owned expression. An identity-tagged AllNotesOff releases only that articulation, bypassing pedals while preserving its release envelope and the graph’s effect buffers. Raw channel controls remain channel-wide. Braids exposes an
 engine-specific owned-expression profile: independent member/master raw14 bend
 and RPN0 ranges add before exact native pitch admission, pressure gains multiply,
 member CC74 is absolute, and scoped pedals combine without reviving released
@@ -367,12 +417,23 @@ wrong-graph events do not count as delivered late. Concurrent consumption can
 make the sampled queue peak lower than its instantaneous maximum; these metrics
 do not measure device or acoustic latency.
 
+Optional shell performance recording (`CREST_PERF_DIR`) uses fixed atomic timing
+histograms and a background JSONL writer. Audio callback instrumentation reads a
+monotonic clock and updates atomics only; it never formats, allocates, locks, or
+writes files. Native frame work, WebView DOM/layout, host work and projections have
+separate timings, with playback separated from idle/loading. Histograms report
+0.1 ms percentile upper bounds and exact maxima; snapshots are observational,
+not product state. The writer flushes periodically and on normal shutdown.
+Native IPC and paint acknowledgments are drained promptly, but full control ticks
+and projections respect the shell's 16 ms cadence instead of running on every
+acknowledgment. Audio rendering remains independent of that cadence.
+
 Temporary send leases use configurable preallocated storage. The newest active
 lease wins per Patch and bus; the mixer reads the current scalar baseline when no
 lease applies, so manual saved edits remain visible after expiry. Fixed-frame
 leases expire even when the command budget is exhausted. Hosts with musical
 deadlines schedule an explicit owned end after tempo conversion. Publication or
-capacity failure is visible and requires cancellation; Stop and graph replacement
+capacity failure is visible and requires cancellation; Stop and whole-session replacement
 clear leases without touching saved sends or killing return-effect tails.
 
 CPAL publishes a bounded atomic audio clock correlated to callback and playback
@@ -546,7 +607,9 @@ mute / solo gate                                       │
   ↓                                           │
 track dry mix    ←────────────────────────────┘
   ↓
-master gain / safety limiter
+master gain / master meter
+  ↓
+device sample clamp
   ↓
 stereo device
 ```
@@ -558,6 +621,15 @@ Patch identity. Track sends tap the summed post-fader, post-gate track. Meters a
 post-level/pan but pre-gate so muted tracks remain diagnosable. Feedback may
 exist only inside bounded effect implementations, never as an arbitrary graph
 cycle.
+
+The master meter measures the final sum, including effect returns and master
+gain, before the device clamps samples to full scale. Individual tracks can stay
+below full scale while this sum overloads. Raw per-block measurements remain
+available for diagnostics. Separate fixed-size display envelopes average RMS
+energy and retain peaks before lossy observation delivery; a cumulative overload
+count prevents the UI from missing clipped samples between updates. These
+measurements never change audio. Mixer rails use a logarithmic dBFS scale, held
+peak markers, slower numeric labels, and a persistent master CLIP indication.
 
 Mixer processing skips tracks with no routed Patch stems and accumulates only
 nonzero sends per source and bus. It retains the same sample and Patch
@@ -898,7 +970,8 @@ Physical bindings normalize to semantic actions before product logic:
 | unmodified arrows/WASD/D-pad | spatial semantic focus movement |
 | A / D or Left / Right in Instrument or Post FX Options | previous/next installed group, wrapping at both ends; W / S loops through items within that group |
 | Edit + Left/Right | fine decrement/increment or adjacent valid choice |
-| Edit + Up/Down | coarse increment/decrement; Up opens a choice for choice controls |
+| Edit + Up/Down | coarse increment/decrement |
+| West / Square / `[` | open the focused edit popover or detailed choice picker |
 | Edit | toggle/confirm |
 | Q / E | previous/next created Patch or trailing empty endpoint, without wrapping |
 | Shift + Up / W | Overview opens highlighted Detail; Mixer restores Overview; eligible Detail file control opens Browser |
@@ -1001,14 +1074,17 @@ physical MIDI/gamepad ingress. Scene events remain owned by the host; Synth has
 no sequencing or Tracker scene dependency.
 
 Controller Buttons configures directions, Edit, Shift, Sample preview, Patch
-cycling, and Settings entry. One normalized layout applies to all connected
+cycling, Settings entry, and edit popovers. One normalized layout applies to all connected
 gamepads. Defaults use D-pad navigation and triggers for Patch cycling.
 Shared face-button defaults are South/Cross for Edit, East/Circle for Shift,
-and North/Triangle for Start (sample preview or host transport). The physical
-Start/Options button opens Settings. Figma defines the semantic roles rather
+North/Triangle for Start (sample preview or host transport), and West/Square for edit popovers. The physical
+Start/Options button opens Settings in standalone Synth. Tracker reserves physical
+Start/Options and the Preview role for global song transport on every page, including
+with Shift held; release does not toggle again. Hosted Shift+Space also stays transport.
+Tracker Global Settings is reached through Main Menu. Figma defines the semantic roles rather
 than platform face shapes. The former generated L1-Shift/Triangle-Settings
 defaults are repaired during preference loading only when the complete mapping
-matches, retaining an exact backup; custom mappings remain unchanged. A host
+matches, retaining an exact backup; custom mappings retain their existing roles. Version 1 button files gain the popover role on West or another unused button; version 2 stores all eleven roles. A host
 workspace transition cancels active edits and previews but preserves held Shift
 in the shared semantic input path. Disconnect, remapping and capture still
 quarantine every hold.
@@ -1075,9 +1151,11 @@ not suppress a control kind that remains visible and focusable in the semantic
 projection. Inspector entry therefore paints and reveals the reducer-selected
 first send. The native webview witness checks the complete visible control
 order, send labels, and exactly one painted target for the semantic focus path.
-Compatible meter data must match both the painted parameter generation and
-graph revision; missing/stale data paints
-an explicit zero/stale state and cannot mutate application state.
+Compatible meter data must match the painted graph revision and arrive with an
+advancing observation sequence. UI focus and queued MIDI can change parameter
+generation independently of sounding audio, so generation equality does not
+gate meters. Missing, mismatched, or aged data paints an explicit zero/stale
+state and cannot mutate application state.
 
 Exactly one focused control is shown. Focus, adjust, active/current,
 disabled, loading, error, mute, solo, and selection states use text or shape in

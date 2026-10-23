@@ -22,7 +22,7 @@ Enable multi-select, choose chain occurrences, then expand. Chain headers stay v
 Tracker edits Note · Target · Velocity · FX 1–3. Piano Roll captures external MIDI/MPE, with explicit input routing, gamepad editing and quantize.
 
 04 / Contextual chord and FX popovers ↗
-Edit + Up opens the picker. Edit + Left/Right cycles chords; release Edit, move down and Save. Default is read-only per song; copy or search into editable Custom. VOI / SPR preview the exact voiced notes.
+West/Square (keyboard `[`) opens the picker. Edit + Left/Right cycles chords; release Edit, move down and Save. Default is read-only per song; copy or search into editable Custom. VOI / SPR preview the exact voiced notes.
 
 05 / Shared references and copies ↗
 Inspect every use. Before editing a reference, choose Create New or Edit Shared; the Remember option is included for review.
@@ -112,7 +112,7 @@ CONFIRMED / Mixer, quick jump and Song File
 Shift + Down in Song opens Mixer; elsewhere it opens Quick Jump. Shift + Back in Song opens Tracker / Instruments / Chord Bank / Mixer / Sends / Settings. Quick Jump includes Song File, Sends and Settings. Shift + Up in Song File opens settings for the current Song: name, meter and arrangement. File actions never add, reorder or delete child songs.
 
 CONFIRMED / Contextual FX controls
-Focus the FX command and hold Edit + Up to open the command popover; Up/Down browse quickly. Focus a chord FX value and hold Edit + Up to open the chord-bank popover. While holding Edit, Left/Right cycle chords. Release Edit, move down to Save, then Select. Temporary sends use a popover too.
+Focus the FX command and press West/Square (keyboard `[`) to open the command popover; Up/Down browse quickly. Focus a chord FX value and press West/Square (keyboard `[`) to open the chord-bank popover. While holding Edit, Left/Right cycle chords. Release Edit, move down to Save, then Select. Temporary sends use a popover too.
 
 PROPOSED / Note and destination editing
 Edit modifies notes directly in the grid: Up/Down for pitch, Left/Right for octave. The compact named-note picker is a desktop convenience. The Instrument cell opens a picker for a specific instrument or a whole MIDI channel. Opening a picker does not yet mutate shared content; protect the reference before applying an edit.
@@ -162,13 +162,13 @@ CREST TRACKER  /  DEVELOPMENT REFERENCE
 M8-inspired sequencing effects, MIDI-safe execution, and the interval/chord workflow.
 
 CONFIRMED / Popover behavior
-FX selection and temporary sends are contextual popovers over the phrase. The command popover opens with Edit + Up on the command; Up/Down browse. The chord-value popover opens with Edit + Up on the chord value; Edit + Left/Right cycles chords. Release Edit and navigate down to Save.
+FX selection and temporary sends are contextual popovers over the phrase. The command popover opens with West/Square (keyboard `[`) on the command; Up/Down browse. The chord-value popover opens with West/Square (keyboard `[`) on the chord value; Edit + Left/Right cycles chords. Release Edit and navigate down to Save.
 
 CONFIRMED / Default and Custom chords
-Default is a read-only per-song bank derived from Settings key/scale, showing fitting chord choices for each root interval. Custom is editable and shared through the library: copy Default or Custom entries, or save results from Chord Search. Selected chord quality and intervals stay explicit and are never scale-quantized. Edit + Up opens the contextual popover; Edit + Left/Right browses; release Edit, move down and select Save.
+Default is a read-only per-song bank derived from Settings key/scale, showing fitting chord choices for each root interval. Custom is editable and shared through the library: copy Default or Custom entries, or save results from Chord Search. Selected chord quality and intervals stay explicit and are never scale-quantized. West/Square (keyboard `[`) opens the contextual popover; Edit + Left/Right browses; release Edit, move down and select Save.
 
 CONFIRMED / Interval editing and search
-ADD shows the interval from the root. Edit + Up opens the interval selector spanning an octave either side. Save applies the selection; Save Chord creates an editable Custom chord with a suggested name. Chord Search filters chosen notes, intervals, root or quality, with an optional scale-fit filter. Unnamed sets remain valid custom chords.
+ADD shows the interval from the root. West/Square (keyboard `[`) opens the interval selector spanning an octave either side. Save applies the selection; Save Chord creates an editable Custom chord with a suggested name. Chord Search filters chosen notes, intervals, root or quality, with an optional scale-fit filter. Unnamed sets remain valid custom chords.
 
 CONFIRMED / MIDI FX from the start
 Typed FX are part of shared NoteData and all phrase forms from phase 1. OFS is an explicit chromatic offset. CRD preserves the chosen shape; VOI and SPR transform its voicing without scale correction. Three slots remain explicit. Browser, temporary send and voicing controls are contextual popovers. See A08 and A12–A14 for stage order, cleanup and proposed precise ranges.
@@ -199,7 +199,9 @@ IMPLEMENTATION PROPOSAL / Persistence and transport
 Architecture A02 defines a versioned single-Song document with pinned shared-resource revisions and local sound/mix state. A04 defines independent cursor stacks; A08 defines note and parameter cleanup. Exact retention/export, timing and control protocols remain implementation gates. There is no multi-song container schema to implement or migrate.
 
 IMPLEMENTATION PROPOSALS / Pitch and harmony
-Scale-aware input, chromatic overrides, two pitch displays, immutable Default banks and editable Custom chords are confirmed. Proposed details: store absolute pitches; key changes leave authored notes unchanged; pin chosen chord shape revisions; derive fitting chord candidates for arbitrary scales. OXI-informed named voicings and octave-doubling spread are specified on A14. Exact open voicings and numeric spread mapping remain explicitly reviewable Crest contracts.
+Scale-aware input, chromatic overrides, two pitch displays, immutable Default banks and editable Custom chords are confirmed. Proposed details: store absolute pitches; key changes leave authored notes unchanged; pin chosen chord shape revisions; derive fitting chord candidates for arbitrary scales. OXI-informed named voicings and octave-doubling spread are specified on A14. Exact open voicings and numeric spread mapping remain explicitly reviewable Crest contracts. The 16 October QA comparison with chord editor `2011:132` confirms root-relative interval keys, an octave selector, resolved-pitch preview and separate Save/Cancel. The current resolver raises the lowest voice above the others for each inversion, raises the second voice one octave for Open, and adds the requested number of unique chord-tone voices above the highest voice for Spread. These are explicit Crest semantics, not claims of full OXI named-voicing parity. The editor now follows visible setup/voicing columns and scrolls focused controls into view.
+
+The approved Gadget study T59–T68 (`2174:6040`) supersedes Piano edit frame `2144:6530` for editing. The native shared renderer provides its roll, keys, ruler, velocity lane, bottom controls and compact panels. Step Grid, New Length, Selected Length and Quantize Grid remain independent. Inspector/quantize drafts preview before Apply, preserve raw values and note-relative expression, and retain the shared-reference guard. Note/master expression and independent channel automation have time-aligned traces and exact point editing. Channel scope is explicit; moving or deleting one channel point preserves notes and other controls in its source event. Recording setup remains deferred by user direction. Application and DSP event witnesses cover editing, cancellation and Undo; passing them does not establish physical controller or full-screen Figma acceptance.
 
 OPEN / Remaining product and integration decisions
 Drum, Euclidean and Randomizer visual details; full chord catalog and M8 FX subset; exact Synth MIDI addressing/parameter profile; phrase limits and note overlap; external clock loss timeout. Architecture v1 supplies explicit proposals for shared banks, copy transactions, cursor jumps and temporary-send lifetime.
@@ -275,7 +277,7 @@ Save a new editable Custom chord; preserve the source Default entry.
 
 SAVE / Release Edit, navigate down to Save and Select. Apply to the originating phrase cell.
 
-FX COMMAND / Edit + Up on the command opens the FX list; Up/Down browse quickly.
+FX COMMAND / West/Square on the command opens the FX list; Up/Down browse quickly.
 
 SHARED EDIT / Before mutation, offer Create New or Edit Shared, with a Remember choice.
 

@@ -4,6 +4,76 @@ use crate::app::{ChordDraft, ChordSource};
 use crest_tracker::chord_bank::ChordRevision;
 use crest_tracker::harmony::{Chord, ChordKind};
 
+pub(super) fn is_detail_control(id: &str) -> bool {
+    matches!(
+        id,
+        "chord_inversion" | "chord_open" | "chord_spread" | "chord_publish" | "back"
+    )
+}
+
+/// Follow the rendered columns, not the flattened projection's hidden key rows.
+pub(super) fn navigate(app: &mut App, direction: Direction, view: &WorkspaceProjection) {
+    let setup: Vec<_> = view
+        .rows
+        .iter()
+        .filter(|row| !is_detail_control(&row.id) && !row.id.starts_with("chord_key:"))
+        .collect();
+    let controls: Vec<_> = view
+        .rows
+        .iter()
+        .filter(|row| is_detail_control(&row.id))
+        .collect();
+    let keys: Vec<_> = view
+        .rows
+        .iter()
+        .filter(|row| row.id.starts_with("chord_key:"))
+        .collect();
+    let focus = view.focus.as_str();
+    let next = if focus.starts_with("chord_key:") {
+        match direction {
+            Direction::Down => controls.first().copied(),
+            Direction::Up => setup.last().copied(),
+            Direction::Left | Direction::Right => adjacent(&keys, focus, direction),
+        }
+    } else if is_detail_control(focus) {
+        match direction {
+            Direction::Left => setup.last().copied(),
+            Direction::Up if controls.first().is_some_and(|row| row.id == focus) => {
+                keys.first().copied()
+            }
+            _ => adjacent(&controls, focus, direction),
+        }
+    } else {
+        match direction {
+            Direction::Right => controls.first().copied(),
+            Direction::Left => None,
+            _ => adjacent(&setup, focus, direction),
+        }
+    };
+    if let Some(next) = next {
+        app.workspace.focus = Some(next.id.clone());
+    }
+}
+
+fn adjacent<'a>(
+    rows: &[&'a WorkspaceRow],
+    focus: &str,
+    direction: Direction,
+) -> Option<&'a WorkspaceRow> {
+    let index = rows.iter().position(|row| row.id == focus)?;
+    let delta = if matches!(direction, Direction::Up | Direction::Left) {
+        -1
+    } else {
+        1
+    };
+    rows.get(
+        index
+            .saturating_add_signed(delta)
+            .min(rows.len().saturating_sub(1)),
+    )
+    .copied()
+}
+
 pub(super) fn begin(app: &mut App, chord: Option<ChordRevision>) {
     let mut draft = chord.map_or(
         ChordDraft {

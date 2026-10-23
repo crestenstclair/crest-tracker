@@ -7,6 +7,7 @@ struct Journey {
     saved: PathBuf,
     rejected: PathBuf,
     before_rejection: Option<Document>,
+    blocked_ticks: usize,
 }
 
 fn decide(runtime: &Runtime, decision: &str) -> bool {
@@ -97,6 +98,13 @@ impl Journey {
                 );
                 self.stage = 10;
             }
+            10 if runtime.app.borrow().file_dialog["mode"] == "confirm" => {
+                // The example remains an unsaved document. New must protect it
+                // even while transport is running; discard only this test fixture.
+                assert_eq!(name, "Window Light");
+                assert!(runtime.app.borrow().dirty());
+                assert!(decide(runtime, "discard"));
+            }
             10 if name == "Untitled"
                 && runtime.pending_open.is_none()
                 && audio.active_notes() == 0 =>
@@ -147,15 +155,54 @@ fn example_decisions_and_rejected_candidate_preserve_complete_document() {
         saved: root.join("kept.crest-song"),
         rejected,
         before_rejection: None,
+        blocked_ticks: 0,
     };
     let evidence = run(
         &root,
         Box::new(move |runtime, audio, _| {
+            if runtime.app.borrow().load_progress.is_some() {
+                journey.blocked_ticks += 1;
+                let projection = crate::workspace::project(&runtime.app.borrow());
+                assert!(projection.workspace.unwrap().busy);
+                // Input that arrives during either load phase must disappear,
+                // including a queued request on the completion tick.
+                crate::workspace::input::action(
+                    &mut runtime.app.borrow_mut(),
+                    SemanticAction::OpenMidiSettings,
+                );
+                queue(
+                    runtime,
+                    Request::Rename {
+                        name: "Must not escape loading".into(),
+                    },
+                );
+                queue(runtime, Request::Play);
+                queue(
+                    runtime,
+                    Request::SynthAction {
+                        action: SemanticAction::SelectContext(
+                            crest_synth::control::TopLevelContext::Mixer,
+                        ),
+                    },
+                );
+            }
             if journey.stage < 8 {
                 journey.decisions(runtime);
                 false
             } else {
-                journey.replacement(runtime, audio)
+                let done = journey.replacement(runtime, audio);
+                if done {
+                    assert!(journey.blocked_ticks > 0);
+                    assert!(runtime.app.borrow().load_progress.is_none());
+                    assert_eq!(
+                        crate::workspace::project(&runtime.app.borrow())
+                            .workspace
+                            .unwrap()
+                            .context,
+                        "SONG"
+                    );
+                }
+                done
             }
         }),
         Duration::from_secs(30),

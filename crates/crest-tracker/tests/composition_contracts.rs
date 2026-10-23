@@ -53,7 +53,7 @@ fn linked_song() -> Song {
     );
     song.tracks[0].slots.push(Some(ChainUse {
         id: UseId::new(22).unwrap(),
-        chain,
+        chain: chain.into(),
         repeats: 3,
     }));
     song.validate().unwrap();

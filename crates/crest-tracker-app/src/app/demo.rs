@@ -185,7 +185,7 @@ pub(crate) fn arrangement(song: &Song, targets: [Target; 5]) -> Result<Command, 
         track.muted = false;
         track.slots = vec![Some(ChainUse {
             id: UseId::new(identity()?)?,
-            chain,
+            chain: chain.into(),
             repeats: 1,
         })];
         commands.push(Command::PutTrack { track });

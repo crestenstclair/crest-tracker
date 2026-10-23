@@ -9,6 +9,7 @@ pub use audio_observation::{
 pub mod audio_observation_snapshot;
 pub use audio_observation_snapshot::AudioObservationSnapshot;
 pub mod audio_renderer;
+pub mod meter_ballistics;
 pub use audio_renderer::AudioRenderer;
 pub mod callback_safety;
 pub mod graph_revision;

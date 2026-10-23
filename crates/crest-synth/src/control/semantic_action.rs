@@ -73,6 +73,7 @@ pub enum SemanticAction {
     /// Opens Detail from a subject control, or the Sample Browser from an
     /// asset row, as resolved from canonical state.
     OpenRelated,
+    OpenPopover,
     /// Opens the temporary MIDI Devices system surface over PATCH or MIXER.
     OpenMidiSettings,
     /// Confirms the focused stable option or browser row.
@@ -106,6 +107,7 @@ pub enum SemanticActionKind {
     Adjust,
     SetInteractionMode,
     OpenRelated,
+    OpenPopover,
     OpenMidiSettings,
     Activate,
     PreviewStart,
@@ -118,7 +120,7 @@ pub enum SemanticActionKind {
 }
 
 impl SemanticActionKind {
-    pub const ALL: [Self; 17] = [
+    pub const ALL: [Self; 18] = [
         Self::Send,
         Self::SelectContext,
         Self::SelectPatch,
@@ -127,6 +129,7 @@ impl SemanticActionKind {
         Self::Adjust,
         Self::SetInteractionMode,
         Self::OpenRelated,
+        Self::OpenPopover,
         Self::OpenMidiSettings,
         Self::Activate,
         Self::PreviewStart,
@@ -143,7 +146,7 @@ impl SemanticActionKind {
     }
 }
 
-const SEMANTIC_ACTION_SURFACE_DESCRIPTOR: [SemanticAction; 29] = [
+const SEMANTIC_ACTION_SURFACE_DESCRIPTOR: [SemanticAction; 30] = [
     SemanticAction::Send(crate::control::SendAction::Open),
     SemanticAction::SelectContext(TopLevelContext::Patch),
     SemanticAction::SelectContext(TopLevelContext::Mixer),
@@ -166,6 +169,7 @@ const SEMANTIC_ACTION_SURFACE_DESCRIPTOR: [SemanticAction; 29] = [
     SemanticAction::SetInteractionMode(InteractionMode::Navigate),
     SemanticAction::SetInteractionMode(InteractionMode::Adjust),
     SemanticAction::OpenRelated,
+    SemanticAction::OpenPopover,
     SemanticAction::OpenMidiSettings,
     SemanticAction::Activate,
     SemanticAction::PreviewStart,
@@ -219,6 +223,7 @@ impl SemanticAction {
             Self::Adjust(_) => SemanticActionKind::Adjust,
             Self::SetInteractionMode(_) => SemanticActionKind::SetInteractionMode,
             Self::OpenRelated => SemanticActionKind::OpenRelated,
+            Self::OpenPopover => SemanticActionKind::OpenPopover,
             Self::OpenMidiSettings => SemanticActionKind::OpenMidiSettings,
             Self::Activate => SemanticActionKind::Activate,
             Self::PreviewStart => SemanticActionKind::PreviewStart,
@@ -293,7 +298,7 @@ mod tests {
 
     #[test]
     fn semantic_action_descriptors_are_closed_unique_and_phase_two_safe() {
-        assert_eq!(SemanticActionKind::surface_descriptor().len(), 17);
+        assert_eq!(SemanticActionKind::surface_descriptor().len(), 18);
         assert_eq!(InteractionMode::surface_descriptor().len(), 4);
         assert_eq!(InteractionMode::PHASE_TWO.len(), 2);
         assert_eq!(InteractionMode::PHASE_SEVEN.len(), 3);
@@ -330,7 +335,7 @@ mod tests {
                 "{surface:?}: the descriptor lists exactly the admitted surfaces"
             );
         }
-        assert_eq!(SemanticAction::surface_descriptor().len(), 29);
+        assert_eq!(SemanticAction::surface_descriptor().len(), 30);
     }
 
     #[test]

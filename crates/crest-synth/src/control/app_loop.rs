@@ -4602,7 +4602,7 @@ mod tests {
                 crate::control::InteractionMode::Adjust,
             ))
             .unwrap();
-        app_loop.dispatch(AppEvent::Adjust(Direction::Up)).unwrap();
+        app_loop.dispatch(AppEvent::OpenPopover).unwrap();
         app_loop.dispatch(AppEvent::Activate).unwrap();
         assert_eq!(app_loop.patches().len(), 1);
         assert_eq!(app_loop.capture_saved_session(), saved_before);

@@ -1,5 +1,6 @@
 //! Physical SDL edges through the composed host, editor, transport and DSP.
 use super::*;
+use crest_synth::control::SurfaceId;
 use sdl3::gamepad::{Axis, Button};
 use sdl3::joystick::{JoystickType, VirtualJoystickDescription};
 
@@ -43,7 +44,25 @@ fn face_buttons_create_navigate_edit_and_play_through_the_production_host() {
         .unwrap();
     let pad = joysticks.open(connection.id()).unwrap();
     type Check = fn(&Runtime);
-    let steps: Vec<(Button, bool, Check)> = vec![
+    let mut steps: Vec<(Button, bool, Check)> = vec![
+        (Button::West, true, |r| {
+            assert!(crate::workspace::project(&r.app.borrow())
+                .workspace
+                .unwrap()
+                .rows
+                .iter()
+                .any(|row| row.id == "slot_rest"));
+        }),
+        (Button::West, false, |_| {}),
+        (Button::West, true, |r| {
+            assert!(
+                !crate::workspace::project(&r.app.borrow())
+                    .workspace
+                    .unwrap()
+                    .overlay
+            );
+        }),
+        (Button::West, false, |_| {}),
         (Button::South, true, |r| assert!(r.app.borrow().edit_held)),
         (Button::DPadRight, true, |r| {
             let app = r.app.borrow();
@@ -119,7 +138,14 @@ fn face_buttons_create_navigate_edit_and_play_through_the_production_host() {
         }),
         (Button::DPadLeft, false, |_| {}),
         (Button::DPadDown, true, |r| {
-            assert_eq!(r.app.borrow().view, View::Instruments)
+            assert_eq!(r.app.borrow().view, View::Song);
+            assert_eq!(
+                crate::workspace::project(&r.app.borrow())
+                    .workspace
+                    .unwrap()
+                    .title,
+                "MENU"
+            );
         }),
         (Button::DPadDown, false, |_| {}),
         (Button::DPadUp, true, |r| {
@@ -128,6 +154,132 @@ fn face_buttons_create_navigate_edit_and_play_through_the_production_host() {
         (Button::DPadUp, false, |_| {}),
         (Button::East, false, |_| {}),
     ];
+    // Keep Shift held across native detail, host menu, and exact native return.
+    steps.extend([
+        (Button::East, true, (|_| {}) as Check),
+        (Button::DPadDown, true, |_| {}),
+        (Button::DPadDown, false, |_| {}),
+        (Button::East, false, |_| {}),
+        (Button::DPadDown, true, |_| {}),
+        (Button::DPadDown, false, |_| {}),
+        (Button::South, true, |_| {}),
+        (Button::South, false, |r| {
+            assert_eq!(
+                r.app.borrow().workspace.synth_surface,
+                Some(SurfaceId::PatchMain)
+            )
+        }),
+        (Button::East, true, |_| {}),
+        (Button::DPadUp, true, |r| {
+            assert_eq!(
+                r.app.borrow().workspace.synth_surface,
+                Some(SurfaceId::PatchDetail)
+            )
+        }),
+        (Button::DPadUp, false, |_| {}),
+        (Button::DPadDown, true, |r| {
+            assert_eq!(
+                r.app.borrow().workspace.synth_surface,
+                Some(SurfaceId::PatchMain)
+            )
+        }),
+        (Button::DPadDown, false, |_| {}),
+        (Button::DPadDown, true, |r| {
+            assert_eq!(
+                crate::workspace::project(&r.app.borrow())
+                    .workspace
+                    .unwrap()
+                    .title,
+                "MENU"
+            )
+        }),
+        (Button::DPadDown, false, |_| {}),
+        (Button::DPadUp, true, |r| {
+            assert!(crate::workspace::project(&r.app.borrow()).synth_visible())
+        }),
+        (Button::DPadUp, false, |_| {}),
+        (Button::DPadDown, true, |_| {}),
+        (Button::DPadDown, false, |_| {}),
+        (Button::East, false, |_| {}),
+        (Button::DPadDown, true, |_| {}),
+        (Button::DPadDown, false, |_| {}),
+        (Button::DPadDown, true, |_| {}),
+        (Button::DPadDown, false, |_| {}),
+        (Button::DPadDown, true, |_| {}),
+        (Button::DPadDown, false, |_| {}),
+        (Button::South, true, |_| {}),
+        (Button::South, false, |r| {
+            assert_eq!(
+                r.app.borrow().workspace.synth_surface,
+                Some(SurfaceId::MixerMain)
+            )
+        }),
+        (Button::East, true, |_| {}),
+        (Button::DPadUp, true, |r| {
+            assert_eq!(
+                r.app.borrow().workspace.synth_surface,
+                Some(SurfaceId::MixerInspector)
+            )
+        }),
+        (Button::DPadUp, false, |_| {}),
+        (Button::DPadUp, true, |r| {
+            assert_eq!(
+                r.app.borrow().workspace.synth_surface,
+                Some(SurfaceId::MixerInspector)
+            )
+        }),
+        (Button::DPadUp, false, |_| {}),
+        (Button::DPadDown, true, |r| {
+            assert_eq!(
+                r.app.borrow().workspace.synth_surface,
+                Some(SurfaceId::MixerMain)
+            )
+        }),
+        (Button::DPadDown, false, |_| {}),
+        (Button::DPadDown, true, |r| {
+            assert_eq!(
+                crate::workspace::project(&r.app.borrow())
+                    .workspace
+                    .unwrap()
+                    .title,
+                "MENU"
+            )
+        }),
+        (Button::DPadDown, false, |_| {}),
+        (Button::DPadUp, true, |r| {
+            assert!(crate::workspace::project(&r.app.borrow()).synth_visible());
+            assert_eq!(
+                r.app.borrow().workspace.synth_surface,
+                Some(SurfaceId::MixerMain)
+            );
+        }),
+        (Button::DPadUp, false, |_| {}),
+        (Button::East, false, |_| {}),
+    ]);
+    // Physical Start and the mapped Preview role remain transport in native Synth.
+    steps.extend([
+        (
+            Button::Start,
+            true,
+            (|r: &Runtime| {
+                assert!(r.app.borrow().playing);
+                assert!(crate::workspace::project(&r.app.borrow()).synth_visible());
+            }) as Check,
+        ),
+        (Button::Start, false, |r| assert!(r.app.borrow().playing)),
+        (Button::East, true, |_| {}),
+        (Button::Start, true, |r| {
+            assert!(!r.app.borrow().playing);
+            assert!(crate::workspace::project(&r.app.borrow()).synth_visible());
+        }),
+        (Button::Start, false, |_| {}),
+        (Button::North, true, |r| assert!(r.app.borrow().playing)),
+        (Button::North, false, |r| assert!(r.app.borrow().playing)),
+        (Button::North, true, |r| assert!(!r.app.borrow().playing)),
+        (Button::North, false, |_| {}),
+        (Button::East, false, |_| {}),
+    ]);
+    let mut queued_navigation = false;
     let mut index = 0;
     let mut issued = false;
     let mut ticks = 0;
@@ -144,6 +296,26 @@ fn face_buttons_create_navigate_edit_and_play_through_the_production_host() {
                 return false;
             }
             if index == steps.len() {
+                if !queued_navigation {
+                    queued_navigation = true;
+                    for direction in [
+                        crest_synth::control::Direction::Up,
+                        crest_synth::control::Direction::Down,
+                        crest_synth::control::Direction::Down,
+                        crest_synth::control::Direction::Up,
+                    ] {
+                        crate::workspace::action(
+                            &mut runtime.app.borrow_mut(),
+                            SemanticAction::NavigatePage(direction),
+                        );
+                    }
+                    return false;
+                }
+                assert!(crate::workspace::project(&runtime.app.borrow()).synth_visible());
+                assert_eq!(
+                    runtime.app.borrow().workspace.synth_surface,
+                    Some(SurfaceId::MixerMain)
+                );
                 assert!(
                     evidence.peak_voices > 0,
                     "controller-created note never rendered"
@@ -193,5 +365,76 @@ fn face_buttons_create_navigate_edit_and_play_through_the_production_host() {
     evidence.check_cleanup();
     drop(connection);
     drop(sdl);
+    std::fs::remove_dir_all(root).unwrap();
+}
+
+#[test]
+#[ignore = "production queued-input witness; run with --test-threads=1"]
+fn queued_tracker_actions_resolve_each_layer_before_the_next_event() {
+    use crest_synth::control::{Direction::*, SemanticAction::*};
+    let root = scenarios::temp_root("queued-navigation");
+    let mut stage = 0;
+    let evidence = run_with_instrument(
+        &root,
+        Box::new(move |runtime, audio, _| {
+            if runtime.initial_sound.is_none() || !runtime.sync.ready() {
+                return false;
+            }
+            match stage {
+                0 => {
+                    let handler = runtime.action_handler().unwrap();
+                    for action in [
+                        Adjust(Right),
+                        NavigatePage(Right),
+                        Adjust(Right),
+                        NavigatePage(Right),
+                        NavigatePage(Up),
+                    ] {
+                        assert!(handler(action));
+                    }
+                    stage = 1;
+                    false
+                }
+                1 => {
+                    let view = crate::workspace::project(&runtime.app.borrow())
+                        .workspace
+                        .unwrap();
+                    assert!(
+                        view.rows.iter().any(|row| row.id == "phrase_form"),
+                        "expected Phrase Settings, got {}",
+                        view.context
+                    );
+                    let handler = runtime.action_handler().unwrap();
+                    for action in [
+                        NavigatePage(Down),
+                        NavigatePage(Down),
+                        NavigatePage(Up),
+                        NavigatePage(Left),
+                        NavigatePage(Left),
+                    ] {
+                        assert!(handler(action));
+                    }
+                    stage = 2;
+                    false
+                }
+                _ => {
+                    let app = runtime.app.borrow();
+                    let view = crate::workspace::project(&app).workspace.unwrap();
+                    assert_eq!(app.view, View::Song);
+                    assert!(
+                        !view.grid.is_empty(),
+                        "must return to Song grid, got {}",
+                        view.context
+                    );
+                    assert_eq!(app.editor.song().chains.len(), 1);
+                    assert_eq!(app.editor.song().phrases.len(), 1);
+                    audio.active_notes() == 0
+                }
+            }
+        }),
+        Duration::from_secs(30),
+        DEFAULT_INSTRUMENT,
+    );
+    evidence.check_cleanup();
     std::fs::remove_dir_all(root).unwrap();
 }

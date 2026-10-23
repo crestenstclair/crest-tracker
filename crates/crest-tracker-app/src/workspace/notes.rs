@@ -1,7 +1,7 @@
 //! Selection, note values and owned expression use the same atomic edit path.
 use super::*;
 use crate::app::SelectionAction;
-use crest_tracker::composition::{Control, Expression};
+use crest_tracker::composition::Control;
 
 fn all_rows(app: &App) -> Vec<WorkspaceRow> {
     let mut rows = vec![
@@ -61,6 +61,7 @@ fn all_rows(app: &App) -> Vec<WorkspaceRow> {
         ("notes_duplicate", "Duplicate at cursor"),
         ("notes_delete", "Delete selection"),
         ("expression", "Expression points"),
+        ("channel_expression", "Channel automation"),
         ("back", "Back"),
     ]));
     rows
@@ -93,7 +94,7 @@ pub(super) fn rows(app: &App) -> Vec<WorkspaceRow> {
             })
         })
         .unwrap_or_default();
-    vec![
+    let mut rows = vec![
         row("notes_values", "Pitch / start / length", timing),
         row("notes_dynamics", "Velocity / release / target", dynamics),
         row(
@@ -110,14 +111,83 @@ pub(super) fn rows(app: &App) -> Vec<WorkspaceRow> {
             "Bend · pressure · timbre · sustain",
         ),
         row(
+            "channel_expression",
+            "Channel automation",
+            "Independent phrase-time controls",
+        ),
+        row(
             "notes_selection",
             "Selection / clipboard",
             "Range · all · copy · paste · duplicate · delete",
         ),
         row("notes_history", "Undo / redo", "Undo last edit · redo"),
+        row(
+            "notes_view",
+            "Grid / zoom / scroll",
+            "Entry grid · visible beats · follow playback",
+        ),
         row("back", "Back", "Piano Roll / Phrase"),
-    ]
+    ];
+    if !app.is_piano_roll() {
+        rows.retain(|row| row.id != "notes_view");
+    }
+    rows
 }
+
+pub(super) fn view_rows(app: &App) -> Vec<WorkspaceRow> {
+    let mut rows = vec![
+        row(
+            "notes_zoom",
+            "Visible beats",
+            format!(
+                "{} · from beat {}",
+                generator::beat_label(app.roll_view.width),
+                generator::beat_label(app.roll_view.start)
+            ),
+        ),
+        row(
+            "notes_follow",
+            "Follow playback",
+            if app.roll_view.follow { "On" } else { "Off" },
+        ),
+        row(
+            "piano_scale_guide",
+            "Scale guide",
+            if app.roll_view.scale_guide {
+                "On"
+            } else {
+                "Off"
+            },
+        ),
+        row(
+            "notes_stick_value",
+            "Right stick vertical",
+            match app.roll_value {
+                crate::app::PianoValue::Pitch => "Pitch",
+                crate::app::PianoValue::Velocity => "Velocity",
+                crate::app::PianoValue::ReleaseVelocity => "Release velocity",
+            },
+        ),
+        row("notes_previous_page", "Previous beats", "Half window"),
+        row("notes_next_page", "Next beats", "Half window"),
+        row("piano_octave_down", "Octave down", "View only"),
+        row("piano_octave_up", "Octave up", "View only"),
+        row("back", "Done", ""),
+    ];
+    if !app.is_piano_roll() {
+        rows.retain(|row| !row.id.starts_with("piano_"));
+        rows.insert(
+            0,
+            row(
+                "notes_grid",
+                "Step grid (beats)",
+                generator::beat_label(app.roll_grid),
+            ),
+        );
+    }
+    rows
+}
+
 fn pitch_name(pitch: u8) -> String {
     crest_tracker::harmony::Pitch::new(pitch)
         .map(|pitch| pitch.name(crest_tracker::harmony::Spelling::Sharps))
@@ -159,7 +229,7 @@ pub(super) fn value_rows(app: &App) -> Vec<WorkspaceRow> {
     rows
 }
 pub(super) fn selection_rows(app: &App) -> Vec<WorkspaceRow> {
-    all_rows(app)
+    let mut rows: Vec<_> = all_rows(app)
         .into_iter()
         .filter(|row| {
             matches!(
@@ -178,7 +248,18 @@ pub(super) fn selection_rows(app: &App) -> Vec<WorkspaceRow> {
                     | "back"
             )
         })
-        .collect()
+        .collect();
+    if app.is_piano_roll() {
+        rows.splice(
+            0..0,
+            commands(&[
+                ("notes_previous", "Previous note"),
+                ("notes_next", "Next note"),
+                ("notes_insert", "Select / insert at cursor"),
+            ]),
+        );
+    }
+    rows
 }
 
 fn selection_action(app: &App, id: &str) -> Option<SelectionAction> {
@@ -206,8 +287,44 @@ fn selection_action(app: &App, id: &str) -> Option<SelectionAction> {
     })
 }
 pub(super) fn activate(app: &mut App, id: &str) -> bool {
+    if app.is_piano_roll() {
+        let mapped = match id {
+            "notes_values" | "notes_dynamics" => Some("piano_inspect"),
+            "notes_quantize" | "notes_quantize_lengths" => Some("piano_quantize"),
+            "notes_grid" => Some("piano_grid"),
+            "notes_off" => Some("piano_off"),
+            _ => None,
+        };
+        if let Some(mapped) = mapped {
+            return piano::activate(app, mapped);
+        }
+    }
     if !id.starts_with("notes_") {
         return false;
+    }
+    if app.is_piano_roll() {
+        let control = match id {
+            "notes_previous" => Some(PianoControl::NextNote { delta: -1 }),
+            "notes_next" => Some(PianoControl::NextNote { delta: 1 }),
+            "notes_previous_page" => Some(PianoControl::Scroll { delta: -1 }),
+            "notes_next_page" => Some(PianoControl::Scroll { delta: 1 }),
+            "notes_follow" => Some(PianoControl::Follow {
+                enabled: !app.roll_view.follow,
+            }),
+            _ => None,
+        };
+        if let Some(control) = control {
+            app.requests.push(Request::PianoControl { control });
+            return true;
+        }
+    }
+    if id == "notes_view" {
+        open(app, Some(Panel::PianoView));
+        return true;
+    }
+    if id == "notes_insert" {
+        app.requests.push(Request::Confirm);
+        return true;
     }
     if matches!(
         id,
@@ -240,7 +357,12 @@ pub(super) fn activate(app: &mut App, id: &str) -> bool {
             app.requests.push(Request::SelectEvents {
                 revision: app.editor.revision(),
                 occurrence,
-                events: p.events.iter().map(|e| e.id).collect(),
+                events: p
+                    .events
+                    .iter()
+                    .filter(|e| !app.is_piano_roll() || e.note.is_some())
+                    .map(|e| e.id)
+                    .collect(),
                 toggle: false,
             });
         }
@@ -277,6 +399,27 @@ pub(super) fn activate(app: &mut App, id: &str) -> bool {
     true
 }
 pub(super) fn adjust(app: &mut App, id: &str, delta: i32) {
+    if id == "notes_zoom" && app.is_piano_roll() {
+        app.requests.push(Request::PianoControl {
+            control: PianoControl::Zoom { delta },
+        });
+        return;
+    }
+    if id == "notes_stick_value" {
+        use crate::app::PianoValue::*;
+        let values = [Pitch, Velocity, ReleaseVelocity];
+        let index = match app.roll_value {
+            Pitch => 0_i32,
+            Velocity => 1,
+            ReleaseVelocity => 2,
+        };
+        app.requests.push(Request::PianoControl {
+            control: PianoControl::Value {
+                value: values[(index + delta.signum()).rem_euclid(3) as usize],
+            },
+        });
+        return;
+    }
     if id == "notes_grid" {
         let grid = if delta > 0 {
             app.roll_grid.checked_scale(2, 1)
@@ -391,239 +534,6 @@ pub(super) fn parse_beat(value: &str) -> Result<Beat, String> {
         return Err("Use a beat fraction, e.g. 1/4".into());
     }
     Beat::new(parts[0], *parts.get(1).unwrap_or(&1)).map_err(|e| e.to_string())
-}
-
-pub(super) fn expression_rows(app: &App) -> Vec<WorkspaceRow> {
-    let Some(note) = effects::selected_event(app).and_then(|e| e.note) else {
-        return commands(&[("back", "Select a note first")]);
-    };
-    let points = if app.workspace.master_expression {
-        &note.master_expression
-    } else {
-        &note.expression
-    };
-    let mut rows = vec![
-        row(
-            "expr_scope",
-            "Expression scope",
-            if app.workspace.master_expression {
-                "Master"
-            } else {
-                "Note"
-            },
-        ),
-        row("expr_new", "Add point", ""),
-    ];
-    rows.extend(points.iter().enumerate().map(|(i, p)| {
-        row(
-            format!("expr_select:{i}"),
-            format!(
-                "Point {} · {} beats",
-                i + 1,
-                generator::beat_label(p.offset)
-            ),
-            format!("{:?}", p.control),
-        )
-    }));
-    if let Some(p) = points.get(app.workspace.expression_index) {
-        rows.extend([
-            row(
-                "expr_offset",
-                "Selected point time (beats)",
-                generator::beat_label(p.offset),
-            ),
-            row("expr_kind", "Control type", format!("{:?}", p.control)),
-            row("expr_value", "Raw value", format!("{:?}", p.control)),
-            row(
-                "expr_number",
-                "CC number / pitch",
-                format!("{:?}", p.control),
-            ),
-            row("expr_delete", "Delete selected point", ""),
-        ]);
-    }
-    rows.push(row("back", "Back", ""));
-    rows
-}
-pub(super) fn expression_activate(app: &mut App, id: &str) -> bool {
-    if !matches!(id, "expr_offset" | "expr_value" | "expr_number") {
-        return expression_action(app, id, 1);
-    }
-    let Some(note) = effects::selected_event(app).and_then(|event| event.note) else {
-        return true;
-    };
-    let points = if app.workspace.master_expression {
-        &note.master_expression
-    } else {
-        &note.expression
-    };
-    if let Some(point) = points.get(app.workspace.expression_index) {
-        let (label, value) = match id {
-            "expr_offset" => (
-                "Point time in beats, e.g. 1/3",
-                generator::beat_label(point.offset),
-            ),
-            "expr_value" => (
-                "Raw value (bend 0–16383; others 0–127)",
-                match point.control {
-                    Control::Bend { value } => value.to_string(),
-                    Control::Cc { value, .. }
-                    | Control::Program { value }
-                    | Control::Pressure { value }
-                    | Control::PolyPressure { value, .. } => value.to_string(),
-                },
-            ),
-            _ => (
-                "CC number / pitch (0–127)",
-                match point.control {
-                    Control::Cc { number, .. } => number.to_string(),
-                    Control::PolyPressure { pitch, .. } => pitch.to_string(),
-                    _ => return true,
-                },
-            ),
-        };
-        text_entry(app, id, label, &value);
-    }
-    true
-}
-
-pub(super) fn submit_expression(app: &mut App, id: &str, value: &str) -> Result<(), String> {
-    let (phrase, _) = app.selected_phrase().ok_or("Select a phrase first")?;
-    let mut event = effects::selected_event(app).ok_or("Select a note first")?;
-    let note = event.note.as_mut().ok_or("Select a note first")?;
-    let lifetime = note.expression_duration();
-    let points = if app.workspace.master_expression {
-        &mut note.master_expression
-    } else {
-        &mut note.expression
-    };
-    let point = points
-        .get_mut(app.workspace.expression_index)
-        .ok_or("Select an expression point")?;
-    if id == "expr_offset" {
-        let offset = parse_beat(value)?;
-        if offset > lifetime {
-            return Err("Point must be within the note lifetime".into());
-        }
-        point.offset = offset;
-    } else {
-        let value = value
-            .trim()
-            .parse::<u16>()
-            .map_err(|_| "Enter a nonnegative integer")?;
-        let maximum = if id == "expr_value" && matches!(point.control, Control::Bend { .. }) {
-            16383
-        } else {
-            127
-        };
-        if value > maximum {
-            return Err(format!("Value must be 0–{maximum}"));
-        }
-        match (&mut point.control, id) {
-            (Control::Bend { value: v }, "expr_value") => *v = value,
-            (
-                Control::Cc { value: v, .. }
-                | Control::Program { value: v }
-                | Control::Pressure { value: v }
-                | Control::PolyPressure { value: v, .. },
-                "expr_value",
-            ) => *v = value as u8,
-            (Control::Cc { number, .. }, "expr_number") => *number = value as u8,
-            (Control::PolyPressure { pitch, .. }, "expr_number")
-                if app.workspace.master_expression =>
-            {
-                *pitch = value as u8
-            }
-            _ => return Err("Note pressure retains the note's pitch".into()),
-        }
-    }
-    let selected = point.clone();
-    points.sort_by_key(|p| (p.offset, p.sequence));
-    app.workspace.expression_index = points.iter().position(|p| *p == selected).unwrap_or(0);
-    app.requests.push(Request::Edit {
-        revision: app.editor.revision(),
-        command: Box::new(Command::PutEvent { phrase, event }),
-    });
-    Ok(())
-}
-
-pub(super) fn expression_action(app: &mut App, id: &str, delta: i32) -> bool {
-    if let Some(index) = id.strip_prefix("expr_select:").and_then(|v| v.parse().ok()) {
-        app.workspace.expression_index = index;
-        return true;
-    }
-    if !id.starts_with("expr_") {
-        return false;
-    }
-    if id == "expr_scope" {
-        app.workspace.master_expression = !app.workspace.master_expression;
-        app.workspace.expression_index = 0;
-        return true;
-    }
-    let Some((phrase, _)) = app.selected_phrase() else {
-        return true;
-    };
-    let Some(mut event) = effects::selected_event(app) else {
-        return true;
-    };
-    let Some(note) = &mut event.note else {
-        return true;
-    };
-    let lifetime = note.expression_duration();
-    let pitch = note.pitch;
-    let points = if app.workspace.master_expression {
-        &mut note.master_expression
-    } else {
-        &mut note.expression
-    };
-    if id == "expr_new" {
-        points.push(Expression {
-            offset: Beat::ZERO,
-            control: Control::Pressure { value: 0 },
-            sequence: None,
-        });
-        app.workspace.expression_index = points.len() - 1;
-    } else if let Some(point) = points.get_mut(app.workspace.expression_index) {
-        match id {
-            "expr_offset" => {
-                point.offset = if delta < 0 {
-                    point
-                        .offset
-                        .checked_sub(Beat::new(1, 16).unwrap())
-                        .unwrap_or(Beat::ZERO)
-                } else {
-                    point
-                        .offset
-                        .checked_add(Beat::new(1, 16).unwrap())
-                        .unwrap_or(lifetime)
-                        .min(lifetime)
-                }
-            }
-            "expr_kind" => effects::adjust_control(&mut point.control, "fx_control_kind", delta),
-            "expr_value" => effects::adjust_control(&mut point.control, "fx_value", delta),
-            "expr_number" => effects::adjust_control(&mut point.control, "fx_second", delta),
-            "expr_delete" => {
-                points.remove(app.workspace.expression_index);
-            }
-            _ => return true,
-        }
-    } else {
-        return true;
-    }
-    // Poly-pressure on a note must retain that note's pitch ownership.
-    if !app.workspace.master_expression {
-        for point in points.iter_mut() {
-            if let Control::PolyPressure { pitch: p, .. } = &mut point.control {
-                *p = pitch;
-            }
-        }
-    }
-    points.sort_by_key(|p| (p.offset, p.sequence));
-    app.requests.push(Request::Edit {
-        revision: app.editor.revision(),
-        command: Box::new(Command::PutEvent { phrase, event }),
-    });
-    true
 }
 
 fn note_off(app: &mut App) {

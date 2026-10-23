@@ -262,6 +262,7 @@ mod tests {
     fn changed_bindings() -> ControllerBindings {
         let mut value = serde_json::to_value(ControllerBindings::default()).unwrap();
         value["buttons"][4] = serde_json::json!("west");
+        value["buttons"][10] = serde_json::json!("south");
         serde_json::from_value(value).unwrap()
     }
 
@@ -322,7 +323,7 @@ mod tests {
         let mut duplicate = serde_json::to_value(ControllerBindings::default()).unwrap();
         duplicate["buttons"][1] = duplicate["buttons"][0].clone();
         let mut version = serde_json::to_value(ControllerBindings::default()).unwrap();
-        version["version"] = serde_json::json!(2);
+        version["version"] = serde_json::json!(3);
         for bytes in [
             b"not json".to_vec(),
             serde_json::to_vec(&duplicate).unwrap(),

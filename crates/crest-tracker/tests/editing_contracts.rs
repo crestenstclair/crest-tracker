@@ -169,12 +169,12 @@ fn shared_parent_make_unique_isolates_one_occurrence_and_undo_restores_graph() {
     );
     song.tracks[0].slots.push(Some(ChainUse {
         id: UseId::new(23).unwrap(),
-        chain,
+        chain: chain.into(),
         repeats: 1,
     }));
     song.tracks[1].slots.push(Some(ChainUse {
         id: UseId::new(24).unwrap(),
-        chain,
+        chain: chain.into(),
         repeats: 3,
     }));
     let occurrence = Occurrence {
@@ -185,7 +185,12 @@ fn shared_parent_make_unique_isolates_one_occurrence_and_undo_restores_graph() {
     let mut editor = Editor::new(song.clone()).unwrap();
     apply(&mut editor, Command::MakeUnique { occurrence });
     let isolated = editor.song().clone();
-    let new_chain = isolated.tracks[0].slots[0].as_ref().unwrap().chain;
+    let new_chain = isolated.tracks[0].slots[0]
+        .as_ref()
+        .unwrap()
+        .chain
+        .pattern()
+        .unwrap();
     assert_ne!(new_chain, chain);
     assert_eq!(isolated.tracks[1], song.tracks[1]);
     assert_eq!(isolated.chains[&chain], song.chains[&chain]);
@@ -241,7 +246,13 @@ fn quantize_moves_selected_starts_only_with_exact_midpoint_later_policy() {
 
 #[test]
 fn a_quantize_failure_after_an_earlier_candidate_edit_is_atomic() {
-    let (song, phrase) = fixture();
+    let (mut song, phrase) = fixture();
+    let note = song.phrases.get_mut(&phrase).unwrap().events[1]
+        .note
+        .as_mut()
+        .unwrap();
+    note.duration = Beat::new(7, 10).unwrap();
+    note.expression[0].offset = Beat::new(13, 20).unwrap();
     let mut editor = Editor::new(song.clone()).unwrap();
     assert!(editor
         .apply(
@@ -249,8 +260,8 @@ fn a_quantize_failure_after_an_earlier_candidate_edit_is_atomic() {
             Command::Quantize {
                 phrase,
                 events: vec![EventId::new(18).unwrap(), EventId::new(19).unwrap()],
-                grid: Beat::ONE,
-                durations: false,
+                grid: Beat::new(1, 2).unwrap(),
+                durations: true,
             }
         )
         .is_err());
@@ -618,4 +629,46 @@ fn save_boundary_keeps_saved_snapshot_reachable_and_dirty_state_exact() {
     editor.undo().unwrap();
     assert_eq!(editor.song(), &song);
     assert!(editor.dirty());
+}
+
+#[test]
+fn quantize_clamps_to_last_grid_inside_phrase_and_preserves_tail() {
+    let (song, phrase) = fixture();
+    let original = song.phrases[&phrase].events[1].clone();
+    let mut editor = Editor::new(song.clone()).unwrap();
+    apply(
+        &mut editor,
+        Command::Quantize {
+            phrase,
+            events: vec![original.id],
+            grid: Beat::ONE,
+            durations: false,
+        },
+    );
+    let result = &editor.song().phrases[&phrase].events[1];
+    assert_eq!(result.at, Beat::integer(3));
+    assert_eq!(result.note, original.note);
+    editor.undo().unwrap();
+    assert_eq!(editor.song(), &song);
+}
+
+#[test]
+fn triplet_length_only_quantize_preserves_onset_and_raw_values() {
+    let (song, phrase) = fixture();
+    let event = &song.phrases[&phrase].events[0];
+    let result = crest_tracker::editing::quantized_event(
+        event,
+        Beat::integer(4),
+        Beat::new(1, 3).unwrap(),
+        false,
+        true,
+    )
+    .unwrap();
+    assert_eq!(result.at, event.at);
+    let mut expected = event.note.clone().unwrap();
+    expected
+        .quantize_duration(Beat::new(1, 3).unwrap())
+        .unwrap();
+    assert_eq!(result.note, Some(expected));
+    assert_eq!(result.target, event.target);
 }

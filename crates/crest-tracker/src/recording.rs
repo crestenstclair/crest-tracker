@@ -640,7 +640,7 @@ impl Recorder {
         };
         let usage = Some(ChainUse {
             id: chain_use,
-            chain: chain_id,
+            chain: (chain_id).into(),
             repeats: 1,
         });
         if slot == destination.slots.len() {
@@ -1284,10 +1284,10 @@ fn resolve_occurrence(song: &Song, path: Occurrence) -> Result<PhraseId, Documen
         })?;
     let chain = song
         .chains
-        .get(&usage.chain)
+        .get(&usage.chain.pattern()?)
         .ok_or(DocumentError::Missing {
             kind: "chain",
-            id: usage.chain.get(),
+            id: usage.chain.pattern()?.get(),
         })?;
     let phrase = chain
         .phrases

@@ -675,7 +675,7 @@ impl StateProjector {
                             ),
                         ),
                         (None, None) if patch.is_empty() => (
-                            "NEW PATCH · EMPTY".to_owned(),
+                            format!("PATCH {:02} · EMPTY", patch.active_count()),
                             format!(
                                 "{} · CAPACITY {}/{}",
                                 page.engine().active_label(),
