@@ -161,6 +161,11 @@ pub enum Request {
         token: u64,
         quantum: crest_performance_core::BeatTime,
     },
+    PerformanceNoteCondition {
+        token: u64,
+        note: crest_performance_core::NoteKey,
+        condition: crest_performance_core::NoteCondition,
+    },
     PerformanceInput,
     PerformanceClips {
         endpoint: String,
@@ -1166,6 +1171,7 @@ impl App {
             | Request::PerformanceNote { .. }
             | Request::PerformanceUndo { .. }
             | Request::PerformanceQuantize { .. }
+            | Request::PerformanceNoteCondition { .. }
             | Request::PerformanceInput
             | Request::PerformanceRecord { .. }
             | Request::PerformanceCaptureRecent { .. }

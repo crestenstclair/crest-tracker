@@ -62,6 +62,7 @@ impl Runtime {
             slot,
             length: clip.length,
             notes,
+            conditions: clip.conditions.clone(),
             selected,
             can_undo,
         };
@@ -183,6 +184,42 @@ impl Runtime {
         )
     }
 
+    pub(in crate::synth) fn edit_performance_note_condition(
+        &mut self,
+        token: u64,
+        note: NoteKey,
+        condition: crest_performance_core::NoteCondition,
+    ) -> Result<(), String> {
+        let (slot, _, _) = self.require_performance_editor(token)?;
+        condition.validate().map_err(|e| e.to_string())?;
+        let app = self.app.borrow();
+        let editor = app
+            .performance_editor
+            .as_ref()
+            .ok_or("Clip editor unavailable")?;
+        if !editor.notes.iter().any(|entry| entry.id == note) {
+            return Err("Selected note is no longer in this clip".into());
+        }
+        if editor.condition(note) == condition {
+            return Ok(());
+        }
+        drop(app);
+        self.performance_edit_token
+            .checked_add(1)
+            .ok_or("Performance editor revision exhausted")?;
+        self.performance
+            .as_mut()
+            .ok_or("Performance session unavailable")?
+            .command(PerformanceCommand::SetNoteCondition {
+                slot,
+                note,
+                condition,
+            })
+            .map_err(|e| e.to_string())?;
+        self.refresh_performance_editor(slot, Some(note), true)?;
+        self.performance_edit_committed("NOTE RULE CHANGED · Raw notes and expression retained")
+    }
+
     pub(super) fn performance_edit_committed(&mut self, status: &str) -> Result<(), String> {
         self.checkpoint_dirty |= self.performance_recovery.is_some();
         let dirty = self.performance_document()? != self.saved_performance;
@@ -259,6 +296,126 @@ mod tests {
         runtime.undo_performance_edit(edited.token).unwrap();
         assert_eq!(runtime.performance_document().unwrap(), original);
         assert!(!runtime.app.borrow().performance_dirty);
+    }
+
+    #[test]
+    fn periodic_rule_reopens_plays_only_declared_iterations_and_undo_retains_raw_phrase() {
+        use crest_performance_core::NoteCondition;
+        let mut runtime = fixture();
+        let original = runtime.performance_document().unwrap().unwrap();
+        let view = runtime.app.borrow().performance_editor.clone().unwrap();
+        let note = view.notes[0].id;
+        let rule = NoteCondition::Every {
+            period: 4,
+            offset: 3,
+        };
+        runtime
+            .edit_performance_note_condition(view.token, note, rule)
+            .unwrap();
+        let edited = runtime.app.borrow().performance_editor.clone().unwrap();
+        assert_eq!(edited.notes, view.notes);
+        assert_eq!(edited.selected, Some(note));
+        assert_eq!(edited.condition(note), rule);
+        let changed = runtime.performance_document().unwrap().unwrap();
+        let original_clip = original.session.slots[0].clip.as_ref().unwrap();
+        assert_eq!(
+            changed.session.slots[0].clip.as_ref().unwrap().events,
+            original_clip.events
+        );
+
+        assert_periodic_playback(&changed, original_clip, note);
+        assert!(runtime
+            .edit_performance_note_condition(view.token, note, NoteCondition::Always {})
+            .is_err());
+        assert!(runtime
+            .edit_performance_note_condition(
+                edited.token,
+                note,
+                NoteCondition::Every {
+                    period: 0,
+                    offset: 0
+                }
+            )
+            .is_err());
+        assert_eq!(runtime.performance_document().unwrap(), Some(changed));
+        runtime
+            .edit_performance_note_condition(edited.token, note, rule)
+            .unwrap();
+        assert_eq!(
+            runtime
+                .app
+                .borrow()
+                .performance_editor
+                .as_ref()
+                .unwrap()
+                .token,
+            edited.token
+        );
+        runtime.undo_performance_edit(edited.token).unwrap();
+        assert_eq!(runtime.performance_document().unwrap(), Some(original));
+        assert!(!runtime.app.borrow().performance_dirty);
+    }
+
+    fn assert_periodic_playback(
+        changed: &crest_tracker::performance::Document,
+        original_clip: &crest_performance_core::Clip,
+        note: NoteKey,
+    ) {
+        use crest_performance_core::Gesture;
+        let reopened = serde_json::from_slice(&serde_json::to_vec(&changed).unwrap()).unwrap();
+        let mut playback =
+            Performance::new(reopened, Geometry::Pads200, Limits::default()).unwrap();
+        playback
+            .command(PerformanceCommand::Launch {
+                slot: 0,
+                quantum: BeatTime(0),
+            })
+            .unwrap();
+        playback
+            .advance(
+                crest_tracker::performance::tracker_time(BeatTime(original_clip.length.0 * 8))
+                    .unwrap(),
+            )
+            .unwrap();
+        let output: Vec<_> = playback.drain_output().collect();
+        let attacks: Vec<_> = output
+            .iter()
+            .filter(|event| matches!(event.gesture, Gesture::On { key: 63, .. }))
+            .collect();
+        assert_eq!(
+            attacks.iter().map(|event| event.at.0).collect::<Vec<_>>(),
+            [
+                3 * original_clip.length.0 + 5_970,
+                7 * original_clip.length.0 + 5_970
+            ]
+        );
+        assert_eq!(
+            output
+                .iter()
+                .filter(|event| matches!(event.gesture, Gesture::On { .. }))
+                .count(),
+            18
+        );
+        let original_gestures: Vec<_> = original_clip
+            .events
+            .iter()
+            .filter(|event| event.note == note)
+            .map(|event| (event.at.0 - 5_970, event.gesture))
+            .collect();
+        for attack in attacks {
+            assert_eq!(voice_lifetime(&output, attack), original_gestures);
+        }
+    }
+
+    fn voice_lifetime(
+        output: &[crest_performance_core::OutputEvent],
+        attack: &crest_performance_core::OutputEvent,
+    ) -> Vec<(u64, crest_performance_core::Gesture)> {
+        output
+            .iter()
+            .filter(|event| event.voice == attack.voice)
+            .map(|event| (event.at.0 - attack.at.0, event.gesture))
+            .collect()
     }
 
     #[test]

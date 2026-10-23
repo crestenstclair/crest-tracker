@@ -2,7 +2,7 @@
 //! edits add an explicit interval or accept an exact beat fraction.
 use super::*;
 use crate::performance_editor::{note_id, ClipEditor, ClipView};
-use crest_performance_core::{BeatTime, Note, TICKS_PER_BEAT};
+use crest_performance_core::{BeatTime, Note, NoteCondition, TICKS_PER_BEAT};
 use crest_synth::shell::webview::host_presentation::{WorkspaceSpan, WorkspaceTimeline};
 
 pub(super) fn rows(app: &App) -> Vec<WorkspaceRow> {
@@ -30,6 +30,16 @@ pub(super) fn rows(app: &App) -> Vec<WorkspaceRow> {
                     "{} points · Pitch / timbre / pressure retained",
                     note.expression.points.len()
                 ),
+            ),
+            row(
+                "performance_condition_status",
+                "Note playback rule",
+                condition_label(editor.condition(note.id)),
+            ),
+            row(
+                "performance_condition",
+                "Set playback · loop N of P",
+                "1/1 plays every loop",
             ),
         ]);
     }
@@ -94,6 +104,22 @@ pub(super) fn activate(app: &mut App, id: &str) -> bool {
         "performance_editor_launch" => app
             .requests
             .push(Request::PerformanceAudition { slot: editor.slot }),
+        "performance_condition" => {
+            let Some(note) = editor.selected_note() else {
+                return true;
+            };
+            let value = match editor.condition(note.id) {
+                NoteCondition::Every { period, offset } => format!("{}/{period}", offset + 1),
+                _ => "1/1".into(),
+            };
+            let field = format!("performance_value:{}:performance_condition", editor.token);
+            text_entry(
+                app,
+                &field,
+                "Loop / period · 4/4 plays on loops 4, 8, 12; 1/1 always",
+                &value,
+            );
+        }
         "performance_pitch" | "performance_start" | "performance_duration" => {
             let Some(note) = editor.selected_note() else {
                 return true;
@@ -147,6 +173,14 @@ pub(super) fn submit(app: &mut App, id: &str, value: &str) -> Result<(), String>
         .filter(|view| token.parse::<u64>().ok() == Some(view.token))
         .ok_or("Clip editor changed; reopen the note field")?;
     let mut note = editor.selected_note().ok_or("Select a note first")?.clone();
+    if field == "performance_condition" {
+        app.requests.push(Request::PerformanceNoteCondition {
+            token: editor.token,
+            note: note.id,
+            condition: parse_condition(value)?,
+        });
+        return Ok(());
+    }
     match field {
         "performance_pitch" => {
             note.key = value.trim().parse().map_err(|_| "Pitch must be 0–127")?
@@ -195,6 +229,39 @@ fn nudge(at: BeatTime, delta: i32) -> Result<BeatTime, String> {
     }
     .map(BeatTime)
     .ok_or_else(|| "Note timing cannot move beyond its bounds".into())
+}
+fn condition_label(condition: NoteCondition) -> String {
+    match condition {
+        NoteCondition::Always {} => "Every loop".into(),
+        NoteCondition::Every { period, offset } => format!("Loop {} of {period}", offset + 1),
+        NoteCondition::Fill {} => "Fill · held Fill control unavailable".into(),
+        NoteCondition::NotFill {} => "Not Fill · held Fill control unavailable".into(),
+    }
+}
+
+fn parse_condition(value: &str) -> Result<NoteCondition, String> {
+    let (iteration, period) = value
+        .trim()
+        .split_once('/')
+        .ok_or("Enter loop/period, such as 4/4")?;
+    let iteration: u16 = iteration
+        .trim()
+        .parse()
+        .map_err(|_| "Loop must be 1–65535")?;
+    let period: u16 = period
+        .trim()
+        .parse()
+        .map_err(|_| "Period must be 1–65535")?;
+    let offset = iteration.checked_sub(1).ok_or("Loop must start at 1")?;
+    let condition = NoteCondition::Every { period, offset };
+    condition
+        .validate()
+        .map_err(|_| "Loop must be within a nonzero period")?;
+    Ok(if period == 1 {
+        NoteCondition::Always {}
+    } else {
+        condition
+    })
 }
 fn parse_time(value: &str) -> Result<BeatTime, String> {
     crest_tracker::performance::performance_time(notes::parse_beat(value)?)
@@ -385,6 +452,7 @@ mod tests {
             length: BeatTime(TICKS_PER_BEAT),
             selected: Some(note.id),
             notes: vec![note],
+            conditions: Vec::new(),
             can_undo: false,
         });
         open_performance_editor(&mut app);
@@ -422,6 +490,45 @@ mod tests {
         assert!(submit(&mut app, "performance_value:9:performance_start", "1/7").is_err());
         assert_eq!(app.performance_editor.as_ref().unwrap().notes, original);
     }
+    #[test]
+    fn periodic_rule_text_uses_one_based_loops_and_validates_before_request() {
+        let mut app = fixture();
+        app.requests.clear();
+        assert!(activate(&mut app, "performance_condition"));
+        assert!(!app
+            .requests
+            .iter()
+            .any(|request| matches!(request, Request::PerformanceNoteCondition { .. })));
+        app.requests.clear(); // Entering a text form ends any previous edit gesture.
+        submit(&mut app, "performance_value:9:performance_condition", "4/4").unwrap();
+        assert!(matches!(app.requests.as_slice(),
+            [Request::PerformanceNoteCondition { token: 9, note, condition: NoteCondition::Every { period: 4, offset: 3 } }]
+            if note.note == NoteId(u64::MAX)));
+        assert_eq!(parse_condition("1/1").unwrap(), NoteCondition::Always {});
+        assert_eq!(
+            parse_condition(" 2 / 7 ").unwrap(),
+            NoteCondition::Every {
+                period: 7,
+                offset: 1
+            }
+        );
+        for value in [
+            "0/4",
+            "1/0",
+            "5/4",
+            "65536/65536",
+            "4",
+            "1/2/3",
+            "fill",
+            "-1/4",
+        ] {
+            assert!(parse_condition(value).is_err(), "{value}");
+        }
+        app.requests.clear();
+        assert!(submit(&mut app, "performance_value:8:performance_condition", "4/4").is_err());
+        assert!(app.requests.is_empty());
+    }
+
     #[test]
     fn quantization_requires_explicit_activation_and_keeps_editor_token() {
         let mut app = fixture();

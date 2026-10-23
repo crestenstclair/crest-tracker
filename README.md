@@ -304,6 +304,15 @@ when moving later would cross the loop end. Undo restores the original performan
 Applying the same grid again preserves the previous Undo when no notes move. Desktop
 verification quantized the expressive Sample fixture, checked the saved event offsets,
 restored free timing with Undo, and rejected quantization during playback.
+**Set playback · loop N of P** assigns a periodic rule to the selected note through the
+pinned library: `4/4` plays on loops 4, 8, 12 and so on; `1/1` restores every loop.
+The rule gates the complete note lifetime, including its expression and release. Other
+notes keep their own rules. Raw events stay unchanged, save/reopen preserves the rule,
+and Undo restores the prior clip. An unchanged rule preserves Undo; stale commands and
+edits during playback are rejected. Imported Fill/Not Fill rules are displayed, but a
+held Fill control is not implemented. Desktop verification exercised rule entry, no-op,
+Undo, playback rejection and save/reopen; deterministic playback tests independently
+check attacks on loops 4 and 8 and exact expression for each admitted note.
 The clip's Tracker view does not import, quantize or replace the Song's arrangement.
 Native Sample witnesses cover exact movement, Undo, repitching, save/reopen and audible replay.
 Desktop verification exercised keyboard editing, unchanged expression counts, playback

@@ -1,5 +1,5 @@
 //! Transient selection and immutable note projection, separate from Song phrases.
-use crest_performance_core::{BeatTime, Note, NoteKey};
+use crest_performance_core::{BeatTime, ConditionalNote, Note, NoteCondition, NoteKey};
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 pub(crate) enum ClipView {
@@ -29,10 +29,17 @@ pub(crate) struct ClipEditor {
     pub slot: usize,
     pub length: BeatTime,
     pub notes: Vec<Note>,
+    pub conditions: Vec<ConditionalNote>,
     pub selected: Option<NoteKey>,
     pub can_undo: bool,
 }
 impl ClipEditor {
+    pub fn condition(&self, note: NoteKey) -> NoteCondition {
+        self.conditions
+            .iter()
+            .find(|entry| entry.note == note)
+            .map_or(NoteCondition::default(), |entry| entry.condition)
+    }
     pub fn selected_note(&self) -> Option<&Note> {
         self.notes
             .iter()

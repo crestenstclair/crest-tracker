@@ -819,6 +819,11 @@ impl Runtime {
             Request::PerformanceQuantize { token, quantum } => {
                 self.quantize_performance_clip(token, quantum)
             }
+            Request::PerformanceNoteCondition {
+                token,
+                note,
+                condition,
+            } => self.edit_performance_note_condition(token, note, condition),
             Request::PerformanceInput => self.enable_performance_input(sound, clock),
             Request::PerformanceRecord { slot } => self.record_performance(sound, clock, slot),
             Request::PerformanceCaptureRecent { slot } => {
